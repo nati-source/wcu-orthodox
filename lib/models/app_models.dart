@@ -479,26 +479,87 @@ class ChurchProgramModel {
   }
 }
 
+// ============================================================================
+// VOLUNTARY SERVING & 10 EOTC FELLOWSHIP DEPARTMENTS
+// ============================================================================
+
+enum MinistryPillar {
+  spiritualEducation,
+  memberCareSocial,
+  operationsFinance,
+  governanceAudit,
+}
+
+extension MinistryPillarExtension on MinistryPillar {
+  String get displayName {
+    switch (this) {
+      case MinistryPillar.spiritualEducation:
+        return 'Spiritual & Apostolic • መንፈሳዊና ትምህርት';
+      case MinistryPillar.memberCareSocial:
+        return 'Member Care & Charity • እንክብካቤና በጎ አድራጎት';
+      case MinistryPillar.operationsFinance:
+        return 'Operations & Finance • ልማትና ፋይናንስ';
+      case MinistryPillar.governanceAudit:
+        return 'Governance & Audit • ክትትልና ኦዲት';
+    }
+  }
+
+  String get shortName {
+    switch (this) {
+      case MinistryPillar.spiritualEducation:
+        return 'Spiritual';
+      case MinistryPillar.memberCareSocial:
+        return 'Care & Charity';
+      case MinistryPillar.operationsFinance:
+        return 'Finance & Ops';
+      case MinistryPillar.governanceAudit:
+        return 'Governance';
+    }
+  }
+}
+
 class MinistryModel {
   final String id;
-  final String title;
+  final String titleEn;
+  final String titleAmharic;
   final String iconName;
-  final String description;
-  final String teamLead;
+  final String descriptionEn;
+  final String descriptionAmharic;
+  final MinistryPillar pillar;
+  final String teamLead; // Coordinator full name
+  final String coordinatorBaptismalName;
+  final String coordinatorPhone;
+  final String coordinatorRole;
   final int openSlots;
   final int activeCount;
   final List<String> tags;
+  final List<String> subWings;
+  final String meetingSchedule;
+  final String requirements;
 
   MinistryModel({
     required this.id,
-    required this.title,
+    required this.titleEn,
+    required this.titleAmharic,
     required this.iconName,
-    required this.description,
+    required this.descriptionEn,
+    required this.descriptionAmharic,
+    required this.pillar,
     required this.teamLead,
+    required this.coordinatorBaptismalName,
+    required this.coordinatorPhone,
+    required this.coordinatorRole,
     required this.openSlots,
     required this.activeCount,
     required this.tags,
+    required this.subWings,
+    required this.meetingSchedule,
+    required this.requirements,
   });
+
+  // Backwards compatibility getters
+  String get title => titleEn;
+  String get description => descriptionEn;
 }
 
 enum ApplicationStatus { pending, approved, rejected }
@@ -510,13 +571,19 @@ class VolunteerApplicationModel {
   final String studentBaptismalName;
   final String studentDept;
   final String studentPhone;
+  final String studentYear;
   final String ministryId;
   final String ministryTitle;
+  final String ministryAmharicTitle;
+  final String preferredSubWing;
   final String reason;
   final String experience;
   final String availability;
   final ApplicationStatus status;
   final DateTime appliedAt;
+  final DateTime? reviewedAt;
+  final String? reviewedByCoordinator;
+  final String? coordinatorNotes;
 
   VolunteerApplicationModel({
     required this.id,
@@ -525,13 +592,19 @@ class VolunteerApplicationModel {
     required this.studentBaptismalName,
     required this.studentDept,
     required this.studentPhone,
+    this.studentYear = '2nd Year',
     required this.ministryId,
     required this.ministryTitle,
+    this.ministryAmharicTitle = '',
+    this.preferredSubWing = 'General',
     required this.reason,
     required this.experience,
     required this.availability,
     this.status = ApplicationStatus.pending,
     required this.appliedAt,
+    this.reviewedAt,
+    this.reviewedByCoordinator,
+    this.coordinatorNotes,
   });
 
   VolunteerApplicationModel copyWith({
@@ -541,13 +614,19 @@ class VolunteerApplicationModel {
     String? studentBaptismalName,
     String? studentDept,
     String? studentPhone,
+    String? studentYear,
     String? ministryId,
     String? ministryTitle,
+    String? ministryAmharicTitle,
+    String? preferredSubWing,
     String? reason,
     String? experience,
     String? availability,
     ApplicationStatus? status,
     DateTime? appliedAt,
+    DateTime? reviewedAt,
+    String? reviewedByCoordinator,
+    String? coordinatorNotes,
   }) {
     return VolunteerApplicationModel(
       id: id ?? this.id,
@@ -556,15 +635,49 @@ class VolunteerApplicationModel {
       studentBaptismalName: studentBaptismalName ?? this.studentBaptismalName,
       studentDept: studentDept ?? this.studentDept,
       studentPhone: studentPhone ?? this.studentPhone,
+      studentYear: studentYear ?? this.studentYear,
       ministryId: ministryId ?? this.ministryId,
       ministryTitle: ministryTitle ?? this.ministryTitle,
+      ministryAmharicTitle: ministryAmharicTitle ?? this.ministryAmharicTitle,
+      preferredSubWing: preferredSubWing ?? this.preferredSubWing,
       reason: reason ?? this.reason,
       experience: experience ?? this.experience,
       availability: availability ?? this.availability,
       status: status ?? this.status,
       appliedAt: appliedAt ?? this.appliedAt,
+      reviewedAt: reviewedAt ?? this.reviewedAt,
+      reviewedByCoordinator: reviewedByCoordinator ?? this.reviewedByCoordinator,
+      coordinatorNotes: coordinatorNotes ?? this.coordinatorNotes,
     );
   }
+}
+
+class DepartmentMemberModel {
+  final String id;
+  final String departmentId;
+  final String studentId;
+  final String studentName;
+  final String studentBaptismalName;
+  final String studentDept;
+  final String studentYear;
+  final String phoneNumber;
+  final String subWing;
+  final String roleInDepartment;
+  final DateTime joinedDate;
+
+  DepartmentMemberModel({
+    required this.id,
+    required this.departmentId,
+    required this.studentId,
+    required this.studentName,
+    required this.studentBaptismalName,
+    required this.studentDept,
+    required this.studentYear,
+    required this.phoneNumber,
+    required this.subWing,
+    required this.roleInDepartment,
+    required this.joinedDate,
+  });
 }
 
 // ============================================================================

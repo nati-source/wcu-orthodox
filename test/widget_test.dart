@@ -100,6 +100,43 @@ void main() {
     );
     expect(state.quizAttempts.isNotEmpty, true);
     expect(state.familyLeaderboard.isNotEmpty, true);
+
+    // 8. 10 EOTC Fellowship Departments & Coordinator Recruitment Delegation
+    expect(state.ministries.length, 10);
+    final musicDept = state.ministries.firstWhere((m) => m.id == 'dept-music');
+    expect(musicDept.titleAmharic, 'መዝሙርና ስነ ጥበባት');
+    expect(musicDept.teamLead, 'Dawit Fikadu');
+    expect(musicDept.subWings.isNotEmpty, true);
+
+    // Test student applying to Music & Arts
+    state.submitMinistryApplication(
+      ministryId: 'dept-music',
+      reason: 'Singing ancient Yaredic hymns',
+      experience: '2 years parish church choir',
+      availability: 'Wednesdays and Saturdays',
+      studentYear: '2nd Year',
+      preferredSubWing: 'Begena & Instruments (የበገናና መሳሪያዎች)',
+    );
+
+    // Verify Coordinator Queue Filtering
+    final musicApps = state.getApplicationsForDepartment('dept-music');
+    expect(musicApps.isNotEmpty, true);
+    final newApp = musicApps.first;
+    expect(newApp.preferredSubWing, 'Begena & Instruments (የበገናና መሳሪያዎች)');
+
+    // Test Coordinator approving candidate
+    final initialRosterCount = state.getMembersForDepartment('dept-music').length;
+    state.approveVolunteerApplication(
+      newApp.id,
+      notes: 'Welcome! Rehearsal is Wednesday 4 PM.',
+      reviewedBy: 'Dawit Fikadu (Music Coordinator)',
+    );
+
+    final updatedApp = state.volunteerApplications.firstWhere((a) => a.id == newApp.id);
+    expect(updatedApp.status, ApplicationStatus.approved);
+    expect(updatedApp.coordinatorNotes, 'Welcome! Rehearsal is Wednesday 4 PM.');
+    expect(state.getMembersForDepartment('dept-music').length, initialRosterCount + 1);
   });
 }
+
 
