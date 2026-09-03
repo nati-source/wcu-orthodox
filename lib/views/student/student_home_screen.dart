@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
+import 'student_liturgical_calendar_screen.dart';
+import 'student_prayer_book_screen.dart';
+import 'student_confessor_screen.dart';
+import 'student_pilgrimage_screen.dart';
+import 'student_charity_screen.dart';
+import 'student_mentorship_screen.dart';
+import 'student_trivia_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   final FellowshipState state;
@@ -29,10 +36,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     return '$hours:$minutes:$seconds';
   }
 
+  void _navigateTo(Widget screen) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
     final countdownStr = _formatDuration(state.liturgyCountdown);
+    final calDay = state.currentCalendarDay;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -48,6 +62,86 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               fontWeight: FontWeight.w500,
             ),
           ),
+          const SizedBox(height: 12),
+
+          // 0. Daily Liturgical Calendar & Fasting Banner (Interactive)
+          GestureDetector(
+            onTap: () => _navigateTo(StudentLiturgicalCalendarScreen(state: state)),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF263244), Color(0xFF192230)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.goldAccent.withOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.goldAccent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.calendar_today_outlined, color: AppTheme.goldLight, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              calDay.geezDateString,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFF5A65E),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: calDay.isFasting ? const Color(0xFFEF4444).withOpacity(0.2) : const Color(0xFF10B981).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                calDay.isFasting ? 'Fasting' : 'Non-Fasting',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: calDay.isFasting ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          calDay.saintOfTodayGeEz,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_forward_ios, size: 12, color: AppTheme.goldLight),
+                ],
+              ),
+            ),
+          ),
+
           const SizedBox(height: 14),
 
           // 1. Upcoming Liturgy Big Glow Card (Matching screen4 - Copy.png)
@@ -156,7 +250,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
           // QUICK ACTIONS Header
           const Text(
-            'QUICK ACTIONS',
+            'FELLOWSHIP SERVICES & QUICK ACTIONS',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
@@ -166,38 +260,77 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Quick Action 3-Card Grid
+          // Primary Quick Action 3-Card Grid
           Row(
             children: [
-              // 1. Scan Attendance
+              // 1. Daily Prayers
               Expanded(
                 child: _buildQuickActionCard(
-                  icon: Icons.qr_code_scanner,
-                  iconColor: const Color(0xFFE5A65E),
-                  title: 'Scan\nAttendance',
-                  onTap: widget.onOpenScanner,
+                  icon: Icons.menu_book,
+                  iconColor: const Color(0xFFF5A65E),
+                  title: 'Daily\nPrayers',
+                  onTap: () => _navigateTo(StudentPrayerBookScreen(state: state)),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
 
-              // 2. Fellowship Family
+              // 2. Confessor Father
               Expanded(
                 child: _buildQuickActionCard(
-                  icon: Icons.people_alt_outlined,
-                  iconColor: const Color(0xFFE5A65E),
-                  title: 'Fellowship\nFamily',
-                  onTap: () => widget.onNavigateTab(1), // Tab 1 = Family
+                  icon: Icons.shield_outlined,
+                  iconColor: const Color(0xFFF5A65E),
+                  title: 'Father\nConfessor',
+                  onTap: () => _navigateTo(StudentConfessorScreen(state: state)),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
 
-              // 3. Digital Library
+              // 3. Pilgrimage Trips
               Expanded(
                 child: _buildQuickActionCard(
-                  icon: Icons.menu_book_outlined,
-                  iconColor: const Color(0xFFE5A65E),
-                  title: 'Digital\nLibrary',
-                  onTap: () => widget.onNavigateTab(3), // Tab 3 = Library
+                  icon: Icons.directions_bus_outlined,
+                  iconColor: const Color(0xFFF5A65E),
+                  title: 'Pilgrimage\nTrips',
+                  onTap: () => _navigateTo(StudentPilgrimageScreen(state: state)),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // Secondary Quick Action 4-Card Grid
+          Row(
+            children: [
+              // 4. Mutual Aid & Charity
+              Expanded(
+                child: _buildQuickActionCard(
+                  icon: Icons.volunteer_activism_outlined,
+                  iconColor: const Color(0xFF34D399),
+                  title: 'Mutual Aid\n& Charity',
+                  onTap: () => _navigateTo(StudentCharityScreen(state: state)),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // 5. Dept Mentorship
+              Expanded(
+                child: _buildQuickActionCard(
+                  icon: Icons.school_outlined,
+                  iconColor: const Color(0xFF60A5FA),
+                  title: 'Dept\nMentorship',
+                  onTap: () => _navigateTo(StudentMentorshipScreen(state: state)),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // 6. Faith Trivia Quiz
+              Expanded(
+                child: _buildQuickActionCard(
+                  icon: Icons.emoji_events_outlined,
+                  iconColor: const Color(0xFFF59E0B),
+                  title: 'Faith Quiz\nChallenge',
+                  onTap: () => _navigateTo(StudentTriviaScreen(state: state)),
                 ),
               ),
             ],
@@ -205,7 +338,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
           const SizedBox(height: 24),
 
-          // Weekly Christian Education Card (Matching screen4 - Copy.png)
+          // Weekly Christian Education Card
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(

@@ -4,11 +4,21 @@ import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
 import 'student_ministry_screen.dart';
+import 'student_confessor_screen.dart';
+import 'student_pilgrimage_screen.dart';
+import 'student_charity_screen.dart';
+import 'student_mentorship_screen.dart';
 
 class StudentProfileScreen extends StatelessWidget {
   final FellowshipState state;
 
   const StudentProfileScreen({super.key, required this.state});
+
+  void _navigateTo(BuildContext context, Widget screen) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -108,27 +118,132 @@ class StudentProfileScreen extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 20),
+
+                // Details Grid
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryBg.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildIdField('BATCH', user.batchYear),
+                      Container(width: 1, height: 28, color: AppTheme.borderMuted),
+                      _buildIdField('DEPT', user.department.split(' ').first),
+                      Container(width: 1, height: 28, color: AppTheme.borderMuted),
+                      _buildIdField('YEAR', 'Year ${user.academicYear}'),
+                    ],
+                  ),
+                ),
 
                 const SizedBox(height: 18),
-                const Divider(color: AppTheme.borderMuted),
-                const SizedBox(height: 12),
 
-                // Credentials Grid
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildIdField('ACADEMIC YEAR', 'Year ${user.academicYear}'),
-                    _buildIdField('BATCH', user.batchYear),
-                    _buildIdField('DEPARTMENT', user.department.split(' ').first),
-                  ],
+                // Digital Membership QR
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: QrImageView(
+                    data: 'WCU-ORTHODOX-FELLOW:${user.id}:${user.fullName}',
+                    version: QrVersions.auto,
+                    size: 130.0,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'SCAN TO VERIFY FELLOWSHIP MEMBERSHIP',
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textTertiary,
+                    letterSpacing: 1.2,
+                  ),
                 ),
               ],
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
-          // 2. Personal Digital QR Pass (For verification and rapid check-in)
+          // 2. Personal Fellowship Services Matrix
+          const Text(
+            'My Fellowship Engagements',
+            style: TextStyle(
+              fontFamily: 'serif',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.goldLight,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildServiceTile(
+                  icon: Icons.shield_outlined,
+                  color: const Color(0xFFF5A65E),
+                  title: 'My Confession',
+                  subtitle: '${state.myConfessionAppointments.length} Bookings',
+                  onTap: () => _navigateTo(context, StudentConfessorScreen(state: state)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildServiceTile(
+                  icon: Icons.directions_bus_outlined,
+                  color: const Color(0xFF10B981),
+                  title: 'My Pilgrimages',
+                  subtitle: '${state.myTripRegistrations.length} Passes',
+                  onTap: () => _navigateTo(context, StudentPilgrimageScreen(state: state)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildServiceTile(
+                  icon: Icons.school_outlined,
+                  color: const Color(0xFF60A5FA),
+                  title: 'My Mentorship',
+                  subtitle: '${state.myMentorshipRequests.length} Matches',
+                  onTap: () => _navigateTo(context, StudentMentorshipScreen(state: state)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildServiceTile(
+                  icon: Icons.volunteer_activism_outlined,
+                  color: const Color(0xFFF59E0B),
+                  title: 'My Dues & Aid',
+                  subtitle: '${state.duesPayments.length} Receipts',
+                  onTap: () => _navigateTo(context, StudentCharityScreen(state: state)),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+
+          // 3. Ministry & Service Status
+          const Text(
+            'Active Ministry Service',
+            style: TextStyle(
+              fontFamily: 'serif',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.goldLight,
+            ),
+          ),
+          const SizedBox(height: 12),
+
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -139,27 +254,18 @@ class StudentProfileScreen extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppTheme.goldAccent.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: QrImageView(
-                    data: 'WCU-FELLOW-${user.id}-${user.baptismalName}',
-                    version: QrVersions.auto,
-                    size: 80,
-                  ),
+                  child: const Icon(Icons.volunteer_activism, color: AppTheme.goldLight, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Student Digital Pass',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                      const SizedBox(height: 4),
                       Text(
                         'ID: ${user.id} • ${user.phoneNumber}',
                         style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
@@ -330,9 +436,9 @@ class StudentProfileScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
+              gradient: const LinearGradient(
                 colors: [
-                  const Color(0xFF382310),
+                  Color(0xFF382310),
                   AppTheme.secondaryBg,
                 ],
               ),
@@ -405,6 +511,50 @@ class StudentProfileScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildServiceTile({
+    required IconData icon,
+    required Color color,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.secondaryBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.borderMuted),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

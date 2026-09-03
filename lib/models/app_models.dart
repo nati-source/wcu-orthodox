@@ -566,3 +566,907 @@ class VolunteerApplicationModel {
     );
   }
 }
+
+// ============================================================================
+// 1. ETHIOPIAN LITURGICAL CALENDAR & FASTING MODELS
+// ============================================================================
+
+class DailyScriptureModel {
+  final String epistle;
+  final String catholicEpistle;
+  final String acts;
+  final String psalm;
+  final String gospel;
+  final String reflection;
+  final String synaxariumExcerpt;
+
+  const DailyScriptureModel({
+    required this.epistle,
+    required this.catholicEpistle,
+    required this.acts,
+    required this.psalm,
+    required this.gospel,
+    required this.reflection,
+    required this.synaxariumExcerpt,
+  });
+}
+
+class EthiopianCalendarDay {
+  final String geezDateString; // e.g. "ጳጉሜን ፫ / 3" or "መስከረም ፩ / 1"
+  final String geezMonth;
+  final int geezDay;
+  final int geezYear;
+  final DateTime gregorianDate;
+  final String saintOfToday; // e.g. "St. Mary (ማርያም)", "St. George (ጊዮርጊስ)"
+  final String saintOfTodayGeEz;
+  final bool isFasting;
+  final String fastName; // e.g. "Wednesday & Friday Fast / የረቡዕ እና ዓርብ ጾም"
+  final String fastRules; // e.g. "Fast until 3:00 PM (9 ሰዓት), strictly vegan"
+  final bool isFishAllowed;
+  final String fastingUntilHour; // e.g. "3:00 PM (9:00 LT)"
+  final DailyScriptureModel scriptures;
+
+  const EthiopianCalendarDay({
+    required this.geezDateString,
+    required this.geezMonth,
+    required this.geezDay,
+    required this.geezYear,
+    required this.gregorianDate,
+    required this.saintOfToday,
+    required this.saintOfTodayGeEz,
+    required this.isFasting,
+    required this.fastName,
+    required this.fastRules,
+    this.isFishAllowed = false,
+    this.fastingUntilHour = '3:00 PM',
+    required this.scriptures,
+  });
+}
+
+// ============================================================================
+// 2. DAILY PRAYER BOOK (WUDASE MARYAM & YEZEWETIR TSELOT) MODELS
+// ============================================================================
+
+class PrayerSectionModel {
+  final String id;
+  final String titleGeEz;
+  final String titleAmharic;
+  final String titleEn;
+  final String geEzText;
+  final String amharicText;
+  final String? audioUrl;
+  final String? commentary;
+
+  const PrayerSectionModel({
+    required this.id,
+    required this.titleGeEz,
+    required this.titleAmharic,
+    required this.titleEn,
+    required this.geEzText,
+    required this.amharicText,
+    this.audioUrl,
+    this.commentary,
+  });
+}
+
+class PrayerBookModel {
+  final String id;
+  final String title;
+  final String titleGeEz;
+  final String description;
+  final List<PrayerSectionModel> sections;
+
+  const PrayerBookModel({
+    required this.id,
+    required this.title,
+    required this.titleGeEz,
+    required this.description,
+    required this.sections,
+  });
+}
+
+// ============================================================================
+// 3. FATHER CONFESSOR & SPIRITUAL GUIDANCE MODELS
+// ============================================================================
+
+class ConfessorFatherModel {
+  final String id;
+  final String fullName;
+  final String clericalTitle; // e.g. "መልአከ ሰላም ቀሲስ ዮሐንስ", "ቆሞስ አባ ገብረ ሥላሴ"
+  final String churchName;
+  final String phoneNumber;
+  final List<String> availableDays; // e.g. ["Saturday", "Sunday", "Wednesday"]
+  final List<String> availableTimeSlots; // e.g. ["3:00 PM - 5:00 PM", "9:00 AM - 11:30 AM"]
+  final String bio;
+  final String? avatarUrl;
+
+  const ConfessorFatherModel({
+    required this.id,
+    required this.fullName,
+    required this.clericalTitle,
+    required this.churchName,
+    required this.phoneNumber,
+    required this.availableDays,
+    required this.availableTimeSlots,
+    required this.bio,
+    this.avatarUrl,
+  });
+}
+
+enum ConfessionAppointmentStatus { pending, confirmed, completed, cancelled }
+
+extension ConfessionAppointmentStatusExt on ConfessionAppointmentStatus {
+  String get displayName {
+    switch (this) {
+      case ConfessionAppointmentStatus.pending:
+        return 'Pending Approval';
+      case ConfessionAppointmentStatus.confirmed:
+        return 'Confirmed';
+      case ConfessionAppointmentStatus.completed:
+        return 'Completed';
+      case ConfessionAppointmentStatus.cancelled:
+        return 'Cancelled';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case ConfessionAppointmentStatus.pending:
+        return const Color(0xFFF59E0B);
+      case ConfessionAppointmentStatus.confirmed:
+        return const Color(0xFF10B981);
+      case ConfessionAppointmentStatus.completed:
+        return const Color(0xFF3B82F6);
+      case ConfessionAppointmentStatus.cancelled:
+        return const Color(0xFFEF4444);
+    }
+  }
+}
+
+class ConfessionAppointmentModel {
+  final String id;
+  final String studentId;
+  final String studentName;
+  final String studentBaptismalName;
+  final String studentPhone;
+  final String fatherId;
+  final String fatherName;
+  final DateTime scheduledDate;
+  final String timeSlot;
+  final String topic; // "General Confession", "Spiritual Counseling", "Communion Preparation"
+  final ConfessionAppointmentStatus status;
+  final String? notes;
+
+  ConfessionAppointmentModel({
+    required this.id,
+    required this.studentId,
+    required this.studentName,
+    required this.studentBaptismalName,
+    required this.studentPhone,
+    required this.fatherId,
+    required this.fatherName,
+    required this.scheduledDate,
+    required this.timeSlot,
+    required this.topic,
+    this.status = ConfessionAppointmentStatus.pending,
+    this.notes,
+  });
+
+  ConfessionAppointmentModel copyWith({
+    String? id,
+    String? studentId,
+    String? studentName,
+    String? studentBaptismalName,
+    String? studentPhone,
+    String? fatherId,
+    String? fatherName,
+    DateTime? scheduledDate,
+    String? timeSlot,
+    String? topic,
+    ConfessionAppointmentStatus? status,
+    String? notes,
+  }) {
+    return ConfessionAppointmentModel(
+      id: id ?? this.id,
+      studentId: studentId ?? this.studentId,
+      studentName: studentName ?? this.studentName,
+      studentBaptismalName: studentBaptismalName ?? this.studentBaptismalName,
+      studentPhone: studentPhone ?? this.studentPhone,
+      fatherId: fatherId ?? this.fatherId,
+      fatherName: fatherName ?? this.fatherName,
+      scheduledDate: scheduledDate ?? this.scheduledDate,
+      timeSlot: timeSlot ?? this.timeSlot,
+      topic: topic ?? this.topic,
+      status: status ?? this.status,
+      notes: notes ?? this.notes,
+    );
+  }
+}
+
+class AnonymousSpiritualQuestionModel {
+  final String id;
+  final String questionText;
+  final String category; // "Theology & Dogma", "Campus Life & Morals", "Fasting & Canon"
+  final DateTime askedAt;
+  final bool isAnswered;
+  final String? answerText;
+  final String? answeredBy;
+  final bool isPublic;
+
+  AnonymousSpiritualQuestionModel({
+    required this.id,
+    required this.questionText,
+    required this.category,
+    required this.askedAt,
+    this.isAnswered = false,
+    this.answerText,
+    this.answeredBy,
+    this.isPublic = true,
+  });
+
+  AnonymousSpiritualQuestionModel copyWith({
+    String? id,
+    String? questionText,
+    String? category,
+    DateTime? askedAt,
+    bool? isAnswered,
+    String? answerText,
+    String? answeredBy,
+    bool? isPublic,
+  }) {
+    return AnonymousSpiritualQuestionModel(
+      id: id ?? this.id,
+      questionText: questionText ?? this.questionText,
+      category: category ?? this.category,
+      askedAt: askedAt ?? this.askedAt,
+      isAnswered: isAnswered ?? this.isAnswered,
+      answerText: answerText ?? this.answerText,
+      answeredBy: answeredBy ?? this.answeredBy,
+      isPublic: isPublic ?? this.isPublic,
+    );
+  }
+}
+
+class CommunionChecklistItem {
+  final String id;
+  final String title;
+  final String description;
+  bool isChecked;
+
+  CommunionChecklistItem({
+    required this.id,
+    required this.title,
+    required this.description,
+    this.isChecked = false,
+  });
+}
+
+// ============================================================================
+// 4. PILGRIMAGE & TRIP COORDINATOR (WITH TELEBIRR / CBE PAYMENT) MODELS
+// ============================================================================
+
+enum PaymentMethodType {
+  telebirr,
+  cbeBirr,
+  cbeAccount,
+  free,
+}
+
+extension PaymentMethodTypeExt on PaymentMethodType {
+  String get displayName {
+    switch (this) {
+      case PaymentMethodType.telebirr:
+        return 'Telebirr (ቴሌብር)';
+      case PaymentMethodType.cbeBirr:
+        return 'CBE Birr (ሲቢኢ ብር)';
+      case PaymentMethodType.cbeAccount:
+        return 'CBE Account Transfer (የንግድ ባንክ ሒሳብ)';
+      case PaymentMethodType.free:
+        return 'Free / No Fee (ነፃ)';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case PaymentMethodType.telebirr:
+        return Icons.phone_android;
+      case PaymentMethodType.cbeBirr:
+        return Icons.account_balance_wallet;
+      case PaymentMethodType.cbeAccount:
+        return Icons.account_balance;
+      case PaymentMethodType.free:
+        return Icons.check_circle_outline;
+    }
+  }
+}
+
+enum TripPaymentStatus {
+  pendingVerification,
+  verified,
+  rejected,
+  free,
+}
+
+extension TripPaymentStatusExt on TripPaymentStatus {
+  String get displayName {
+    switch (this) {
+      case TripPaymentStatus.pendingVerification:
+        return 'Pending Verification';
+      case TripPaymentStatus.verified:
+        return 'Confirmed / Ticket Issued';
+      case TripPaymentStatus.rejected:
+        return 'Payment Declined';
+      case TripPaymentStatus.free:
+        return 'Confirmed (Free)';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case TripPaymentStatus.pendingVerification:
+        return const Color(0xFFF59E0B);
+      case TripPaymentStatus.verified:
+      case TripPaymentStatus.free:
+        return const Color(0xFF10B981);
+      case TripPaymentStatus.rejected:
+        return const Color(0xFFEF4444);
+    }
+  }
+}
+
+class PilgrimageTripModel {
+  final String id;
+  final String title;
+  final String destination;
+  final DateTime departureDate;
+  final DateTime returnDate;
+  final String departurePoint;
+  final bool isFree;
+  final double feeAmount; // 0.0 if free
+  final String telebirrNumber;
+  final String telebirrAccountName;
+  final String cbeAccountNumber;
+  final String cbeAccountName;
+  final int totalSeats;
+  final int bookedSeats;
+  final List<String> itinerary;
+  final List<String> packingList;
+  final String coordinatorName;
+  final String coordinatorPhone;
+  final String? bannerAssetPath;
+
+  const PilgrimageTripModel({
+    required this.id,
+    required this.title,
+    required this.destination,
+    required this.departureDate,
+    required this.returnDate,
+    required this.departurePoint,
+    this.isFree = false,
+    this.feeAmount = 0.0,
+    required this.telebirrNumber,
+    required this.telebirrAccountName,
+    required this.cbeAccountNumber,
+    required this.cbeAccountName,
+    required this.totalSeats,
+    required this.bookedSeats,
+    required this.itinerary,
+    required this.packingList,
+    required this.coordinatorName,
+    required this.coordinatorPhone,
+    this.bannerAssetPath,
+  });
+
+  int get availableSeats => (totalSeats - bookedSeats).clamp(0, totalSeats);
+
+  PilgrimageTripModel copyWith({
+    String? id,
+    String? title,
+    String? destination,
+    DateTime? departureDate,
+    DateTime? returnDate,
+    String? departurePoint,
+    bool? isFree,
+    double? feeAmount,
+    String? telebirrNumber,
+    String? telebirrAccountName,
+    String? cbeAccountNumber,
+    String? cbeAccountName,
+    int? totalSeats,
+    int? bookedSeats,
+    List<String>? itinerary,
+    List<String>? packingList,
+    String? coordinatorName,
+    String? coordinatorPhone,
+    String? bannerAssetPath,
+  }) {
+    return PilgrimageTripModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      destination: destination ?? this.destination,
+      departureDate: departureDate ?? this.departureDate,
+      returnDate: returnDate ?? this.returnDate,
+      departurePoint: departurePoint ?? this.departurePoint,
+      isFree: isFree ?? this.isFree,
+      feeAmount: feeAmount ?? this.feeAmount,
+      telebirrNumber: telebirrNumber ?? this.telebirrNumber,
+      telebirrAccountName: telebirrAccountName ?? this.telebirrAccountName,
+      cbeAccountNumber: cbeAccountNumber ?? this.cbeAccountNumber,
+      cbeAccountName: cbeAccountName ?? this.cbeAccountName,
+      totalSeats: totalSeats ?? this.totalSeats,
+      bookedSeats: bookedSeats ?? this.bookedSeats,
+      itinerary: itinerary ?? this.itinerary,
+      packingList: packingList ?? this.packingList,
+      coordinatorName: coordinatorName ?? this.coordinatorName,
+      coordinatorPhone: coordinatorPhone ?? this.coordinatorPhone,
+      bannerAssetPath: bannerAssetPath ?? this.bannerAssetPath,
+    );
+  }
+}
+
+class TripRegistrationModel {
+  final String id;
+  final String tripId;
+  final String tripTitle;
+  final String studentId;
+  final String studentName;
+  final String studentBaptismalName;
+  final String studentPhone;
+  final String department;
+  final int academicYear;
+  final int busNumber;
+  final int seatNumber;
+  final double feeAmount;
+  final bool isFree;
+  final PaymentMethodType paymentMethod;
+  final String transactionReference;
+  final TripPaymentStatus paymentStatus;
+  final String qrTicketCode;
+  final DateTime registeredAt;
+
+  TripRegistrationModel({
+    required this.id,
+    required this.tripId,
+    required this.tripTitle,
+    required this.studentId,
+    required this.studentName,
+    required this.studentBaptismalName,
+    required this.studentPhone,
+    required this.department,
+    required this.academicYear,
+    required this.busNumber,
+    required this.seatNumber,
+    required this.feeAmount,
+    this.isFree = false,
+    required this.paymentMethod,
+    required this.transactionReference,
+    this.paymentStatus = TripPaymentStatus.pendingVerification,
+    required this.qrTicketCode,
+    required this.registeredAt,
+  });
+
+  TripRegistrationModel copyWith({
+    String? id,
+    String? tripId,
+    String? tripTitle,
+    String? studentId,
+    String? studentName,
+    String? studentBaptismalName,
+    String? studentPhone,
+    String? department,
+    int? academicYear,
+    int? busNumber,
+    int? seatNumber,
+    double? feeAmount,
+    bool? isFree,
+    PaymentMethodType? paymentMethod,
+    String? transactionReference,
+    TripPaymentStatus? paymentStatus,
+    String? qrTicketCode,
+    DateTime? registeredAt,
+  }) {
+    return TripRegistrationModel(
+      id: id ?? this.id,
+      tripId: tripId ?? this.tripId,
+      tripTitle: tripTitle ?? this.tripTitle,
+      studentId: studentId ?? this.studentId,
+      studentName: studentName ?? this.studentName,
+      studentBaptismalName: studentBaptismalName ?? this.studentBaptismalName,
+      studentPhone: studentPhone ?? this.studentPhone,
+      department: department ?? this.department,
+      academicYear: academicYear ?? this.academicYear,
+      busNumber: busNumber ?? this.busNumber,
+      seatNumber: seatNumber ?? this.seatNumber,
+      feeAmount: feeAmount ?? this.feeAmount,
+      isFree: isFree ?? this.isFree,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      transactionReference: transactionReference ?? this.transactionReference,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      qrTicketCode: qrTicketCode ?? this.qrTicketCode,
+      registeredAt: registeredAt ?? this.registeredAt,
+    );
+  }
+}
+
+// ============================================================================
+// 5. STUDENT MUTUAL AID & CHARITY FUND MODELS
+// ============================================================================
+
+class CharityCampaignModel {
+  final String id;
+  final String title;
+  final String description;
+  final double targetAmount;
+  final double raisedAmount;
+  final int donorsCount;
+  final DateTime deadline;
+  final bool isEmergency;
+  final String category; // "Student Mutual Aid", "Orphanage Outreach", "Church Construction"
+
+  const CharityCampaignModel({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.targetAmount,
+    required this.raisedAmount,
+    required this.donorsCount,
+    required this.deadline,
+    this.isEmergency = false,
+    this.category = 'Student Mutual Aid',
+  });
+
+  double get progressPercentage => (raisedAmount / targetAmount).clamp(0.0, 1.0);
+}
+
+class DuesPaymentModel {
+  final String id;
+  final String studentId;
+  final String studentName;
+  final double amount;
+  final String purpose; // "Monthly Fellowship Dues", "Student Aid Donation"
+  final PaymentMethodType paymentMethod;
+  final String transactionReference;
+  final String status; // "Verified", "Pending Verification"
+  final DateTime submittedAt;
+
+  const DuesPaymentModel({
+    required this.id,
+    required this.studentId,
+    required this.studentName,
+    required this.amount,
+    required this.purpose,
+    required this.paymentMethod,
+    required this.transactionReference,
+    required this.status,
+    required this.submittedAt,
+  });
+}
+
+enum EmergencyAidCategory {
+  medical,
+  foodCafeteria,
+  academicSupplies,
+  emergencyTransport,
+  other,
+}
+
+extension EmergencyAidCategoryExt on EmergencyAidCategory {
+  String get displayName {
+    switch (this) {
+      case EmergencyAidCategory.medical:
+        return 'Medical & Prescription (ሕክምና)';
+      case EmergencyAidCategory.foodCafeteria:
+        return 'Food & Living Expenses (ምግብና ኑሮ)';
+      case EmergencyAidCategory.academicSupplies:
+        return 'Academic Supplies (መጻሕፍትና ማቴሪያል)';
+      case EmergencyAidCategory.emergencyTransport:
+        return 'Emergency Travel (ድንገተኛ ጉዞ)';
+      case EmergencyAidCategory.other:
+        return 'Other Urgent Need (ሌላ አስቸኳይ)';
+    }
+  }
+}
+
+enum EmergencyAidStatus {
+  underReview,
+  approved,
+  disbursed,
+  declined,
+}
+
+extension EmergencyAidStatusExt on EmergencyAidStatus {
+  String get displayName {
+    switch (this) {
+      case EmergencyAidStatus.underReview:
+        return 'Under Review';
+      case EmergencyAidStatus.approved:
+        return 'Approved';
+      case EmergencyAidStatus.disbursed:
+        return 'Aid Disbursed';
+      case EmergencyAidStatus.declined:
+        return 'Declined';
+    }
+  }
+
+  Color get color {
+    switch (this) {
+      case EmergencyAidStatus.underReview:
+        return const Color(0xFFF59E0B);
+      case EmergencyAidStatus.approved:
+        return const Color(0xFF3B82F6);
+      case EmergencyAidStatus.disbursed:
+        return const Color(0xFF10B981);
+      case EmergencyAidStatus.declined:
+        return const Color(0xFFEF4444);
+    }
+  }
+}
+
+class EmergencyAidRequestModel {
+  final String id;
+  final String studentId;
+  final String studentName;
+  final String studentBaptismalName;
+  final String studentPhone;
+  final String department;
+  final int academicYear;
+  final EmergencyAidCategory category;
+  final String description;
+  final double amountRequested;
+  final EmergencyAidStatus status;
+  final DateTime submittedAt;
+  final String? adminNote;
+
+  EmergencyAidRequestModel({
+    required this.id,
+    required this.studentId,
+    required this.studentName,
+    required this.studentBaptismalName,
+    required this.studentPhone,
+    required this.department,
+    required this.academicYear,
+    required this.category,
+    required this.description,
+    required this.amountRequested,
+    this.status = EmergencyAidStatus.underReview,
+    required this.submittedAt,
+    this.adminNote,
+  });
+
+  EmergencyAidRequestModel copyWith({
+    String? id,
+    String? studentId,
+    String? studentName,
+    String? studentBaptismalName,
+    String? studentPhone,
+    String? department,
+    int? academicYear,
+    EmergencyAidCategory? category,
+    String? description,
+    double? amountRequested,
+    EmergencyAidStatus? status,
+    DateTime? submittedAt,
+    String? adminNote,
+  }) {
+    return EmergencyAidRequestModel(
+      id: id ?? this.id,
+      studentId: studentId ?? this.studentId,
+      studentName: studentName ?? this.studentName,
+      studentBaptismalName: studentBaptismalName ?? this.studentBaptismalName,
+      studentPhone: studentPhone ?? this.studentPhone,
+      department: department ?? this.department,
+      academicYear: academicYear ?? this.academicYear,
+      category: category ?? this.category,
+      description: description ?? this.description,
+      amountRequested: amountRequested ?? this.amountRequested,
+      status: status ?? this.status,
+      submittedAt: submittedAt ?? this.submittedAt,
+      adminNote: adminNote ?? this.adminNote,
+    );
+  }
+}
+
+// ============================================================================
+// 6. DEPARTMENT MENTORSHIP MATCHING MODELS
+// ============================================================================
+
+class AcademicMentorModel {
+  final String id;
+  final String studentId;
+  final String fullName;
+  final String baptismalName;
+  final String department;
+  final int academicYear; // e.g. 4 or 5
+  final List<String> specialties; // e.g. ["Data Structures", "Algorithms", "Database Systems"]
+  final String telegramHandle;
+  final String phoneNumber;
+  final int activeMenteesCount;
+  final int maxMentees;
+  final bool isAvailable;
+
+  const AcademicMentorModel({
+    required this.id,
+    required this.studentId,
+    required this.fullName,
+    required this.baptismalName,
+    required this.department,
+    required this.academicYear,
+    required this.specialties,
+    required this.telegramHandle,
+    required this.phoneNumber,
+    this.activeMenteesCount = 1,
+    this.maxMentees = 3,
+    this.isAvailable = true,
+  });
+
+  AcademicMentorModel copyWith({
+    String? id,
+    String? studentId,
+    String? fullName,
+    String? baptismalName,
+    String? department,
+    int? academicYear,
+    List<String>? specialties,
+    String? telegramHandle,
+    String? phoneNumber,
+    int? activeMenteesCount,
+    int? maxMentees,
+    bool? isAvailable,
+  }) {
+    return AcademicMentorModel(
+      id: id ?? this.id,
+      studentId: studentId ?? this.studentId,
+      fullName: fullName ?? this.fullName,
+      baptismalName: baptismalName ?? this.baptismalName,
+      department: department ?? this.department,
+      academicYear: academicYear ?? this.academicYear,
+      specialties: specialties ?? this.specialties,
+      telegramHandle: telegramHandle ?? this.telegramHandle,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      activeMenteesCount: activeMenteesCount ?? this.activeMenteesCount,
+      maxMentees: maxMentees ?? this.maxMentees,
+      isAvailable: isAvailable ?? this.isAvailable,
+    );
+  }
+}
+
+enum MentorshipStatus { pending, matched, completed, declined }
+
+class MentorshipRequestModel {
+  final String id;
+  final String juniorStudentId;
+  final String juniorName;
+  final String juniorBaptismalName;
+  final String department;
+  final int academicYear;
+  final String mentorId;
+  final String mentorName;
+  final String coursesNeeded;
+  final MentorshipStatus status;
+  final DateTime requestedAt;
+
+  MentorshipRequestModel({
+    required this.id,
+    required this.juniorStudentId,
+    required this.juniorName,
+    required this.juniorBaptismalName,
+    required this.department,
+    required this.academicYear,
+    required this.mentorId,
+    required this.mentorName,
+    required this.coursesNeeded,
+    this.status = MentorshipStatus.pending,
+    required this.requestedAt,
+  });
+
+  MentorshipRequestModel copyWith({
+    String? id,
+    String? juniorStudentId,
+    String? juniorName,
+    String? juniorBaptismalName,
+    String? department,
+    int? academicYear,
+    String? mentorId,
+    String? mentorName,
+    String? coursesNeeded,
+    MentorshipStatus? status,
+    DateTime? requestedAt,
+  }) {
+    return MentorshipRequestModel(
+      id: id ?? this.id,
+      juniorStudentId: juniorStudentId ?? this.juniorStudentId,
+      juniorName: juniorName ?? this.juniorName,
+      juniorBaptismalName: juniorBaptismalName ?? this.juniorBaptismalName,
+      department: department ?? this.department,
+      academicYear: academicYear ?? this.academicYear,
+      mentorId: mentorId ?? this.mentorId,
+      mentorName: mentorName ?? this.mentorName,
+      coursesNeeded: coursesNeeded ?? this.coursesNeeded,
+      status: status ?? this.status,
+      requestedAt: requestedAt ?? this.requestedAt,
+    );
+  }
+}
+
+// ============================================================================
+// 7. THEOLOGICAL TRIVIA & WEEKLY FAITH CHALLENGE MODELS
+// ============================================================================
+
+class TriviaQuestionModel {
+  final String id;
+  final String questionAmharic;
+  final String questionEnglish;
+  final List<String> options;
+  final int correctOptionIndex;
+  final String explanation;
+  final String bibleReference;
+
+  const TriviaQuestionModel({
+    required this.id,
+    required this.questionAmharic,
+    required this.questionEnglish,
+    required this.options,
+    required this.correctOptionIndex,
+    required this.explanation,
+    required this.bibleReference,
+  });
+}
+
+class TriviaQuizModel {
+  final String id;
+  final int weekNumber;
+  final String title;
+  final String description;
+  final List<TriviaQuestionModel> questions;
+  final int timeLimitMinutes;
+
+  const TriviaQuizModel({
+    required this.id,
+    required this.weekNumber,
+    required this.title,
+    required this.description,
+    required this.questions,
+    this.timeLimitMinutes = 5,
+  });
+}
+
+class QuizAttemptModel {
+  final String id;
+  final String studentId;
+  final String studentName;
+  final String familyId;
+  final String familyName;
+  final String quizId;
+  final int score;
+  final int totalQuestions;
+  final DateTime completedAt;
+
+  const QuizAttemptModel({
+    required this.id,
+    required this.studentId,
+    required this.studentName,
+    required this.familyId,
+    required this.familyName,
+    required this.quizId,
+    required this.score,
+    required this.totalQuestions,
+    required this.completedAt,
+  });
+}
+
+class FamilyLeaderboardEntry {
+  final String familyId;
+  final String familyName;
+  final int totalScore;
+  final int participantsCount;
+  final int rank;
+
+  const FamilyLeaderboardEntry({
+    required this.familyId,
+    required this.familyName,
+    required this.totalScore,
+    required this.participantsCount,
+    required this.rank,
+  });
+}
+

@@ -39,16 +39,16 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _fellowshipState,
-      builder: (context, _) {
-        return MaterialApp(
-          title: 'WCU Orthodox Fellowship',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.darkTheme,
-          home: MainFellowshipScaffold(state: _fellowshipState),
-        );
-      },
+    return MaterialApp(
+      title: 'WCU Orthodox Fellowship',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.darkTheme,
+      home: AnimatedBuilder(
+        animation: _fellowshipState,
+        builder: (context, _) {
+          return MainFellowshipScaffold(state: _fellowshipState);
+        },
+      ),
     );
   }
 }
@@ -109,8 +109,8 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
               subtitle: isAdmin
                   ? 'Admin Portal • ${state.activeRole.displayName}'
                   : 'Welcome, ${state.currentUser.fullName.split(' ').first}',
-              showQrIcon: !isAdmin,
-              onQrTap: !isAdmin ? _openQrScanner : null,
+              showQrIcon: true,
+              onQrTap: _openQrScanner,
               onNotificationTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

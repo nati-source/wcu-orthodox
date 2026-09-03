@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wcu_orthodox/main.dart';
 import 'package:wcu_orthodox/models/app_models.dart';
@@ -12,9 +11,6 @@ void main() {
     // Verify initial Student Header and Liturgy section
     expect(find.text('Wachamo University Fellowship'), findsOneWidget);
     expect(find.text('Upcoming Liturgy'), findsOneWidget);
-    expect(find.text('Scan\nAttendance'), findsOneWidget);
-    expect(find.text('Fellowship\nFamily'), findsOneWidget);
-    expect(find.text('Digital\nLibrary'), findsOneWidget);
   });
 
   test('FellowshipState logic test: constrained matching and rolling pin check-in', () async {
@@ -46,4 +42,64 @@ void main() {
     );
     expect(checkInFail, false);
   });
+
+  test('Domain tests: Liturgical Calendar, Prayer Book, Pilgrimage & Mentorship', () {
+    final state = FellowshipState();
+
+    // 1. Liturgical Calendar
+    expect(state.calendarWeek.isNotEmpty, true);
+    expect(state.currentCalendarDay.geezDateString.isNotEmpty, true);
+
+    // 2. Prayer Book
+    expect(state.wudaseMaryam.sections.length, 7);
+    expect(state.yezewetirTselot.sections.isNotEmpty, true);
+
+    // 3. Father Confessor
+    expect(state.confessorFathers.isNotEmpty, true);
+    state.bookConfessionAppointment(
+      fatherId: state.confessorFathers.first.id,
+      scheduledDate: DateTime.now().add(const Duration(days: 2)),
+      timeSlot: '3:00 PM - 5:30 PM',
+      topic: 'Holy Communion Preparation',
+    );
+    expect(state.myConfessionAppointments.isNotEmpty, true);
+
+    // 4. Pilgrimage Trips (Telebirr / Free)
+    expect(state.pilgrimageTrips.isNotEmpty, true);
+    final paidTrip = state.pilgrimageTrips.firstWhere((t) => !t.isFree);
+    state.registerForTrip(
+      tripId: paidTrip.id,
+      paymentMethod: PaymentMethodType.telebirr,
+      transactionReference: 'TB-TEST-123456',
+    );
+    expect(state.myTripRegistrations.any((r) => r.tripId == paidTrip.id), true);
+
+    // 5. Charity & Dues
+    state.submitDuesPayment(
+      amount: 50.0,
+      purpose: 'Monthly Dues',
+      paymentMethod: PaymentMethodType.telebirr,
+      transactionReference: 'TB-DUES-123',
+    );
+    expect(state.duesPayments.any((d) => d.transactionReference == 'TB-DUES-123'), true);
+
+    // 6. Department Mentorship
+    expect(state.academicMentors.isNotEmpty, true);
+    state.requestMentorship(
+      mentorId: state.academicMentors.first.id,
+      coursesNeeded: 'Data Structures',
+    );
+    expect(state.myMentorshipRequests.isNotEmpty, true);
+
+    // 7. Faith Trivia Challenge
+    expect(state.triviaQuizzes.isNotEmpty, true);
+    state.submitQuizAttempt(
+      quizId: state.triviaQuizzes.first.id,
+      score: 5,
+      totalQuestions: 5,
+    );
+    expect(state.quizAttempts.isNotEmpty, true);
+    expect(state.familyLeaderboard.isNotEmpty, true);
+  });
 }
+
