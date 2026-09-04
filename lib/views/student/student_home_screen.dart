@@ -45,6 +45,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final secondaryAccent = theme.colorScheme.secondary;
     final countdownStr = _formatDuration(state.liturgyCountdown);
     final calDay = state.currentCalendarDay;
 
@@ -70,23 +73,26 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF263244), Color(0xFF192230)],
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.surfaceContainerHighest,
+                    theme.colorScheme.surface,
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppTheme.goldAccent.withOpacity(0.4)),
+                border: Border.all(color: primaryAccent.withOpacity(0.4)),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.goldAccent.withOpacity(0.15),
+                      color: primaryAccent.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.calendar_today_outlined, color: AppTheme.goldLight, size: 20),
+                    child: Icon(Icons.calendar_today_outlined, color: primaryAccent, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -97,10 +103,10 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           children: [
                             Text(
                               calDay.geezDateString,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFFF5A65E),
+                                color: primaryAccent,
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -136,7 +142,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.arrow_forward_ios, size: 12, color: AppTheme.goldLight),
+                  Icon(Icons.arrow_forward_ios, size: 12, color: primaryAccent),
                 ],
               ),
             ),
@@ -150,15 +156,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF2C3545),
-                  const Color(0xFF1E2633),
-                  AppTheme.secondaryBg,
+                  theme.colorScheme.surfaceContainerHighest,
+                  theme.colorScheme.surface,
+                  theme.scaffoldBackgroundColor,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppTheme.borderMuted.withOpacity(0.8), width: 1.2),
+              border: Border.all(color: primaryAccent.withOpacity(0.4), width: 1.2),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.4),
@@ -187,17 +193,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       scale: 0.85,
                       child: Switch(
                         value: _reminderEnabled,
-                        activeColor: Colors.white,
-                        activeTrackColor: const Color(0xFFE57E12),
+                        activeColor: Colors.black,
+                        activeTrackColor: primaryAccent,
                         inactiveThumbColor: AppTheme.textSecondary,
-                        inactiveTrackColor: AppTheme.surfaceColor,
+                        inactiveTrackColor: theme.colorScheme.surface,
                         onChanged: (val) {
                           setState(() => _reminderEnabled = val);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(val ? 'Liturgy reminder activated' : 'Reminder silenced'),
                               duration: const Duration(seconds: 1),
-                              backgroundColor: AppTheme.surfaceColor,
+                              backgroundColor: theme.colorScheme.surface,
                             ),
                           );
                         },
@@ -208,7 +214,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, color: AppTheme.goldLight, size: 16),
+                    Icon(Icons.location_on_outlined, color: primaryAccent, size: 16),
                     const SizedBox(width: 4),
                     const Text(
                       'St. Mary\'s Orthodox Church',
@@ -224,11 +230,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 // Liturgy Countdown Numbers (e.g. 02:15:45)
                 Text(
                   countdownStr,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'serif',
                     fontSize: 42,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFFF5A65E),
+                    color: primaryAccent,
                     letterSpacing: 2.0,
                   ),
                 ),
@@ -531,15 +537,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     required String title,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFF222B3A),
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppTheme.borderMuted.withOpacity(0.7)),
+          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.25),

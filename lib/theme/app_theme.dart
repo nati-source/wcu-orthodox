@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import '../models/app_models.dart';
 
 class AppTheme {
-  // Sacred Ethiopian Orthodox Palette
+  // Sacred Ethiopian Orthodox Palette Defaults
   static const Color primaryBg = Color(0xFF0C1017);
   static const Color secondaryBg = Color(0xFF131923);
   static const Color surfaceColor = Color(0xFF1A2230);
@@ -51,25 +52,45 @@ class AppTheme {
     end: Alignment.bottomCenter,
   );
 
-  static ThemeData get darkTheme {
+  static ThemeData get darkTheme => getTheme(AppThemePalette.midnightGold);
+
+  // Context-aware dynamic theme getters
+  static Color bg(BuildContext context) => Theme.of(context).scaffoldBackgroundColor;
+  static Color surface(BuildContext context) => Theme.of(context).colorScheme.surface;
+  static Color card(BuildContext context) => Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface;
+  static Color accent(BuildContext context) => Theme.of(context).colorScheme.primary;
+  static Color accentLight(BuildContext context) => Theme.of(context).colorScheme.secondary;
+  static Color text(BuildContext context) => Theme.of(context).colorScheme.onSurface;
+
+  static ThemeData getTheme(AppThemePalette palette) {
+    final bg = palette.scaffoldBg;
+    final secBg = palette.surfaceBg;
+    final surface = palette.cardBg;
+    final elevated = palette.elevatedBg;
+    final accent = palette.secondaryAccent;
+    final accentLight = palette.primaryAccent;
+
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: primaryBg,
-      primaryColor: goldAccent,
-      colorScheme: const ColorScheme.dark(
-        primary: goldAccent,
-        secondary: goldLight,
-        surface: surfaceColor,
+      scaffoldBackgroundColor: bg,
+      canvasColor: bg,
+      cardColor: surface,
+      primaryColor: accent,
+      colorScheme: ColorScheme.dark(
+        primary: accentLight,
+        secondary: accent,
+        surface: surface,
+        surfaceContainerHighest: elevated,
         error: crimson,
         onPrimary: Colors.black,
-        onSecondary: Colors.black,
+        onSecondary: Colors.white,
         onSurface: textPrimary,
         onError: Colors.white,
       ),
       fontFamily: 'serif',
-      appBarTheme: const AppBarTheme(
-        backgroundColor: primaryBg,
+      appBarTheme: AppBarTheme(
+        backgroundColor: bg,
         elevation: 0,
         centerTitle: false,
         scrolledUnderElevation: 0,
@@ -77,13 +98,13 @@ class AppTheme {
           fontFamily: 'serif',
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: goldLight,
+          color: accentLight,
           letterSpacing: 0.5,
         ),
-        iconTheme: IconThemeData(color: goldLight),
+        iconTheme: IconThemeData(color: accentLight),
       ),
       cardTheme: CardThemeData(
-        color: surfaceColor,
+        color: surface,
         elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -93,7 +114,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: secondaryBg,
+        fillColor: secBg,
         contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -105,15 +126,15 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: goldAccent, width: 1.5),
+          borderSide: BorderSide(color: accentLight, width: 1.5),
         ),
         hintStyle: const TextStyle(color: textTertiary, fontSize: 14),
-        labelStyle: const TextStyle(color: goldLight, fontSize: 14),
+        labelStyle: TextStyle(color: accentLight, fontSize: 14),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: goldAccent,
-          foregroundColor: Colors.white,
+          backgroundColor: accentLight,
+          foregroundColor: Colors.black,
           elevation: 3,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -126,25 +147,38 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: goldLight,
-          side: const BorderSide(color: goldAccent, width: 1.5),
+          foregroundColor: accentLight,
+          side: BorderSide(color: accentLight, width: 1.5),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF0E131B),
-        selectedItemColor: goldLight,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: accentLight,
+        foregroundColor: Colors.black,
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: bg,
+        selectedItemColor: accentLight,
         unselectedItemColor: slateMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
-        selectedLabelStyle: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 11),
+        selectedLabelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
       ),
       dividerTheme: const DividerThemeData(
         color: borderMuted,
         thickness: 1,
         space: 24,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: elevated,
+        contentTextStyle: const TextStyle(color: Colors.white, fontSize: 13),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: accentLight.withOpacity(0.5)),
+        ),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

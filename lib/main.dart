@@ -39,16 +39,16 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'WCU Orthodox Fellowship',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.darkTheme,
-      home: AnimatedBuilder(
-        animation: _fellowshipState,
-        builder: (context, _) {
-          return MainFellowshipScaffold(state: _fellowshipState);
-        },
-      ),
+    return AnimatedBuilder(
+      animation: _fellowshipState,
+      builder: (context, _) {
+        return MaterialApp(
+          title: 'WCU Orthodox Fellowship',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.getTheme(_fellowshipState.currentThemePalette),
+          home: MainFellowshipScaffold(state: _fellowshipState),
+        );
+      },
     );
   }
 }
@@ -89,13 +89,167 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
     );
   }
 
+  void _openNotificationsModal(BuildContext context, bool isAdmin) {
+    final state = widget.state;
+    final alert = state.latestEmergencyBroadcast;
+    final pendingCount = state.pendingApprovals.length;
+    final volunteerCount = state.volunteerApplications.where((a) => a.status == ApplicationStatus.pending).length;
+    final apptCount = state.myConfessionAppointments.length;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.goldAccent.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.notifications_active, color: AppTheme.goldLight, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Fellowship Alerts & Notices',
+                        style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppTheme.textSecondary, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (alert != null) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.crimson.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.crimson.withOpacity(0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.campaign, color: AppTheme.crimson, size: 24),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(alert.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            const SizedBox(height: 2),
+                            Text(alert.description, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppTheme.secondaryBg,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppTheme.borderMuted),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.church_outlined, color: AppTheme.goldLight, size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Upcoming Sunday Divine Liturgy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          const SizedBox(height: 2),
+                          Text('St. Mary\'s Orthodox Church • Liturgy starts at 6:00 AM (12:00 LT)', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isAdmin) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondaryBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.azure.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.verified_user_outlined, color: AppTheme.azure, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '$pendingCount student registrations & $volunteerCount department applications require admin review.',
+                          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else if (apptCount > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondaryBg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppTheme.emerald.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.calendar_month, color: AppTheme.emerald, size: 22),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'You have active Confession Father counseling appointments. Check your Prep & Checklist tab.',
+                          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
     final isAdmin = state.activeRole == UserRole.admin;
 
+    final theme = Theme.of(context);
+    final isStudent = !isAdmin;
+
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -111,16 +265,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                   : 'Welcome, ${state.currentUser.fullName.split(' ').first}',
               showQrIcon: true,
               onQrTap: _openQrScanner,
-              onNotificationTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isAdmin
-                        ? 'Admin Alerts: 4 pending student registrations require approval.'
-                        : 'Fellowship Alerts: Upcoming Sunday Divine Liturgy in 2h 15m.'),
-                    backgroundColor: AppTheme.surfaceColor,
-                  ),
-                );
-              },
+              onNotificationTap: () => _openNotificationsModal(context, isAdmin),
             ),
 
             // Main Body Content
@@ -135,14 +280,14 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
       bottomNavigationBar: isAdmin
           ? _buildAdminBottomNav()
           : _buildStudentBottomNav(),
-      floatingActionButton: !isAdmin && _studentTabIndex == 0
+      floatingActionButton: isStudent && _studentTabIndex == 0
           ? FloatingActionButton.extended(
               onPressed: _openRegistrationModal,
-              backgroundColor: const Color(0xFFD4690B),
-              icon: const Icon(Icons.person_add_alt_1, color: Colors.white, size: 20),
+              backgroundColor: theme.colorScheme.primary,
+              icon: const Icon(Icons.person_add_alt_1, color: Colors.black, size: 20),
               label: const Text(
                 'Registration Form',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
               ),
             )
           : null,
@@ -181,38 +326,42 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
   }
 
   Widget _buildStudentBottomNav() {
+    final theme = Theme.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0C1017),
-        border: Border(top: BorderSide(color: Color(0xFF1E2838), width: 1)),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        border: Border(top: BorderSide(color: theme.colorScheme.primary.withOpacity(0.2), width: 1)),
       ),
       child: BottomNavigationBar(
         currentIndex: _studentTabIndex,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        selectedItemColor: theme.colorScheme.primary,
+        unselectedItemColor: AppTheme.slateMuted,
         onTap: (index) => setState(() => _studentTabIndex = index),
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home, color: theme.colorScheme.primary),
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.people_outline),
-            activeIcon: Icon(Icons.people, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.people_outline),
+            activeIcon: Icon(Icons.people, color: theme.colorScheme.primary),
             label: 'Family',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.timeline_outlined),
-            activeIcon: Icon(Icons.timeline, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.timeline_outlined),
+            activeIcon: Icon(Icons.timeline, color: theme.colorScheme.primary),
             label: 'Roadmap',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_outlined),
-            activeIcon: Icon(Icons.menu_book, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.menu_book_outlined),
+            activeIcon: Icon(Icons.menu_book, color: theme.colorScheme.primary),
             label: 'Library',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle_outlined),
-            activeIcon: Icon(Icons.account_circle, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.account_circle_outlined),
+            activeIcon: Icon(Icons.account_circle, color: theme.colorScheme.primary),
             label: 'Profile',
           ),
         ],
@@ -249,38 +398,42 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
   }
 
   Widget _buildAdminBottomNav() {
+    final theme = Theme.of(context);
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0C1017),
-        border: Border(top: BorderSide(color: Color(0xFF1E2838), width: 1)),
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        border: Border(top: BorderSide(color: theme.colorScheme.primary.withOpacity(0.2), width: 1)),
       ),
       child: BottomNavigationBar(
         currentIndex: _adminTabIndex.clamp(0, 4),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        selectedItemColor: theme.colorScheme.primary,
+        unselectedItemColor: AppTheme.slateMuted,
         onTap: (index) => setState(() => _adminTabIndex = index),
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard, color: theme.colorScheme.primary),
             label: 'Dash',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.hub_outlined),
-            activeIcon: Icon(Icons.hub, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.hub_outlined),
+            activeIcon: Icon(Icons.hub, color: theme.colorScheme.primary),
             label: 'Matching',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.qr_code_2),
-            activeIcon: Icon(Icons.qr_code_2, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.qr_code_2),
+            activeIcon: Icon(Icons.qr_code_2, color: theme.colorScheme.primary),
             label: 'Live QR',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.verified_user_outlined),
-            activeIcon: Icon(Icons.verified_user, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.verified_user_outlined),
+            activeIcon: Icon(Icons.verified_user, color: theme.colorScheme.primary),
             label: 'Approvals',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.library_add_outlined),
-            activeIcon: Icon(Icons.library_add, color: Color(0xFFF5A65E)),
+            icon: const Icon(Icons.library_add_outlined),
+            activeIcon: Icon(Icons.library_add, color: theme.colorScheme.primary),
             label: 'Publish',
           ),
         ],

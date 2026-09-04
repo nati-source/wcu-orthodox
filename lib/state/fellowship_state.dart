@@ -5,10 +5,18 @@ import '../models/app_models.dart';
 
 class FellowshipState extends ChangeNotifier {
   // ----------------------------------------------------
-  // ACTIVE USER & ROLE SWITCHING
+  // ACTIVE USER, THEME & ROLE SWITCHING
   // ----------------------------------------------------
   UserRole _activeRole = UserRole.student;
   UserRole get activeRole => _activeRole;
+
+  AppThemePalette _currentThemePalette = AppThemePalette.midnightGold;
+  AppThemePalette get currentThemePalette => _currentThemePalette;
+
+  void setThemePalette(AppThemePalette palette) {
+    _currentThemePalette = palette;
+    notifyListeners();
+  }
 
   UserModel _currentUser = UserModel(
     id: 'usr-current',
@@ -480,21 +488,49 @@ class FellowshipState extends ChangeNotifier {
   }
 
   // ----------------------------------------------------
-  // DOMAIN 7: VOLUNTARY SERVING AREAS
+  // DOMAIN 7: 10 EOTC FELLOWSHIP DEPARTMENTS & COORDINATOR DELEGATION
   // ----------------------------------------------------
   List<MinistryModel> _ministries = [];
   List<VolunteerApplicationModel> _volunteerApplications = [];
+  List<DepartmentMemberModel> _departmentMembers = [];
+  String? _selectedCoordinatorDepartmentId;
 
   List<MinistryModel> get ministries => List.unmodifiable(_ministries);
   List<VolunteerApplicationModel> get volunteerApplications => List.unmodifiable(_volunteerApplications);
+  List<DepartmentMemberModel> get departmentMembers => List.unmodifiable(_departmentMembers);
+  String? get selectedCoordinatorDepartmentId => _selectedCoordinatorDepartmentId;
+
+  void setSelectedCoordinatorDepartment(String? deptId) {
+    _selectedCoordinatorDepartmentId = deptId;
+    notifyListeners();
+  }
+
+  List<VolunteerApplicationModel> getApplicationsForDepartment(String? deptId) {
+    if (deptId == null || deptId.isEmpty) {
+      return List.unmodifiable(_volunteerApplications);
+    }
+    return _volunteerApplications.where((a) => a.ministryId == deptId).toList();
+  }
+
+  List<DepartmentMemberModel> getMembersForDepartment(String? deptId) {
+    if (deptId == null || deptId.isEmpty) {
+      return List.unmodifiable(_departmentMembers);
+    }
+    return _departmentMembers.where((m) => m.departmentId == deptId).toList();
+  }
 
   void submitMinistryApplication({
     required String ministryId,
     required String reason,
     required String experience,
     required String availability,
+    String studentYear = '2nd Year',
+    String preferredSubWing = 'General',
   }) {
-    final min = _ministries.firstWhere((m) => m.id == ministryId);
+    final min = _ministries.firstWhere(
+      (m) => m.id == ministryId,
+      orElse: () => _ministries.first,
+    );
     final application = VolunteerApplicationModel(
       id: 'app-${DateTime.now().millisecondsSinceEpoch}',
       studentId: _currentUser.id,
@@ -502,8 +538,11 @@ class FellowshipState extends ChangeNotifier {
       studentBaptismalName: _currentUser.baptismalName,
       studentDept: _currentUser.department,
       studentPhone: _currentUser.phoneNumber,
-      ministryId: ministryId,
-      ministryTitle: min.title,
+      studentYear: studentYear,
+      ministryId: min.id,
+      ministryTitle: min.titleEn,
+      ministryAmharicTitle: min.titleAmharic,
+      preferredSubWing: preferredSubWing,
       reason: reason,
       experience: experience,
       availability: availability,
@@ -512,15 +551,75 @@ class FellowshipState extends ChangeNotifier {
     );
 
     _volunteerApplications.insert(0, application);
-    _currentUser = _currentUser.copyWith(ministryStatus: 'Application Pending (${min.title})');
+    _currentUser = _currentUser.copyWith(
+      ministryStatus: 'Pending Review (${min.titleAmharic})',
+    );
     notifyListeners();
   }
 
-  void approveVolunteerApplication(String applicationId) {
+  void approveVolunteerApplication(
+    String applicationId, {
+    String? notes,
+    String? reviewedBy,
+  }) {
     final index = _volunteerApplications.indexWhere((a) => a.id == applicationId);
     if (index != -1) {
-      final app = _volunteerApplications[index].copyWith(status: ApplicationStatus.approved);
+      final oldApp = _volunteerApplications[index];
+      final app = oldApp.copyWith(
+        status: ApplicationStatus.approved,
+        reviewedAt: DateTime.now(),
+        reviewedByCoordinator: reviewedBy ?? 'Department Coordinator',
+        coordinatorNotes: notes ?? 'Welcome to the department! Orientation details shared.',
+      );
       _volunteerApplications[index] = app;
+
+      // Add to department members roster
+      final existingMemberIndex = _departmentMembers.indexWhere(
+        (m) => m.studentId == app.studentId && m.departmentId == app.ministryId,
+      );
+      if (existingMemberIndex == -1) {
+        _departmentMembers.insert(
+          0,
+          DepartmentMemberModel(
+            id: 'mem-${DateTime.now().millisecondsSinceEpoch}',
+            departmentId: app.ministryId,
+            studentId: app.studentId,
+            studentName: app.studentName,
+            studentBaptismalName: app.studentBaptismalName,
+            studentDept: app.studentDept,
+            studentYear: app.studentYear,
+            phoneNumber: app.studentPhone,
+            subWing: app.preferredSubWing,
+            roleInDepartment: 'Active Servant',
+            joinedDate: DateTime.now(),
+          ),
+        );
+      }
+
+      // Increment active count on department
+      final mIndex = _ministries.indexWhere((m) => m.id == app.ministryId);
+      if (mIndex != -1) {
+        final currentM = _ministries[mIndex];
+        _ministries[mIndex] = MinistryModel(
+          id: currentM.id,
+          titleEn: currentM.titleEn,
+          titleAmharic: currentM.titleAmharic,
+          iconName: currentM.iconName,
+          descriptionEn: currentM.descriptionEn,
+          descriptionAmharic: currentM.descriptionAmharic,
+          pillar: currentM.pillar,
+          teamLead: currentM.teamLead,
+          coordinatorBaptismalName: currentM.coordinatorBaptismalName,
+          coordinatorPhone: currentM.coordinatorPhone,
+          coordinatorRole: currentM.coordinatorRole,
+          openSlots: currentM.openSlots > 0 ? currentM.openSlots - 1 : 0,
+          activeCount: currentM.activeCount + 1,
+          tags: currentM.tags,
+          subWings: currentM.subWings,
+          meetingSchedule: currentM.meetingSchedule,
+          requirements: currentM.requirements,
+        );
+      }
 
       // Update student status
       final sIndex = _allStudents.indexWhere((s) => s.id == app.studentId);
@@ -538,10 +637,19 @@ class FellowshipState extends ChangeNotifier {
     }
   }
 
-  void rejectVolunteerApplication(String applicationId) {
+  void rejectVolunteerApplication(
+    String applicationId, {
+    String? notes,
+    String? reviewedBy,
+  }) {
     final index = _volunteerApplications.indexWhere((a) => a.id == applicationId);
     if (index != -1) {
-      _volunteerApplications[index] = _volunteerApplications[index].copyWith(status: ApplicationStatus.rejected);
+      _volunteerApplications[index] = _volunteerApplications[index].copyWith(
+        status: ApplicationStatus.rejected,
+        reviewedAt: DateTime.now(),
+        reviewedByCoordinator: reviewedBy ?? 'Department Coordinator',
+        coordinatorNotes: notes ?? 'Thank you for your interest. We encourage exploring alternative serving areas.',
+      );
       notifyListeners();
     }
   }
@@ -624,6 +732,53 @@ class FellowshipState extends ChangeNotifier {
 
     _confessionAppointments.insert(0, newAppt);
     notifyListeners();
+  }
+
+  void addConfessorFather(ConfessorFatherModel father) {
+    _confessorFathers = List<ConfessorFatherModel>.from(_confessorFathers)..add(father);
+    notifyListeners();
+  }
+
+  void updateConfessorFather(ConfessorFatherModel updated) {
+    final index = _confessorFathers.indexWhere((f) => f.id == updated.id);
+    if (index != -1) {
+      final list = List<ConfessorFatherModel>.from(_confessorFathers);
+      list[index] = updated;
+      _confessorFathers = list;
+      notifyListeners();
+    }
+  }
+
+  void deleteConfessorFather(String fatherId) {
+    _confessorFathers = _confessorFathers.where((f) => f.id != fatherId).toList();
+    notifyListeners();
+  }
+
+  void confirmConfessionAppointment(
+    String apptId, {
+    String? notes,
+    String? assignedVenue,
+  }) {
+    final index = _confessionAppointments.indexWhere((a) => a.id == apptId);
+    if (index != -1) {
+      final appt = _confessionAppointments[index];
+      _confessionAppointments[index] = appt.copyWith(
+        status: ConfessionAppointmentStatus.confirmed,
+        notes: notes ?? (assignedVenue != null ? 'Confirmed at $assignedVenue' : 'Confirmed by Confession Father'),
+      );
+      notifyListeners();
+    }
+  }
+
+  void broadcastPriestScheduleAlert({
+    required String fatherName,
+    required String newVenueOrTime,
+  }) {
+    _broadcastEmergency(
+      title: 'Clergy Schedule Update • $fatherName',
+      description: '$fatherName schedule/venue updated: $newVenueOrTime. Please verify your appointments.',
+      category: 'Clergy Notice',
+    );
   }
 
   void updateConfessionStatus(String apptId, ConfessionAppointmentStatus status) {
@@ -1409,91 +1564,364 @@ class FellowshipState extends ChangeNotifier {
       ),
     ];
 
-    // 7. Voluntary Serving Areas
+    // 7. 10 Official EOTC Fellowship Departments (የግቢ ጉባኤ 10ሩ ንዑሳን ክፍሎች)
     _ministries = [
       MinistryModel(
-        id: 'min-choir',
-        title: 'Yaredic Choir (Mezmur)',
-        iconName: 'music_note',
-        description: 'Serve through ancient Yaredic hymns, chants, drum (Kebero) and sistrum (Senasel) for liturgies and university evangelism.',
-        teamLead: 'Dn. Henok Teshome',
+        id: 'dept-apostolic',
+        titleEn: 'Education & Apostolic Ministry',
+        titleAmharic: 'ትምህርትና ሐዋርያዊ አገልግሎት',
+        iconName: 'menu_book',
+        descriptionEn: 'Organizes orthodox dogma courses, campus evangelism, patristics study circles, and scripture preaching.',
+        descriptionAmharic: 'የነገረ መለኮት፣ የቤተክርስቲያን ታሪክና የቀኖና ትምህርቶችን ማዘጋጀት፣ ሐዋርያዊ አገልግሎትና የመጽሐፍ ቅዱስ ጥናት መርሐ ግብራትን ማስተባበር።',
+        pillar: MinistryPillar.spiritualEducation,
+        teamLead: 'Yared Tadesse',
+        coordinatorBaptismalName: 'Gebre Meskel',
+        coordinatorPhone: '+251911223344',
+        coordinatorRole: 'Apostolic Ministry Coordinator',
+        openSlots: 8,
+        activeCount: 34,
+        tags: ['Dogma', 'Evangelism', 'Bible Study', 'Patristics'],
+        subWings: [
+          'Dogmatics & Canon (ነገረ መለኮት)',
+          'Scripture Study (የመጽሐፍ ቅዱስ ጥናት)',
+          'Apostolic Outreach (ሐዋርያዊ ስብከት)',
+          'Patristics & Library (የአበው ታሪክ)',
+        ],
+        meetingSchedule: 'Tuesdays 5:30 PM & Sundays 2:00 PM',
+        requirements: 'Foundational church course completion; dedicated heart for gospel teaching.',
+      ),
+      MinistryModel(
+        id: 'dept-membercare',
+        titleEn: 'Member Care, Counseling & Capacity',
+        titleAmharic: 'አባላት እንክብካቤ ፤ምክክርና አቅም ማጎልበቻ',
+        iconName: 'favorite_border',
+        descriptionEn: 'Follows up on students spiritual and moral well-being, conducts peer counseling, and organizes leadership workshops.',
+        descriptionAmharic: 'የተማሪዎችን መንፈሳዊና ማኅበራዊ ሕይወት መከታተል፣ የምክር አገልግሎት መስጠት እና የአመራር ክህሎት ማጎልበቻ ስልጠናዎችን ማዘጋጀት።',
+        pillar: MinistryPillar.memberCareSocial,
+        teamLead: 'Selamawit Desta',
+        coordinatorBaptismalName: 'Walata Maryam',
+        coordinatorPhone: '+251922334455',
+        coordinatorRole: 'Member Care Coordinator',
         openSlots: 6,
         activeCount: 28,
-        tags: ['Mezmur', 'Chants', 'Spiritual Songs'],
+        tags: ['Care', 'Counseling', 'Freshmen', 'Leadership'],
+        subWings: [
+          'Freshman Follow-up (የአዳዲስ ተማሪዎች ክትትል)',
+          'Spiritual Counseling (የምክርና ማጽናናት)',
+          'Capacity Building (የአቅም ማጎልበቻ)',
+          'Sisterhood Care (የእህቶች ሕብረት)',
+        ],
+        meetingSchedule: 'Thursdays 6:00 PM',
+        requirements: 'Empathy, confidentiality, and active commitment to fellowship life.',
       ),
       MinistryModel(
-        id: 'min-diaconia',
-        title: 'Charity & Diaconia (ምጽዋት)',
-        iconName: 'volunteer_activism',
-        description: 'Visit hospitalized fellows, prepare meals for needy students on campus, and organize semester clothes/book donation drives.',
-        teamLead: 'Wolete Gabriel Almaz',
-        openSlots: 10,
-        activeCount: 35,
-        tags: ['Outreach', 'Care', 'Student Support'],
+        id: 'dept-music',
+        titleEn: 'Music & Arts',
+        titleAmharic: 'መዝሙርና ስነ ጥበባት',
+        iconName: 'music_note',
+        descriptionEn: 'Prepares spiritual hymns, liturgical chants (Zema), sacred Begena/Kirar instruments, Christian drama, and iconography.',
+        descriptionAmharic: 'የኦርቶዶክሳዊ ዝማሬዎችን ማጥናት፣ የበገናና ክራር ትምህርት፣ መንፈሳዊ ድራማ፣ ስነ ጽሑፍ እና ስዕለ አድኅኖ ስነ ጥበባት።',
+        pillar: MinistryPillar.spiritualEducation,
+        teamLead: 'Dawit Fikadu',
+        coordinatorBaptismalName: 'Gebre Yohannes',
+        coordinatorPhone: '+251933445566',
+        coordinatorRole: 'Music & Arts Coordinator',
+        openSlots: 12,
+        activeCount: 52,
+        tags: ['Mezmur', 'Zema', 'Begena', 'Drama', 'Poetry'],
+        subWings: [
+          'Choir Vocal & Zema (የዝማሬና ዜማ ዘርፍ)',
+          'Begena & Instruments (የበገናና መሳሪያዎች)',
+          'Spiritual Drama (መንፈሳዊ ቴአትር)',
+          'Literature & Poetry (ስነ ጽሑፍና ስንኝ)',
+        ],
+        meetingSchedule: 'Wednesdays & Saturdays 4:00 PM',
+        requirements: 'Punctual rehearsal attendance; dedication to ancient Yaredic traditions.',
       ),
       MinistryModel(
-        id: 'min-hospitality',
-        title: 'Hospitality & Welcoming',
-        iconName: 'handshake',
-        description: 'Welcome new batch freshmen, coordinate fellowship Agape love-feasts, and provide orientation for new university arrivals.',
-        teamLead: 'Kidanemariam Biratu',
+        id: 'dept-development',
+        titleEn: 'Development & Revenue Collection',
+        titleAmharic: 'ልማትና ገቢ አሰባሰብ',
+        iconName: 'monetization_on_outlined',
+        descriptionEn: 'Plans and coordinates fundraising initiatives, holiday sales, spiritual publications distribution, and donor campaigns.',
+        descriptionAmharic: 'የገቢ ማስገኛ ፕሮጀክቶችን መንደፍ፣ የበዓላት ባዛርና የንዋየ ቅድሳት ሽያጭ ማስተባበር፣ የበጎ አድራጊዎች ድጋፍ ማሰባሰብ።',
+        pillar: MinistryPillar.operationsFinance,
+        teamLead: 'Ermias Berhanu',
+        coordinatorBaptismalName: 'Habte Maryam',
+        coordinatorPhone: '+251944556677',
+        coordinatorRole: 'Development Coordinator',
+        openSlots: 5,
+        activeCount: 22,
+        tags: ['Fundraising', 'Bazaar', 'Alumni', 'Projects'],
+        subWings: [
+          'Fundraising Projects (የገቢ ፕሮጀክቶች)',
+          'Holiday Bazaars & Sales (የበዓላት ባዛር)',
+          'Alumni Relations (የቀድሞ ተማሪዎች)',
+          'Merchandise & Books (የመጻሕፍትና ንዋያተ ቅድሳት)',
+        ],
+        meetingSchedule: 'Fridays 5:00 PM',
+        requirements: 'Project management, marketing creativity, or sales enthusiasm.',
+      ),
+      MinistryModel(
+        id: 'dept-accounting',
+        titleEn: 'Accounting & Property',
+        titleAmharic: 'ሒሳብና ንብረት',
+        iconName: 'account_balance_wallet',
+        descriptionEn: 'Maintains meticulous accounting ledgers, manages fellowship assets, sound systems, robes, and campus church property.',
+        descriptionAmharic: 'የፋይናንስና የሂሳብ መዛግብትን መያዝ፣ የድምፅ መሳሪያዎችን፣ አልባሳትና የግብረ ጽድቅ ንብረቶችን በአግባቡ ማስተዳደር።',
+        pillar: MinistryPillar.operationsFinance,
+        teamLead: 'Bethlehem Girma',
+        coordinatorBaptismalName: 'Walata Tsion',
+        coordinatorPhone: '+251955667788',
+        coordinatorRole: 'Accounting & Property Coordinator',
         openSlots: 4,
-        activeCount: 18,
-        tags: ['Orientation', 'Agape', 'Events'],
+        activeCount: 16,
+        tags: ['Finance', 'Ledger', 'Audio Gear', 'Inventory'],
+        subWings: [
+          'Bookkeeping & Finance (የሂሳብ መዝገብ)',
+          'Sound & Audio Equipment (የድምፅ መሳሪያዎች)',
+          'Church Vestments & Robes (የአልባሳት ንብረት)',
+          'Procurement & Logistics (ግዢና አቅርቦት)',
+        ],
+        meetingSchedule: 'Saturdays 10:00 AM',
+        requirements: 'High integrity and diligence; Accounting/Economics background preferred.',
       ),
       MinistryModel(
-        id: 'min-media',
-        title: 'Media, Sound & Tech',
-        iconName: 'camera_alt',
-        description: 'Manage live streaming, soundboard setup, Telegram channel announcements, digital library links, and photography.',
-        teamLead: 'Alex Smith (Gebre Sellassie)',
+        id: 'dept-programs',
+        titleEn: 'Batch & Program Coordination',
+        titleAmharic: 'ባችና መርሐ ግብራት ማስተባበሪያ',
+        iconName: 'event_available',
+        descriptionEn: 'Coordinates year batches (1st to graduating class), reserves campus auditoriums, and manages overall fellowship schedules.',
+        descriptionAmharic: 'የየክፍለ ዓመቱን (የባች) ተወካዮች ማስተባበር፣ የአዳራሽና የቦታ ፈቃድ ማመቻቸት፣ ሳምንታዊና ወርሃዊ መርሐ ግብራትን ማቀናጀት።',
+        pillar: MinistryPillar.memberCareSocial,
+        teamLead: 'Abel Solomon',
+        coordinatorBaptismalName: 'Tekle Haymanot',
+        coordinatorPhone: '+251966778899',
+        coordinatorRole: 'Batch & Programs Coordinator',
+        openSlots: 7,
+        activeCount: 30,
+        tags: ['Batch Reps', 'Hall Booking', 'Conferences', 'Events'],
+        subWings: [
+          'Freshman Batch Reps (የ1ኛ ዓመት ተወካዮች)',
+          'Senior & Graduating Reps (የተመራቂዎች)',
+          'Hall Booking & Protocol (የአዳራሽና ፕሮቶኮል)',
+          'Vigil & Feast Logistics (የጉባኤያት አቀነባባሪ)',
+        ],
+        meetingSchedule: 'Mondays 6:00 PM',
+        requirements: 'Punctuality, strong organizational communication across batches.',
+      ),
+      MinistryModel(
+        id: 'dept-charity',
+        titleEn: 'Vocational & Charitable Activities',
+        titleAmharic: 'ሙያ ና በጎ አድራጎት',
+        iconName: 'volunteer_activism',
+        descriptionEn: 'Manages student mutual aid, hospital & orphanage visits, blood drives, dorm welfare visits, and vocational peer tutoring.',
+        descriptionAmharic: 'ለተቸገሩ ተማሪዎች የምግብና የትምህርት ድጋፍ ማድረግ፣ የሆስፒታልና የአቅመ ደካሞች ጥየቃ፣ የደም ልገሳና የሙያ ማጋራት።',
+        pillar: MinistryPillar.memberCareSocial,
+        teamLead: 'Rahel Tesfaye',
+        coordinatorBaptismalName: 'Walata Michael',
+        coordinatorPhone: '+251977889900',
+        coordinatorRole: 'Charity Coordinator',
+        openSlots: 10,
+        activeCount: 40,
+        tags: ['Charity', 'Mutual Aid', 'Hospital Visit', 'Blood Drive'],
+        subWings: [
+          'Student Emergency Fund (የተማሪዎች ድጋፍ)',
+          'Hospital & Prison Outreach (የሕሙማን ጥየቃ)',
+          'Community Blood Drive (የደም ልገሳ)',
+          'Vocational Tutoring (የትምህርትና ሙያ ማጋራት)',
+        ],
+        meetingSchedule: 'Saturdays 2:00 PM',
+        requirements: 'Compassionate heart for charity, active attendance in welfare visits.',
+      ),
+      MinistryModel(
+        id: 'dept-language',
+        titleEn: 'Language & Special Needs',
+        titleAmharic: 'ቋንቋና ልዩ ልዩ ፍላጎት',
+        iconName: 'translate',
+        descriptionEn: 'Provides multilingual liturgical services (Afan Oromo, Tigrinya, English), sign language translation, and accessibility for disabled members.',
+        descriptionAmharic: 'በተለያዩ ቋንቋዎች (በአፋን ኦሮሞ፣ በትግርኛ፣ በእንግሊዝኛ) ትምህርቶችን ማዘጋጀት፣ የምልክት ቋንቋ አገልግሎትና አካል ጉዳተኞችን ማገዝ።',
+        pillar: MinistryPillar.spiritualEducation,
+        teamLead: 'Gemechu Bekele',
+        coordinatorBaptismalName: 'Haile Maryam',
+        coordinatorPhone: '+251988990011',
+        coordinatorRole: 'Language & Special Needs Coordinator',
+        openSlots: 8,
+        activeCount: 25,
+        tags: ['Afan Oromo', 'Sign Language', 'Tigrinya', 'English', 'Inclusion'],
+        subWings: [
+          'Afan Oromo Ministry (የአፋን ኦሮሞ አገልግሎት)',
+          'Tigrinya & Other Languages (የትግርኛና ሌሎች)',
+          'Sign Language (የምልክት ቋንቋ)',
+          'Accessibility Support (የልዩ ፍላጎት ድጋፍ)',
+        ],
+        meetingSchedule: 'Sundays 4:00 PM',
+        requirements: 'Language fluency or willingness to learn sign language.',
+      ),
+      MinistryModel(
+        id: 'dept-planning',
+        titleEn: 'Planning & Monitoring',
+        titleAmharic: 'እቅድና ክትትል',
+        iconName: 'insights',
+        descriptionEn: 'Prepares semester/annual strategic plans, tracks project KPIs, monitors department execution, and evaluates performance.',
+        descriptionAmharic: 'የግቢ ጉባኤውን ዓመታዊና ሴሚስተራዊ እቅድ ማዘጋጀት፣ የክፍላትን አፈፃፀም መከታተልና የግምገማ ሪፖርቶችን ማቅረብ።',
+        pillar: MinistryPillar.governanceAudit,
+        teamLead: 'Nahom Assefa',
+        coordinatorBaptismalName: 'Gebre Kidan',
+        coordinatorPhone: '+251999001122',
+        coordinatorRole: 'Planning & Monitoring Coordinator',
+        openSlots: 3,
+        activeCount: 14,
+        tags: ['Strategy', 'KPIs', 'Reports', 'Evaluation'],
+        subWings: [
+          'Strategic Planning (የስትራቴጂክ እቅድ)',
+          'Department Tracking (የክፍላት አፈፃፀም)',
+          'Statistical Analysis (የስታቲስቲክስ ትንተና)',
+          'Evaluation Seminars (የግምገማ መድረኮች)',
+        ],
+        meetingSchedule: 'Sundays 6:00 PM',
+        requirements: 'Analytical thinking, organizational discipline, 2nd year or above.',
+      ),
+      MinistryModel(
+        id: 'dept-audit',
+        titleEn: 'Audit & Inspection',
+        titleAmharic: 'ኦዲት ና ኢንስፔክሽን',
+        iconName: 'fact_check_outlined',
+        descriptionEn: 'Conducts independent financial audits, verifies property registries, and ensures adherence to EOTC fellowship bylaws and canons.',
+        descriptionAmharic: 'ገለልተኛ የፋይናንስና የሂሳብ ምርመራ ማካሄድ፣ የንብረት ቆጠራና ማረጋገጫ፣ የደንብና መመሪያ ተገዢነትን መቆጣጠር።',
+        pillar: MinistryPillar.governanceAudit,
+        teamLead: 'Kaleb Worku',
+        coordinatorBaptismalName: 'Wolde Rufael',
+        coordinatorPhone: '+251910112233',
+        coordinatorRole: 'Audit & Inspection Coordinator',
         openSlots: 3,
         activeCount: 12,
-        tags: ['Tech', 'Audio/Visual', 'Content'],
-      ),
-      MinistryModel(
-        id: 'min-altar',
-        title: 'Altar & Liturgical Care',
-        iconName: 'church',
-        description: 'Assist in sanctuary preparation, vestment care, candle service, and incense preparation for weekly Kidase.',
-        teamLead: 'Dn. Ephrem Tadesse',
-        openSlots: 5,
-        activeCount: 15,
-        tags: ['Liturgy', 'Altar Server', 'Sacred Care'],
+        tags: ['Audit', 'Finance Check', 'Inventory Audit', 'Compliance'],
+        subWings: [
+          'Financial Audit (የፋይናንስ ቁጥጥር)',
+          'Asset Inspection (የንብረት ፍተሻ)',
+          'Bylaw Compliance (የመተዳደሪያ ደንብ)',
+          'Quarterly Reports (የሩብ ዓመት ሪፖርት)',
+        ],
+        meetingSchedule: 'Bi-weekly Saturdays 9:00 AM',
+        requirements: 'Uncompromising integrity, 3rd/4th year student, background in Accounting/Law/Management.',
       ),
     ];
 
-    // Sample Volunteer Application
+    // Seeded Department Members (Active Servants)
+    _departmentMembers = [
+      DepartmentMemberModel(
+        id: 'mem-1',
+        departmentId: 'dept-music',
+        studentId: 'usr-101',
+        studentName: 'Yohannes Girma',
+        studentBaptismalName: 'Haile Selassie',
+        studentDept: 'Civil Engineering',
+        studentYear: '3rd Year',
+        phoneNumber: '+251911445566',
+        subWing: 'Choir Vocal & Zema (የዝማሬና ዜማ ዘርፍ)',
+        roleInDepartment: 'Lead Chanter (አዝማሪ)',
+        joinedDate: DateTime.now().subtract(const Duration(days: 180)),
+      ),
+      DepartmentMemberModel(
+        id: 'mem-2',
+        departmentId: 'dept-music',
+        studentId: 'usr-102',
+        studentName: 'Martha Tedla',
+        studentBaptismalName: 'Walata Petros',
+        studentDept: 'Medicine',
+        studentYear: '4th Year',
+        phoneNumber: '+251922556677',
+        subWing: 'Begena & Instruments (የበገናና መሳሪያዎች)',
+        roleInDepartment: 'Begena Instructor',
+        joinedDate: DateTime.now().subtract(const Duration(days: 220)),
+      ),
+      DepartmentMemberModel(
+        id: 'mem-3',
+        departmentId: 'dept-accounting',
+        studentId: 'usr-103',
+        studentName: 'Amanuel Tadesse',
+        studentBaptismalName: 'Gebre Gabriel',
+        studentDept: 'Accounting & Finance',
+        studentYear: '3rd Year',
+        phoneNumber: '+251933667788',
+        subWing: 'Bookkeeping & Finance (የሂሳብ መዝገብ)',
+        roleInDepartment: 'Assistant Auditor',
+        joinedDate: DateTime.now().subtract(const Duration(days: 90)),
+      ),
+      DepartmentMemberModel(
+        id: 'mem-4',
+        departmentId: 'dept-charity',
+        studentId: 'usr-104',
+        studentName: 'Hanna Solomon',
+        studentBaptismalName: 'Walata Maryam',
+        studentDept: 'Nursing',
+        studentYear: '2nd Year',
+        phoneNumber: '+251944778899',
+        subWing: 'Hospital & Prison Outreach (የሕሙማን ጥየቃ)',
+        roleInDepartment: 'Hospital Visit Lead',
+        joinedDate: DateTime.now().subtract(const Duration(days: 120)),
+      ),
+    ];
+
+    // Seeded Volunteer Applications routed to coordinators
     _volunteerApplications = [
       VolunteerApplicationModel(
         id: 'app-sample-1',
         studentId: 'usr-1',
         studentName: 'Dawit Alemu',
         studentBaptismalName: 'Gebre Michael',
-        studentDept: 'Engineering',
+        studentDept: 'Electrical Engineering',
         studentPhone: '+251911223344',
-        ministryId: 'min-media',
-        ministryTitle: 'Media, Sound & Tech',
-        reason: 'I have experience in audio editing and video streaming for campus fellowship.',
-        experience: '2 years campus media volunteer',
-        availability: 'Weekends & Friday evenings',
+        studentYear: '2nd Year',
+        ministryId: 'dept-music',
+        ministryTitle: 'Music & Arts',
+        ministryAmharicTitle: 'መዝሙርና ስነ ጥበባት',
+        preferredSubWing: 'Begena & Instruments (የበገናና መሳሪያዎች)',
+        reason: 'I have been learning traditional Begena hymnody for 2 years and wish to serve in campus spiritual nights.',
+        experience: 'Parish youth choir Begena player in Debre Markos',
+        availability: 'Wednesday evenings & Sunday afternoons',
         status: ApplicationStatus.pending,
-        appliedAt: DateTime.now().subtract(const Duration(hours: 4)),
+        appliedAt: DateTime.now().subtract(const Duration(hours: 3)),
       ),
       VolunteerApplicationModel(
         id: 'app-sample-2',
         studentId: 'usr-2',
         studentName: 'Hewan Bekele',
         studentBaptismalName: 'Walata Petros',
-        studentDept: 'Law',
+        studentDept: 'Accounting & Finance',
         studentPhone: '+251922334455',
-        ministryId: 'min-hospitality',
-        ministryTitle: 'Hospitality & Welcoming',
-        reason: 'Eager to welcome freshmen and organize spiritual orientation seminars.',
-        experience: 'Freshman orientation guide',
-        availability: 'Tuesdays & Sundays',
+        studentYear: '3rd Year',
+        ministryId: 'dept-accounting',
+        ministryTitle: 'Accounting & Property',
+        ministryAmharicTitle: 'ሒሳብና ንብረት',
+        preferredSubWing: 'Bookkeeping & Finance (የሂሳብ መዝገብ)',
+        reason: 'Eager to apply my accounting skills to ensure transparent, audited fellowship property and ledgers.',
+        experience: 'Accounting student, familiarity with Excel & Peachtree',
+        availability: 'Saturdays & Friday afternoons',
+        status: ApplicationStatus.pending,
+        appliedAt: DateTime.now().subtract(const Duration(hours: 6)),
+      ),
+      VolunteerApplicationModel(
+        id: 'app-sample-3',
+        studentId: 'usr-3',
+        studentName: 'Mikias Haile',
+        studentBaptismalName: 'Gebre Kristos',
+        studentDept: 'Pharmacy',
+        studentPhone: '+251933445566',
+        studentYear: '1st Year Freshman',
+        ministryId: 'dept-charity',
+        ministryTitle: 'Vocational & Charitable Activities',
+        ministryAmharicTitle: 'ሙያ ና በጎ አድራጎት',
+        preferredSubWing: 'Student Emergency Fund (የተማሪዎች ድጋፍ)',
+        reason: 'I want to help needy freshman students adapt to university life and coordinate meal ticket support.',
+        experience: 'Red Cross high school volunteer leader',
+        availability: 'Saturdays and free afternoons',
         status: ApplicationStatus.approved,
         appliedAt: DateTime.now().subtract(const Duration(days: 2)),
+        reviewedAt: DateTime.now().subtract(const Duration(days: 1)),
+        reviewedByCoordinator: 'Rahel Tesfaye (Charity Coordinator)',
+        coordinatorNotes: 'Welcome aboard Mikias! Please join the Saturday 2:00 PM briefing.',
       ),
     ];
 
@@ -1735,6 +2163,7 @@ class FellowshipState extends ChangeNotifier {
         fullName: 'Kesis Yohannes Teshome',
         clericalTitle: 'መልአከ ሰላም ቀሲስ (Melake Selam Kesis)',
         churchName: "St. Mary's Orthodox Church (Hosanna WCU)",
+        meetingVenue: "St. Mary's Sunday School Office (Room 2)",
         phoneNumber: '+251911456789',
         availableDays: ['Wednesday', 'Saturday', 'Sunday'],
         availableTimeSlots: ['9:00 AM - 11:30 AM', '3:00 PM - 5:30 PM'],
@@ -1745,6 +2174,7 @@ class FellowshipState extends ChangeNotifier {
         fullName: 'Abba Gebre Selassie',
         clericalTitle: 'ቆሞስ አባ (Komos Abba)',
         churchName: 'Debre Mewi Medhanealem Church',
+        meetingVenue: 'Medhanealem Parish Library / Counseling Hall',
         phoneNumber: '+251912987654',
         availableDays: ['Thursday', 'Saturday', 'Sunday'],
         availableTimeSlots: ['2:00 PM - 4:30 PM', '5:00 PM - 7:00 PM'],

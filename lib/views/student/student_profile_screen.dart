@@ -23,6 +23,9 @@ class StudentProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = state.currentUser;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final secondaryAccent = theme.colorScheme.secondary;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -35,18 +38,18 @@ class StudentProfileScreen extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF2C3647),
-                  AppTheme.secondaryBg,
-                  const Color(0xFF131923),
+                  theme.colorScheme.surfaceContainerHighest,
+                  theme.colorScheme.surface,
+                  theme.scaffoldBackgroundColor,
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: AppTheme.goldAccent.withOpacity(0.5)),
+              border: Border.all(color: primaryAccent.withOpacity(0.6), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: primaryAccent.withOpacity(0.2),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -60,14 +63,14 @@ class StudentProfileScreen extends StatelessWidget {
                     // Profile Avatar
                     CircleAvatar(
                       radius: 36,
-                      backgroundColor: AppTheme.surfaceElevated,
+                      backgroundColor: theme.colorScheme.surface,
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          border: Border.all(color: AppTheme.goldAccent, width: 2),
+                          border: Border.all(color: primaryAccent, width: 2),
                         ),
-                        child: const Center(
-                          child: Icon(Icons.person, size: 40, color: AppTheme.goldLight),
+                        child: Center(
+                          child: Icon(Icons.person, size: 40, color: primaryAccent),
                         ),
                       ),
                     ),
@@ -90,9 +93,9 @@ class StudentProfileScreen extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             'B.N. ${user.baptismalName}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 14,
-                              color: Color(0xFFF5A65E),
+                              color: primaryAccent,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -124,7 +127,7 @@ class StudentProfileScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryBg.withOpacity(0.6),
+                    color: theme.scaffoldBackgroundColor.withOpacity(0.6),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
@@ -171,13 +174,13 @@ class StudentProfileScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // 2. Personal Fellowship Services Matrix
-          const Text(
+          Text(
             'My Fellowship Engagements',
             style: TextStyle(
               fontFamily: 'serif',
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppTheme.goldLight,
+              color: primaryAccent,
             ),
           ),
           const SizedBox(height: 12),
@@ -232,7 +235,105 @@ class StudentProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // 3. Ministry & Service Status
+          // 3. App Themes & Sacred Aesthetics Selection
+          Text(
+            'App Themes & Sacred Aesthetics (የመተግበሪያው ገጽታ)',
+            style: TextStyle(
+              fontFamily: 'serif',
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: primaryAccent,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: AppThemePalette.values.map((palette) {
+                final isSelected = state.currentThemePalette == palette;
+                return GestureDetector(
+                  onTap: () {
+                    state.setThemePalette(palette);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Row(
+                          children: [
+                            const Icon(Icons.palette, color: AppTheme.goldLight, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text('Active Theme: ${palette.displayName} • ${palette.amharicName}')),
+                          ],
+                        ),
+                        duration: const Duration(seconds: 2),
+                        backgroundColor: AppTheme.surfaceElevated,
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 175,
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: palette.scaffoldBg,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: isSelected ? palette.primaryAccent : AppTheme.borderMuted,
+                        width: isSelected ? 2.0 : 1.0,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: palette.primaryAccent.withOpacity(0.35),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: palette.primaryAccent,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                            if (isSelected)
+                              Icon(Icons.check_circle, color: palette.primaryAccent, size: 18),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          palette.displayName,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          palette.amharicName,
+                          style: TextStyle(fontSize: 10, color: palette.primaryAccent),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 24),
+
+          // 4. Ministry & Service Status
           const Text(
             'Active Ministry Service',
             style: TextStyle(
