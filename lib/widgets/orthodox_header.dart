@@ -22,6 +22,9 @@ class OrthodoxHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -92,21 +95,21 @@ class OrthodoxHeader extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      AppTheme.goldAccent.withOpacity(0.35),
-                      AppTheme.secondaryBg,
+                      primaryColor.withOpacity(0.35),
+                      theme.colorScheme.surface,
                     ],
                   ),
-                  border: Border.all(color: AppTheme.goldAccent.withOpacity(0.5), width: 1.5),
+                  border: Border.all(color: primaryColor.withOpacity(0.6), width: 1.5),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.goldAccent.withOpacity(0.2),
+                      color: primaryColor.withOpacity(0.25),
                       blurRadius: 10,
                       spreadRadius: 1,
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Icon(Icons.wb_sunny_outlined, color: AppTheme.goldLight, size: 22),
+                child: Center(
+                  child: Icon(Icons.wb_sunny_outlined, color: primaryColor, size: 22),
                 ),
               ),
               const SizedBox(width: 14),
@@ -116,11 +119,11 @@ class OrthodoxHeader extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'serif',
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.goldLight,
+                        color: primaryColor,
                         letterSpacing: 0.3,
                       ),
                       maxLines: 1,
@@ -146,11 +149,11 @@ class OrthodoxHeader extends StatelessWidget {
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceElevated,
+                      color: theme.colorScheme.surface,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppTheme.goldAccent.withOpacity(0.4)),
+                      border: Border.all(color: primaryColor.withOpacity(0.4)),
                     ),
-                    child: const Icon(Icons.qr_code_scanner, color: AppTheme.goldLight, size: 20),
+                    child: Icon(Icons.qr_code_scanner, color: primaryColor, size: 20),
                   ),
                   onPressed: onQrTap,
                   tooltip: 'Dynamic QR Scanner',
@@ -162,7 +165,7 @@ class OrthodoxHeader extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.surfaceElevated,
+                          color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(color: AppTheme.borderMuted),
                         ),
@@ -174,8 +177,8 @@ class OrthodoxHeader extends StatelessWidget {
                         child: Container(
                           width: 8,
                           height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.goldAccent,
+                          decoration: BoxDecoration(
+                            color: primaryColor,
                             shape: BoxShape.circle,
                           ),
                         ),

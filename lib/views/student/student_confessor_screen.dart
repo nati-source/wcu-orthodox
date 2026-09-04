@@ -186,6 +186,21 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                             father.churchName,
                             style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
                           ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on, color: Color(0xFFF5A65E), size: 13),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  father.meetingVenue,
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFFF5A65E), fontWeight: FontWeight.w600),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -199,6 +214,8 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                 const SizedBox(height: 14),
 
                 // Availability Pills
+                const Text('AVAILABLE DAYS:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.textTertiary, letterSpacing: 1.0)),
+                const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -556,6 +573,27 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.secondaryBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.goldAccent.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.location_on, color: Color(0xFFF5A65E), size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Meeting Place:\n${father.meetingVenue}',
+                              style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600, height: 1.3),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     const Text('Select Topic:', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
                     const SizedBox(height: 4),
                     DropdownButtonFormField<String>(

@@ -779,6 +779,209 @@ class PrayerBookModel {
 }
 
 // ============================================================================
+// APP THEME PALETTES
+// ============================================================================
+
+enum AppThemePalette {
+  midnightGold,       // Classic Midnight Liturgical Gold
+  axumiteBurgundy,    // Axumite Royal Monastic Burgundy
+  lalibelaSandstone,  // Lalibela Rock-Hewn Sandstone Amber
+  tewahedoForest,     // Tewahedo Midnight Forest Emerald
+  debreDamoAzure,     // Debre Damo Midnight Sky Azure
+}
+
+extension AppThemePaletteExt on AppThemePalette {
+  String get displayName {
+    switch (this) {
+      case AppThemePalette.midnightGold:
+        return 'Sacred Gold (ክቡር ወርቅ)';
+      case AppThemePalette.axumiteBurgundy:
+        return 'Liturgical Crimson (ቀይ ልብስ)';
+      case AppThemePalette.tewahedoForest:
+        return 'St. Mary Emerald (ማርያም አረንጓዴ)';
+      case AppThemePalette.debreDamoAzure:
+        return 'Royal Sapphire (ሰማያዊ ኪዳን)';
+      case AppThemePalette.lalibelaSandstone:
+        return 'Lalibela Sandstone Amber (ላሊበላ አምበር)';
+    }
+  }
+
+  String get amharicName {
+    switch (this) {
+      case AppThemePalette.midnightGold:
+        return 'ወርቃማ ሥርዓተ ቤተክርስቲያን';
+      case AppThemePalette.axumiteBurgundy:
+        return 'አክሱማዊ ንጉሣዊ ቀይ ልብስ';
+      case AppThemePalette.tewahedoForest:
+        return 'ተዋሕዶ ልምላሜና ሰላም';
+      case AppThemePalette.debreDamoAzure:
+        return 'ደብረ ዳሞ ሰማያዊ ጸጋ';
+      case AppThemePalette.lalibelaSandstone:
+        return 'ላሊበላ ገዳማዊ ጽናት';
+    }
+  }
+
+  Color get primaryAccent {
+    switch (this) {
+      case AppThemePalette.midnightGold:
+        return const Color(0xFFF5A65E);
+      case AppThemePalette.axumiteBurgundy:
+        return const Color(0xFFF87171);
+      case AppThemePalette.tewahedoForest:
+        return const Color(0xFF34D399);
+      case AppThemePalette.debreDamoAzure:
+        return const Color(0xFF60A5FA);
+      case AppThemePalette.lalibelaSandstone:
+        return const Color(0xFFFBBF24);
+    }
+  }
+
+  Color get secondaryAccent {
+    switch (this) {
+      case AppThemePalette.midnightGold:
+        return const Color(0xFFD48B38);
+      case AppThemePalette.axumiteBurgundy:
+        return const Color(0xFFEF4444);
+      case AppThemePalette.tewahedoForest:
+        return const Color(0xFF10B981);
+      case AppThemePalette.debreDamoAzure:
+        return const Color(0xFF3B82F6);
+      case AppThemePalette.lalibelaSandstone:
+        return const Color(0xFFF59E0B);
+    }
+  }
+
+  Color get scaffoldBg {
+    switch (this) {
+      case AppThemePalette.midnightGold:
+        return const Color(0xFF0C1017);
+      case AppThemePalette.axumiteBurgundy:
+        return const Color(0xFF15070E);
+      case AppThemePalette.tewahedoForest:
+        return const Color(0xFF04120B);
+      case AppThemePalette.debreDamoAzure:
+        return const Color(0xFF050E1A);
+      case AppThemePalette.lalibelaSandstone:
+        return const Color(0xFF130E07);
+    }
+  }
+
+  Color get surfaceBg {
+    switch (this) {
+      case AppThemePalette.midnightGold:
+        return const Color(0xFF131923);
+      case AppThemePalette.axumiteBurgundy:
+        return const Color(0xFF220C18);
+      case AppThemePalette.tewahedoForest:
+        return const Color(0xFF0B1E13);
+      case AppThemePalette.debreDamoAzure:
+        return const Color(0xFF0B1728);
+      case AppThemePalette.lalibelaSandstone:
+        return const Color(0xFF1D150B);
+    }
+  }
+
+  Color get cardBg {
+    switch (this) {
+      case AppThemePalette.midnightGold:
+        return const Color(0xFF1B2332);
+      case AppThemePalette.axumiteBurgundy:
+        return const Color(0xFF301222);
+      case AppThemePalette.tewahedoForest:
+        return const Color(0xFF122C1C);
+      case AppThemePalette.debreDamoAzure:
+        return const Color(0xFF12223B);
+      case AppThemePalette.lalibelaSandstone:
+        return const Color(0xFF2B1F11);
+    }
+  }
+
+  Color get elevatedBg {
+    switch (this) {
+      case AppThemePalette.midnightGold:
+        return const Color(0xFF242F42);
+      case AppThemePalette.axumiteBurgundy:
+        return const Color(0xFF40182E);
+      case AppThemePalette.tewahedoForest:
+        return const Color(0xFF1A3B27);
+      case AppThemePalette.debreDamoAzure:
+        return const Color(0xFF1A2F50);
+      case AppThemePalette.lalibelaSandstone:
+        return const Color(0xFF3B2A18);
+    }
+  }
+}
+
+// ============================================================================
+// WACHAMO UNIVERSITY COMPLETE DEPARTMENTS LIST
+// ============================================================================
+
+class WcuDepartments {
+  static const List<String> all = [
+    'Accounting and Finance',
+    'Adult Education and Community Development',
+    'Agricultural Economics',
+    'Anesthesia',
+    'Animal Science',
+    'Architecture',
+    'Biology',
+    'Biomedical Engineering',
+    'Biotechnology',
+    'Chemical Engineering',
+    'Chemistry',
+    'Civics and Ethical Studies',
+    'Civil Engineering',
+    'Comprehensive Nursing',
+    'Computer Science',
+    'Construction Technology and Management (COTM)',
+    'Curriculum and Instruction',
+    'Dental Medicine',
+    'Economics',
+    'Educational Leadership and Management',
+    'Electrical and Computer Engineering',
+    'Electro-Mechanical Engineering',
+    'English Language and Literature',
+    'Environmental Science',
+    'Food Science and Postharvest Technology',
+    'Geography and Environmental Studies',
+    'Geology',
+    'Geomatics Engineering / Surveying Engineering',
+    'Governance and Development Studies',
+    'Hadiya Language and Literature',
+    'Health Informatics',
+    'History and Heritage Management',
+    'Horticulture',
+    'Hydraulic and Water Resource Engineering',
+    'Industrial Chemistry',
+    'Information Systems (IS)',
+    'Information Technology (IT)',
+    'Journalism and Communication',
+    'Law',
+    'Management',
+    'Marketing Management',
+    'Mathematics',
+    'Mechanical Engineering',
+    'Medical Laboratory Technology',
+    'Medicine',
+    'Midwifery',
+    'Natural Resource Management',
+    'Pharmacy',
+    'Physics',
+    'Plant Science',
+    'Psychology',
+    'Public Administration and Development Management',
+    'Public Health',
+    'Rural Development and Agricultural Extension',
+    'Sociology',
+    'Software Engineering',
+    'Sport Science',
+    'Statistics',
+    'Tourism and Hotel Management',
+    'Veterinary Medicine',
+  ];
+}
+
+// ============================================================================
 // 3. FATHER CONFESSOR & SPIRITUAL GUIDANCE MODELS
 // ============================================================================
 
@@ -787,6 +990,7 @@ class ConfessorFatherModel {
   final String fullName;
   final String clericalTitle; // e.g. "መልአከ ሰላም ቀሲስ ዮሐንስ", "ቆሞስ አባ ገብረ ሥላሴ"
   final String churchName;
+  final String meetingVenue; // e.g. "St. Mary's Sunday School Office (Room 2)"
   final String phoneNumber;
   final List<String> availableDays; // e.g. ["Saturday", "Sunday", "Wednesday"]
   final List<String> availableTimeSlots; // e.g. ["3:00 PM - 5:00 PM", "9:00 AM - 11:30 AM"]
@@ -798,12 +1002,39 @@ class ConfessorFatherModel {
     required this.fullName,
     required this.clericalTitle,
     required this.churchName,
+    this.meetingVenue = "St. Mary's Sunday School Office (Room 2)",
     required this.phoneNumber,
     required this.availableDays,
     required this.availableTimeSlots,
     required this.bio,
     this.avatarUrl,
   });
+
+  ConfessorFatherModel copyWith({
+    String? id,
+    String? fullName,
+    String? clericalTitle,
+    String? churchName,
+    String? meetingVenue,
+    String? phoneNumber,
+    List<String>? availableDays,
+    List<String>? availableTimeSlots,
+    String? bio,
+    String? avatarUrl,
+  }) {
+    return ConfessorFatherModel(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      clericalTitle: clericalTitle ?? this.clericalTitle,
+      churchName: churchName ?? this.churchName,
+      meetingVenue: meetingVenue ?? this.meetingVenue,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      availableDays: availableDays ?? this.availableDays,
+      availableTimeSlots: availableTimeSlots ?? this.availableTimeSlots,
+      bio: bio ?? this.bio,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+    );
+  }
 }
 
 enum ConfessionAppointmentStatus { pending, confirmed, completed, cancelled }

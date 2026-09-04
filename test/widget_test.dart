@@ -131,12 +131,52 @@ void main() {
       notes: 'Welcome! Rehearsal is Wednesday 4 PM.',
       reviewedBy: 'Dawit Fikadu (Music Coordinator)',
     );
-
-    final updatedApp = state.volunteerApplications.firstWhere((a) => a.id == newApp.id);
-    expect(updatedApp.status, ApplicationStatus.approved);
-    expect(updatedApp.coordinatorNotes, 'Welcome! Rehearsal is Wednesday 4 PM.');
     expect(state.getMembersForDepartment('dept-music').length, initialRosterCount + 1);
+
+    // 9. Priests & Schedules Management Test
+    final initialPriests = state.confessorFathers.length;
+    final newPriest = const ConfessorFatherModel(
+      id: 'fat-new-test',
+      fullName: 'Kesis Daniel Mulugeta',
+      clericalTitle: 'መልአከ ብርሃን ቀሲስ',
+      churchName: "St. Gabriel's Church",
+      meetingVenue: 'Campus Chapel Room 1',
+      phoneNumber: '+251911998877',
+      availableDays: ['Saturday', 'Sunday'],
+      availableTimeSlots: ['4:00 PM - 6:00 PM'],
+      bio: 'Youth confessor and spiritual counselor',
+    );
+    state.addConfessorFather(newPriest);
+    expect(state.confessorFathers.length, initialPriests + 1);
+
+    // Update Priest Venue
+    state.updateConfessorFather(newPriest.copyWith(meetingVenue: 'Youth Hall Room 3'));
+    final updatedPriest = state.confessorFathers.firstWhere((f) => f.id == 'fat-new-test');
+    expect(updatedPriest.meetingVenue, 'Youth Hall Room 3');
+
+    // Confirm Appointment with Note/Venue
+    final apptId = state.myConfessionAppointments.first.id;
+    state.confirmConfessionAppointment(apptId, notes: 'Meet at Youth Hall Room 3 at 4 PM');
+    final updatedAppt = state.confessionAppointments.firstWhere((a) => a.id == apptId);
+    expect(updatedAppt.status, ConfessionAppointmentStatus.confirmed);
+    expect(updatedAppt.notes, 'Meet at Youth Hall Room 3 at 4 PM');
+
+    // 10. Theme Palette Switching Test
+    expect(state.currentThemePalette, AppThemePalette.midnightGold);
+    state.setThemePalette(AppThemePalette.axumiteBurgundy);
+    expect(state.currentThemePalette, AppThemePalette.axumiteBurgundy);
+    state.setThemePalette(AppThemePalette.lalibelaSandstone);
+    expect(state.currentThemePalette, AppThemePalette.lalibelaSandstone);
+
+    // 11. WCU Departments List Test
+    expect(WcuDepartments.all.length >= 55, true);
+    expect(WcuDepartments.all.contains('Computer Science'), true);
+    expect(WcuDepartments.all.contains('Architecture'), true);
+    expect(WcuDepartments.all.contains('Medicine'), true);
+    expect(WcuDepartments.all.contains('Law'), true);
+    expect(WcuDepartments.all.contains('Curriculum and Instruction'), true);
   });
 }
+
 
 

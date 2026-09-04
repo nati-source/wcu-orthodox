@@ -5,10 +5,18 @@ import '../models/app_models.dart';
 
 class FellowshipState extends ChangeNotifier {
   // ----------------------------------------------------
-  // ACTIVE USER & ROLE SWITCHING
+  // ACTIVE USER, THEME & ROLE SWITCHING
   // ----------------------------------------------------
   UserRole _activeRole = UserRole.student;
   UserRole get activeRole => _activeRole;
+
+  AppThemePalette _currentThemePalette = AppThemePalette.midnightGold;
+  AppThemePalette get currentThemePalette => _currentThemePalette;
+
+  void setThemePalette(AppThemePalette palette) {
+    _currentThemePalette = palette;
+    notifyListeners();
+  }
 
   UserModel _currentUser = UserModel(
     id: 'usr-current',
@@ -724,6 +732,53 @@ class FellowshipState extends ChangeNotifier {
 
     _confessionAppointments.insert(0, newAppt);
     notifyListeners();
+  }
+
+  void addConfessorFather(ConfessorFatherModel father) {
+    _confessorFathers = List<ConfessorFatherModel>.from(_confessorFathers)..add(father);
+    notifyListeners();
+  }
+
+  void updateConfessorFather(ConfessorFatherModel updated) {
+    final index = _confessorFathers.indexWhere((f) => f.id == updated.id);
+    if (index != -1) {
+      final list = List<ConfessorFatherModel>.from(_confessorFathers);
+      list[index] = updated;
+      _confessorFathers = list;
+      notifyListeners();
+    }
+  }
+
+  void deleteConfessorFather(String fatherId) {
+    _confessorFathers = _confessorFathers.where((f) => f.id != fatherId).toList();
+    notifyListeners();
+  }
+
+  void confirmConfessionAppointment(
+    String apptId, {
+    String? notes,
+    String? assignedVenue,
+  }) {
+    final index = _confessionAppointments.indexWhere((a) => a.id == apptId);
+    if (index != -1) {
+      final appt = _confessionAppointments[index];
+      _confessionAppointments[index] = appt.copyWith(
+        status: ConfessionAppointmentStatus.confirmed,
+        notes: notes ?? (assignedVenue != null ? 'Confirmed at $assignedVenue' : 'Confirmed by Confession Father'),
+      );
+      notifyListeners();
+    }
+  }
+
+  void broadcastPriestScheduleAlert({
+    required String fatherName,
+    required String newVenueOrTime,
+  }) {
+    _broadcastEmergency(
+      title: 'Clergy Schedule Update • $fatherName',
+      description: '$fatherName schedule/venue updated: $newVenueOrTime. Please verify your appointments.',
+      category: 'Clergy Notice',
+    );
   }
 
   void updateConfessionStatus(String apptId, ConfessionAppointmentStatus status) {
@@ -2108,6 +2163,7 @@ class FellowshipState extends ChangeNotifier {
         fullName: 'Kesis Yohannes Teshome',
         clericalTitle: 'መልአከ ሰላም ቀሲስ (Melake Selam Kesis)',
         churchName: "St. Mary's Orthodox Church (Hosanna WCU)",
+        meetingVenue: "St. Mary's Sunday School Office (Room 2)",
         phoneNumber: '+251911456789',
         availableDays: ['Wednesday', 'Saturday', 'Sunday'],
         availableTimeSlots: ['9:00 AM - 11:30 AM', '3:00 PM - 5:30 PM'],
@@ -2118,6 +2174,7 @@ class FellowshipState extends ChangeNotifier {
         fullName: 'Abba Gebre Selassie',
         clericalTitle: 'ቆሞስ አባ (Komos Abba)',
         churchName: 'Debre Mewi Medhanealem Church',
+        meetingVenue: 'Medhanealem Parish Library / Counseling Hall',
         phoneNumber: '+251912987654',
         availableDays: ['Thursday', 'Saturday', 'Sunday'],
         availableTimeSlots: ['2:00 PM - 4:30 PM', '5:00 PM - 7:00 PM'],

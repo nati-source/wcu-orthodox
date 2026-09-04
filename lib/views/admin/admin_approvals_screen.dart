@@ -31,7 +31,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         .length;
 
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         backgroundColor: AppTheme.primaryBg,
         appBar: AppBar(
@@ -43,6 +43,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
             unselectedLabelColor: AppTheme.textTertiary,
             tabs: [
               Tab(text: 'Students (${pendingStudents.length})'),
+              Tab(text: 'Priests & Schedules (${state.confessorFathers.length})'),
               Tab(text: '10 Dept Volunteers ($pendingVolunteerCount)'),
               Tab(text: 'Trip Payments (${pendingTrips.length})'),
               Tab(text: 'Emergency Aid (${aidRequests.length})'),
@@ -55,16 +56,19 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
             // Tab 1: Pending Student Registrations
             _buildStudentRegistrationsTab(context, pendingStudents),
 
-            // Tab 2: 10 EOTC Department Coordinator Recruitment & Roster
+            // Tab 2: Father Confessors, Meeting Venues & Schedule Control
+            _buildPriestsAndSchedulesTab(context, state),
+
+            // Tab 3: 10 EOTC Department Coordinator Recruitment & Roster
             _buildDepartmentCoordinatorRecruitmentTab(context, state, volunteerApps),
 
-            // Tab 3: Pilgrimage Telebirr & CBE Payment Verifications
+            // Tab 4: Pilgrimage Telebirr & CBE Payment Verifications
             _buildTripPaymentsTab(context, pendingTrips),
 
-            // Tab 4: Student Emergency Aid Requests Review
+            // Tab 5: Student Emergency Aid Requests Review
             _buildEmergencyAidTab(context, aidRequests),
 
-            // Tab 5: Role Assignments
+            // Tab 6: Role Assignments
             _buildRoleAssignmentsTab(context, allStudents),
           ],
         ),
@@ -949,4 +953,602 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
       },
     );
   }
+
+  // ----------------------------------------------------
+  // TAB 2: PRIESTS, VENUES & SCHEDULE MANAGEMENT
+  // ----------------------------------------------------
+  Widget _buildPriestsAndSchedulesTab(BuildContext context, FellowshipState state) {
+    final fathers = state.confessorFathers;
+    final allAppts = state.confessionAppointments;
+    final pendingAppts = allAppts.where((a) => a.status == ConfessionAppointmentStatus.pending).toList();
+
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        // Action Bar: Add Priest & Broadcast Schedule
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _openAddEditPriestDialog(context, null),
+                icon: const Icon(Icons.person_add_alt_1, size: 16, color: Colors.black),
+                label: const Text('Add Priest / Confessor', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFF5A65E),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _openBroadcastPriestScheduleDialog(context),
+                icon: const Icon(Icons.campaign_outlined, size: 16, color: Color(0xFFF5A65E)),
+                label: const Text('Broadcast Alert', style: TextStyle(color: Color(0xFFF5A65E), fontWeight: FontWeight.bold, fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Color(0xFFF5A65E)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // Section 1: Active Confessor Fathers Roster & Meeting Places
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'ACTIVE CONFESSOR FATHERS & VENUES',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppTheme.goldAccent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${fathers.length} Active Clergy',
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.goldLight),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        if (fathers.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.secondaryBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.borderMuted),
+            ),
+            child: const Center(
+              child: Text('No confessor fathers registered. Tap "Add Priest / Confessor" above.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+            ),
+          )
+        else
+          ...fathers.map((father) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryBg,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.borderMuted),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: AppTheme.goldAccent.withOpacity(0.15),
+                        child: const Icon(Icons.person, color: AppTheme.goldLight, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              father.fullName,
+                              style: const TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                            ),
+                            Text(
+                              '${father.clericalTitle} • ${father.churchName}',
+                              style: const TextStyle(fontSize: 11, color: Color(0xFFF5A65E)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, color: AppTheme.goldLight, size: 18),
+                        onPressed: () => _openAddEditPriestDialog(context, father),
+                        tooltip: 'Edit Schedule & Place',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Meeting Venue Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceElevated,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppTheme.goldAccent.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.place, color: Color(0xFFF5A65E), size: 14),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Venue: ${father.meetingVenue}',
+                            style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Available Days & Time Slots
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      ...father.availableDays.map((d) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.secondaryBg,
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppTheme.borderMuted),
+                            ),
+                            child: Text(d, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+                          )),
+                      ...father.availableTimeSlots.map((s) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.goldAccent.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(s, style: const TextStyle(fontSize: 10, color: AppTheme.goldLight)),
+                          )),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+
+        const SizedBox(height: 24),
+
+        // Section 2: Student Confession Bookings Review
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'STUDENT APPOINTMENTS & CONFIRMATIONS',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+            ),
+            if (pendingAppts.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${pendingAppts.length} Pending',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+
+        if (allAppts.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.secondaryBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.borderMuted),
+            ),
+            child: const Center(
+              child: Text('No student confession requests booked yet.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+            ),
+          )
+        else
+          ...allAppts.map((appt) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.secondaryBg,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: appt.status.color.withOpacity(0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${appt.studentName} (B.N. ${appt.studentBaptismalName})',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: appt.status.color.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: appt.status.color.withOpacity(0.6)),
+                        ),
+                        child: Text(
+                          appt.status.displayName,
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: appt.status.color),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text('Father: ${appt.fatherName}', style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E))),
+                  Text('Topic: ${appt.topic}', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule, size: 14, color: AppTheme.textSecondary),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${appt.scheduledDate.year}-${appt.scheduledDate.month}-${appt.scheduledDate.day} • ${appt.timeSlot}',
+                        style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      ),
+                    ],
+                  ),
+                  if (appt.notes != null && appt.notes!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text('Note/Venue: ${appt.notes}', style: const TextStyle(fontSize: 11, color: AppTheme.goldLight, fontStyle: FontStyle.italic)),
+                  ],
+                  const SizedBox(height: 12),
+
+                  // Actions
+                  if (appt.status == ConfessionAppointmentStatus.pending)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _openAppointmentConfirmationDialog(context, appt),
+                            icon: const Icon(Icons.check, size: 14, color: Colors.black),
+                            label: const Text('Confirm & Set Venue', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF10B981),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        OutlinedButton(
+                          onPressed: () {
+                            state.updateConfessionStatus(appt.id, ConfessionAppointmentStatus.cancelled);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Appointment declined')),
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFEF4444)),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: const Text('Decline', style: TextStyle(color: Color(0xFFEF4444), fontSize: 11)),
+                        ),
+                      ],
+                    )
+                  else if (appt.status == ConfessionAppointmentStatus.confirmed)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          state.updateConfessionStatus(appt.id, ConfessionAppointmentStatus.completed);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Marked as Completed')),
+                          );
+                        },
+                        icon: const Icon(Icons.done_all, size: 14, color: Color(0xFF3B82F6)),
+                        label: const Text('Mark Completed', style: TextStyle(color: Color(0xFF3B82F6), fontSize: 11)),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  void _openAddEditPriestDialog(BuildContext context, ConfessorFatherModel? existing) {
+    final state = widget.state;
+    final isEditing = existing != null;
+
+    final nameCtrl = TextEditingController(text: existing?.fullName ?? '');
+    final titleCtrl = TextEditingController(text: existing?.clericalTitle ?? 'መልአከ ሰላም ቀሲስ (Melake Selam Kesis)');
+    final churchCtrl = TextEditingController(text: existing?.churchName ?? 'St. Mary\'s Orthodox Church (Hosanna WCU)');
+    final venueCtrl = TextEditingController(text: existing?.meetingVenue ?? 'St. Mary\'s Sunday School Office (Room 2)');
+    final phoneCtrl = TextEditingController(text: existing?.phoneNumber ?? '+251911000000');
+    final bioCtrl = TextEditingController(text: existing?.bio ?? 'Campus confession father providing pastoral guidance and communion absolution.');
+
+    final allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    List<String> selectedDays = List<String>.from(existing?.availableDays ?? ['Wednesday', 'Saturday', 'Sunday']);
+
+    final allSlots = ['9:00 AM - 11:30 AM', '2:00 PM - 4:30 PM', '3:00 PM - 5:30 PM', '5:00 PM - 7:00 PM'];
+    List<String> selectedSlots = List<String>.from(existing?.availableTimeSlots ?? ['9:00 AM - 11:30 AM', '3:00 PM - 5:30 PM']);
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppTheme.surfaceElevated,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text(
+                isEditing ? 'Edit Priest & Venue' : 'Add Confessor Father',
+                style: const TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E), fontWeight: FontWeight.bold),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: const InputDecoration(labelText: 'Father Full Name (e.g. Kesis Yohannes)'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(labelText: 'Clerical Title (e.g. መልአከ ሰላም ቀሲስ)'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: churchCtrl,
+                      decoration: const InputDecoration(labelText: 'Church / Parish Name'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: venueCtrl,
+                      decoration: const InputDecoration(labelText: 'Meeting Place / Campus Venue', hintText: 'e.g. Sunday School Room 2'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: phoneCtrl,
+                      decoration: const InputDecoration(labelText: 'Phone Number (Call / SMS)'),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text('Available Days:', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: allDays.map((d) {
+                        final isSel = selectedDays.contains(d);
+                        return FilterChip(
+                          label: Text(d, style: TextStyle(fontSize: 10, color: isSel ? Colors.black : Colors.white)),
+                          selected: isSel,
+                          selectedColor: const Color(0xFFF5A65E),
+                          backgroundColor: AppTheme.secondaryBg,
+                          onSelected: (val) {
+                            setDialogState(() {
+                              if (val) {
+                                selectedDays.add(d);
+                              } else {
+                                selectedDays.remove(d);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text('Available Time Slots:', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: allSlots.map((s) {
+                        final isSel = selectedSlots.contains(s);
+                        return FilterChip(
+                          label: Text(s, style: TextStyle(fontSize: 10, color: isSel ? Colors.black : Colors.white)),
+                          selected: isSel,
+                          selectedColor: const Color(0xFFF5A65E),
+                          backgroundColor: AppTheme.secondaryBg,
+                          onSelected: (val) {
+                            setDialogState(() {
+                              if (val) {
+                                selectedSlots.add(s);
+                              } else {
+                                selectedSlots.remove(s);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: bioCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(labelText: 'Pastoral Bio / Counseling Focus'),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                if (isEditing)
+                  TextButton(
+                    onPressed: () {
+                      state.deleteConfessorFather(existing.id);
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Priest profile removed')));
+                    },
+                    child: const Text('Delete', style: TextStyle(color: Color(0xFFEF4444))),
+                  ),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (nameCtrl.text.trim().isEmpty) return;
+
+                    final updated = ConfessorFatherModel(
+                      id: existing?.id ?? 'fat-${DateTime.now().millisecondsSinceEpoch}',
+                      fullName: nameCtrl.text.trim(),
+                      clericalTitle: titleCtrl.text.trim(),
+                      churchName: churchCtrl.text.trim(),
+                      meetingVenue: venueCtrl.text.trim().isNotEmpty ? venueCtrl.text.trim() : 'St. Mary\'s Sunday School Office (Room 2)',
+                      phoneNumber: phoneCtrl.text.trim(),
+                      availableDays: selectedDays.isNotEmpty ? selectedDays : ['Saturday', 'Sunday'],
+                      availableTimeSlots: selectedSlots.isNotEmpty ? selectedSlots : ['3:00 PM - 5:30 PM'],
+                      bio: bioCtrl.text.trim(),
+                    );
+
+                    if (isEditing) {
+                      state.updateConfessorFather(updated);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Priest schedule & venue updated')));
+                    } else {
+                      state.addConfessorFather(updated);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New Confessor Father added')));
+                    }
+                    Navigator.pop(ctx);
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
+                  child: Text(isEditing ? 'Save Changes' : 'Add Priest', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _openAppointmentConfirmationDialog(BuildContext context, ConfessionAppointmentModel appt) {
+    final state = widget.state;
+    final noteCtrl = TextEditingController(text: 'Confirmed. Please meet at Sunday School Office Room 2 and prepare Psalm 50.');
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppTheme.surfaceElevated,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Confirm ${appt.studentName}\'s Visit', style: const TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E))),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Father: ${appt.fatherName}', style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
+              Text('Topic: ${appt.topic}', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              Text('Requested Date: ${appt.scheduledDate.year}-${appt.scheduledDate.month}-${appt.scheduledDate.day} (${appt.timeSlot})', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: noteCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Confirmation Note & Venue Instructions',
+                  hintText: 'e.g. Meet at Room 2, fast from midnight',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                state.confirmConfessionAppointment(appt.id, notes: noteCtrl.text.trim());
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Confirmed appointment for ${appt.studentName}')),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
+              child: const Text('Confirm Appointment', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _openBroadcastPriestScheduleDialog(BuildContext context) {
+    final state = widget.state;
+    final fatherCtrl = TextEditingController(text: 'Kesis Yohannes Teshome');
+    final changeCtrl = TextEditingController(text: 'Counseling location moved to Campus Prayer Hall for Saturday.');
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: AppTheme.surfaceElevated,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Broadcast Clergy Notice', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E))),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Send an instant broadcast notification to all students regarding schedule or venue updates.', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: fatherCtrl,
+                decoration: const InputDecoration(labelText: 'Father / Clergy Name'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: changeCtrl,
+                maxLines: 2,
+                decoration: const InputDecoration(labelText: 'Venue / Schedule Update Details'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (changeCtrl.text.trim().isEmpty) return;
+                state.broadcastPriestScheduleAlert(
+                  fatherName: fatherCtrl.text.trim(),
+                  newVenueOrTime: changeCtrl.text.trim(),
+                );
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Clergy schedule broadcast sent to all students!')),
+                );
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
+              child: const Text('Broadcast Alert', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
+
