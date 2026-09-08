@@ -44,6 +44,15 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
   }
 
   void _openApplicationDialog(BuildContext context, MinistryModel ministry) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     final state = widget.state;
     String selectedSubWing = ministry.subWings.isNotEmpty ? ministry.subWings.first : 'General Serving';
     String selectedYear = '2nd Year';
@@ -54,7 +63,7 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: cardBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -78,7 +87,7 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                         width: 44,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: AppTheme.borderMuted,
+                          color: borderCol,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -88,18 +97,18 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                     // Header with Bilingual Title
                     Text(
                       ministry.titleAmharic,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'serif',
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.goldLight,
+                        color: textCol,
                       ),
                     ),
                     Text(
                       'Apply to ${ministry.titleEn}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Colors.white70,
+                        color: textMuted,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -108,18 +117,18 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: AppTheme.surfaceElevated,
+                        color: elevatedBg,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.goldAccent.withOpacity(0.3)),
+                        border: Border.all(color: primaryAccent.withOpacity(0.3)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.person_pin, color: Color(0xFFF5A65E), size: 18),
+                          Icon(Icons.person_pin, color: primaryAccent, size: 18),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Reviewed by ${ministry.teamLead} (${ministry.coordinatorRole})',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFFF5A65E), fontWeight: FontWeight.w600),
+                              style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
                             ),
                           ),
                         ],
@@ -128,24 +137,24 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                     const SizedBox(height: 16),
 
                     // Preferred Sub-wing Dropdown
-                    const Text('Select Specific Sub-wing (የአገልግሎት ዘርፍ)',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text('Select Specific Sub-wing (የአገልግሎት ዘርፍ)',
+                        style: TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: AppTheme.secondaryBg,
+                        color: elevatedBg,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.borderMuted),
+                        border: Border.all(color: borderCol),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedSubWing,
                           isExpanded: true,
-                          dropdownColor: AppTheme.surfaceElevated,
-                          style: const TextStyle(fontSize: 12, color: Colors.white),
+                          dropdownColor: cardBg,
+                          style: TextStyle(fontSize: 12, color: textCol),
                           items: ministry.subWings.map((wing) {
-                            return DropdownMenuItem(value: wing, child: Text(wing, style: const TextStyle(fontSize: 12)));
+                            return DropdownMenuItem(value: wing, child: Text(wing, style: TextStyle(fontSize: 12, color: textCol)));
                           }).toList(),
                           onChanged: (val) {
                             if (val != null) setModalState(() => selectedSubWing = val);
@@ -156,24 +165,24 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                     const SizedBox(height: 12),
 
                     // Academic Year / Batch Dropdown
-                    const Text('Your Academic Year / Batch (የትምህርት ክፍለ ዓመት)',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text('Your Academic Year / Batch (የትምህርት ክፍለ ዓመት)',
+                        style: TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: AppTheme.secondaryBg,
+                        color: elevatedBg,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppTheme.borderMuted),
+                        border: Border.all(color: borderCol),
                       ),
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<String>(
                           value: selectedYear,
                           isExpanded: true,
-                          dropdownColor: AppTheme.surfaceElevated,
-                          style: const TextStyle(fontSize: 12, color: Colors.white),
+                          dropdownColor: cardBg,
+                          style: TextStyle(fontSize: 12, color: textCol),
                           items: ['1st Year Freshman', '2nd Year', '3rd Year', '4th Year Graduating', 'Postgraduate']
-                              .map((yr) => DropdownMenuItem(value: yr, child: Text(yr, style: const TextStyle(fontSize: 12))))
+                              .map((yr) => DropdownMenuItem(value: yr, child: Text(yr, style: TextStyle(fontSize: 12, color: textCol))))
                               .toList(),
                           onChanged: (val) {
                             if (val != null) setModalState(() => selectedYear = val);
@@ -184,41 +193,62 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                     const SizedBox(height: 12),
 
                     // Reason for applying
-                    const Text('Spiritual Calling & Motivation (የአገልግሎት ፍላጎትህ/ሽ)',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text('Spiritual Calling & Motivation (የአገልግሎት ፍላጎትህ/ሽ)',
+                        style: TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: reasonController,
                       maxLines: 2,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: textCol, fontSize: 13),
+                      decoration: InputDecoration(
                         hintText: 'Why do you feel called to serve in this department?',
+                        hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 12),
+                        filled: true,
+                        fillColor: elevatedBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: borderCol),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
 
                     // Experience / skills
-                    const Text('Church Background & Skills (ልምድ ወይም ክህሎት)',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text('Church Background & Skills (ልምድ ወይም ክህሎት)',
+                        style: TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: experienceController,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: textCol, fontSize: 13),
+                      decoration: InputDecoration(
                         hintText: 'e.g. Parish choir, Begena learner, high school tutoring, Red Cross...',
+                        hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 12),
+                        filled: true,
+                        fillColor: elevatedBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: borderCol),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
 
                     // Availability
-                    const Text('Weekly Availability (የአገልግሎት ሰዓት)',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+                    Text('Weekly Availability (የአገልግሎት ሰዓት)',
+                        style: TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: availabilityController,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: textCol, fontSize: 13),
+                      decoration: InputDecoration(
                         hintText: 'e.g. Saturdays, Sunday afternoons, free evenings...',
+                        hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 12),
+                        filled: true,
+                        fillColor: elevatedBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: borderCol),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -246,17 +276,21 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Application routed directly to ${ministry.teamLead} (${ministry.titleAmharic})!'),
-                            backgroundColor: AppTheme.surfaceColor,
+                            backgroundColor: cardBg,
                           ),
                         );
                       },
-                      icon: const Icon(Icons.send, size: 16, color: Colors.black),
-                      label: const Text(
+                      icon: Icon(Icons.send, size: 16, color: isDark ? Colors.black : Colors.white),
+                      label: Text(
                         'Submit Application to Coordinator',
-                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
+                        style: TextStyle(
+                          color: isDark ? Colors.black : Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF5A65E),
+                        backgroundColor: primaryAccent,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -273,6 +307,14 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+
     final state = widget.state;
     final allMinistries = state.ministries;
 
@@ -295,11 +337,13 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
         .toList();
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Voluntary Serving • ንዑሳን ክፍሎች'),
+        title: Text('Voluntary Serving • ንዑሳን ክፍሎች', style: TextStyle(color: textCol)),
+        backgroundColor: cardBg,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.goldLight),
+          icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -312,13 +356,9 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF2C364A), Color(0xFF17202E)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: cardBg,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.goldAccent.withOpacity(0.35)),
+                border: Border.all(color: primaryAccent.withOpacity(0.35)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,13 +368,13 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.goldAccent.withOpacity(0.2),
+                          color: primaryAccent.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.church_outlined, color: AppTheme.goldLight, size: 22),
+                        child: Icon(Icons.church_outlined, color: primaryAccent, size: 22),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -344,12 +384,12 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                                 fontFamily: 'serif',
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                color: textCol,
                               ),
                             ),
                             Text(
                               'የግቢ ጉባኤ 10ሩ ንዑሳን የአገልግሎት ክፍላት',
-                              style: TextStyle(fontSize: 12, color: Color(0xFFF5A65E)),
+                              style: TextStyle(fontSize: 12, color: primaryAccent),
                             ),
                           ],
                         ),
@@ -357,9 +397,9 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     'Every member is gifted to serve. Applications are reviewed directly by the respective Department Coordinator for rapid screening and onboarding.',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.35),
+                    style: TextStyle(fontSize: 12, color: textMuted, height: 1.35),
                   ),
                 ],
               ),
@@ -370,16 +410,17 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
             // 2. Search Box
             TextField(
               onChanged: (val) => setState(() => _searchQuery = val),
-              style: const TextStyle(color: Colors.white, fontSize: 13),
+              style: TextStyle(color: textCol, fontSize: 13),
               decoration: InputDecoration(
                 hintText: 'Search by department, coordinator, or sub-wing...',
-                prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary, size: 18),
+                hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 12),
+                prefixIcon: Icon(Icons.search, color: textMuted, size: 18),
                 filled: true,
-                fillColor: AppTheme.secondaryBg,
+                fillColor: cardBg,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: AppTheme.borderMuted),
+                  borderSide: BorderSide(color: borderCol),
                 ),
               ),
             ),
@@ -391,10 +432,10 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildPillarFilterChip(null, 'All 10 Wings (ሁሉንም)', allMinistries.length),
+                  _buildPillarFilterChip(context, null, 'All 10 Wings (ሁሉንም)', allMinistries.length),
                   ...MinistryPillar.values.map((pillar) {
                     final count = allMinistries.where((m) => m.pillar == pillar).length;
-                    return _buildPillarFilterChip(pillar, pillar.shortName, count);
+                    return _buildPillarFilterChip(context, pillar, pillar.shortName, count);
                   }),
                 ],
               ),
@@ -406,30 +447,30 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'My Department Applications',
                     style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: textCol,
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceElevated,
+                      color: elevatedBg,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
                       '${myApplications.length} active',
-                      style: const TextStyle(fontSize: 10, color: AppTheme.goldLight, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              ...myApplications.map((app) => _buildApplicationCard(app)),
+              ...myApplications.map((app) => _buildApplicationCard(context, app)),
             ],
 
             const SizedBox(height: 22),
@@ -438,18 +479,18 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Explore Fellowship Wings',
                   style: TextStyle(
                     fontFamily: 'serif',
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: textCol,
                   ),
                 ),
                 Text(
                   '${filteredMinistries.length} Departments',
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                  style: TextStyle(fontSize: 12, color: textMuted),
                 ),
               ],
             ),
@@ -460,19 +501,19 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               Container(
                 padding: const EdgeInsets.all(28),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryBg,
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.borderMuted),
+                  border: Border.all(color: borderCol),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     'No departments match your filter or search query.',
-                    style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                    style: TextStyle(fontSize: 13, color: textMuted),
                   ),
                 ),
               )
             else
-              ...filteredMinistries.map((min) => _buildMinistryCard(min)),
+              ...filteredMinistries.map((min) => _buildMinistryCard(context, min)),
 
             const SizedBox(height: 24),
           ],
@@ -481,18 +522,25 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
     );
   }
 
-  Widget _buildPillarFilterChip(MinistryPillar? pillar, String label, int count) {
+  Widget _buildPillarFilterChip(BuildContext context, MinistryPillar? pillar, String label, int count) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final textCol = theme.colorScheme.onSurface;
+    final isDark = theme.brightness == Brightness.dark;
     final isSelected = _selectedPillar == pillar;
+
     return GestureDetector(
       onTap: () => setState(() => _selectedPillar = pillar),
       child: Container(
         margin: const EdgeInsets.only(right: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF5A65E) : AppTheme.secondaryBg,
+          color: isSelected ? primaryAccent : cardBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFFF5A65E) : AppTheme.borderMuted,
+            color: isSelected ? primaryAccent : theme.dividerColor,
           ),
         ),
         child: Row(
@@ -503,14 +551,16 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.black : AppTheme.textSecondary,
+                color: isSelected ? (isDark ? Colors.black : Colors.white) : textCol.withOpacity(0.8),
               ),
             ),
             const SizedBox(width: 5),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
               decoration: BoxDecoration(
-                color: isSelected ? Colors.black.withOpacity(0.2) : AppTheme.surfaceElevated,
+                color: isSelected
+                    ? (isDark ? Colors.black.withOpacity(0.25) : Colors.white.withOpacity(0.25))
+                    : elevatedBg,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -518,7 +568,7 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.black : AppTheme.goldLight,
+                  color: isSelected ? (isDark ? Colors.black : Colors.white) : primaryAccent,
                 ),
               ),
             ),
@@ -528,20 +578,27 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
     );
   }
 
-  Widget _buildApplicationCard(VolunteerApplicationModel app) {
+  Widget _buildApplicationCard(BuildContext context, VolunteerApplicationModel app) {
+    final theme = Theme.of(context);
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final primaryAccent = theme.colorScheme.primary;
+
     final isApproved = app.status == ApplicationStatus.approved;
     final isRejected = app.status == ApplicationStatus.rejected;
     final statusColor = isApproved
         ? AppTheme.emerald
         : isRejected
             ? AppTheme.crimson
-            : const Color(0xFFF5A65E);
+            : primaryAccent;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.secondaryBg,
+        color: cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: statusColor.withOpacity(0.5)),
       ),
@@ -557,11 +614,11 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                   children: [
                     Text(
                       app.ministryAmharicTitle.isNotEmpty ? app.ministryAmharicTitle : app.ministryTitle,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: textCol),
                     ),
                     Text(
                       app.ministryTitle,
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: textMuted),
                     ),
                   ],
                 ),
@@ -585,11 +642,11 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
           const SizedBox(height: 8),
           Row(
             children: [
-              const Icon(Icons.bookmark_border, size: 13, color: AppTheme.goldLight),
+              Icon(Icons.bookmark_border, size: 13, color: primaryAccent),
               const SizedBox(width: 4),
-              Text('Sub-wing: ${app.preferredSubWing}', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              Text('Sub-wing: ${app.preferredSubWing}', style: TextStyle(fontSize: 11, color: textMuted)),
               const Spacer(),
-              Text('Batch: ${app.studentYear}', style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+              Text('Batch: ${app.studentYear}', style: TextStyle(fontSize: 11, color: textMuted.withOpacity(0.7))),
             ],
           ),
           if (app.coordinatorNotes != null && app.coordinatorNotes!.isNotEmpty) ...[
@@ -597,17 +654,17 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceElevated,
+                color: elevatedBg,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.comment, size: 14, color: Color(0xFFF5A65E)),
+                  Icon(Icons.comment, size: 14, color: primaryAccent),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       'Coordinator note: ${app.coordinatorNotes}',
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary),
+                      style: TextStyle(fontSize: 11, color: textCol),
                     ),
                   ),
                 ],
@@ -619,14 +676,23 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
     );
   }
 
-  Widget _buildMinistryCard(MinistryModel min) {
+  Widget _buildMinistryCard(BuildContext context, MinistryModel min) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.secondaryBg,
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.borderMuted),
+        border: Border.all(color: borderCol),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -638,11 +704,11 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.goldAccent.withOpacity(0.12),
+                  color: primaryAccent.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppTheme.goldAccent.withOpacity(0.25)),
+                  border: Border.all(color: primaryAccent.withOpacity(0.25)),
                 ),
-                child: Icon(_getMinistryIcon(min.iconName), color: AppTheme.goldLight, size: 24),
+                child: Icon(_getMinistryIcon(min.iconName), color: primaryAccent, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -651,28 +717,28 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                   children: [
                     Text(
                       min.titleAmharic,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'serif',
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: textCol,
                       ),
                     ),
                     const SizedBox(height: 1),
                     Text(
                       min.titleEn,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E), fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppTheme.surfaceElevated,
+                        color: elevatedBg,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         min.pillar.shortName.toUpperCase(),
-                        style: const TextStyle(fontSize: 9, color: AppTheme.textTertiary, fontWeight: FontWeight.w700),
+                        style: TextStyle(fontSize: 9, color: textMuted.withOpacity(0.8), fontWeight: FontWeight.w700),
                       ),
                     ),
                   ],
@@ -686,18 +752,18 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
           // Descriptions
           Text(
             min.descriptionAmharic,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary, height: 1.35),
+            style: TextStyle(fontSize: 12, color: textCol, height: 1.35),
           ),
           const SizedBox(height: 4),
           Text(
             min.descriptionEn,
-            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.3),
+            style: TextStyle(fontSize: 11, color: textMuted, height: 1.3),
           ),
 
           const SizedBox(height: 12),
 
           // Sub-wings Pills
-          const Text('SUB-WINGS / ዘርፎች:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textTertiary, letterSpacing: 0.5)),
+          Text('SUB-WINGS / ዘርፎች:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textMuted.withOpacity(0.7), letterSpacing: 0.5)),
           const SizedBox(height: 6),
           Wrap(
             spacing: 6,
@@ -706,11 +772,11 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated,
+                  color: elevatedBg,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.borderMuted),
+                  border: Border.all(color: borderCol),
                 ),
-                child: Text(wing, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+                child: Text(wing, style: TextStyle(fontSize: 10, color: textMuted)),
               );
             }).toList(),
           ),
@@ -721,19 +787,19 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF141C29),
+              color: elevatedBg,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.schedule, size: 14, color: AppTheme.goldLight),
+                    Icon(Icons.schedule, size: 14, color: primaryAccent),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Meeting: ${min.meetingSchedule}',
-                        style: const TextStyle(fontSize: 11, color: Colors.white70),
+                        style: TextStyle(fontSize: 11, color: textCol),
                       ),
                     ),
                   ],
@@ -741,12 +807,12 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Icon(Icons.checklist, size: 14, color: Color(0xFFF5A65E)),
+                    Icon(Icons.checklist, size: 14, color: primaryAccent),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         min.requirements,
-                        style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 10, color: textMuted),
                       ),
                     ),
                   ],
@@ -756,7 +822,7 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
           ),
 
           const SizedBox(height: 12),
-          const Divider(color: AppTheme.borderMuted),
+          Divider(color: borderCol),
           const SizedBox(height: 8),
 
           // Coordinator Contact & Apply Action
@@ -770,25 +836,25 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                       'Lead: ${min.teamLead} (${min.coordinatorBaptismalName})',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textCol),
                     ),
                     Text(
                       '${min.activeCount} servants • ${min.openSlots} open slots',
-                      style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 10, color: textMuted),
                     ),
                   ],
                 ),
               ),
               // Direct Inquiry Shortcuts
               IconButton(
-                icon: const Icon(Icons.phone_outlined, size: 18, color: AppTheme.goldLight),
+                icon: Icon(Icons.phone_outlined, size: 18, color: primaryAccent),
                 tooltip: 'Call Coordinator',
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 padding: EdgeInsets.zero,
                 onPressed: () => widget.state.launchCall(min.coordinatorPhone),
               ),
               IconButton(
-                icon: const Icon(Icons.sms_outlined, size: 18, color: AppTheme.goldLight),
+                icon: Icon(Icons.sms_outlined, size: 18, color: primaryAccent),
                 tooltip: 'SMS Coordinator',
                 constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 padding: EdgeInsets.zero,
@@ -801,13 +867,17 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               ElevatedButton(
                 onPressed: () => _openApplicationDialog(context, min),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF5A65E),
+                  backgroundColor: primaryAccent,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 ),
-                child: const Text(
+                child: Text(
                   'Apply',
-                  style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                  style: TextStyle(
+                    color: isDark ? Colors.black : Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],

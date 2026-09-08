@@ -68,15 +68,25 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final borderCol = theme.dividerColor;
+
     final state = widget.state;
     final quiz = state.triviaQuizzes.first;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Faith Challenge • የዕውቀት ውድድር'),
-        backgroundColor: AppTheme.primaryBg,
+        title: Text('Faith Challenge • የዕውቀት ውድድር', style: TextStyle(color: textCol)),
+        backgroundColor: cardBg,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: Column(
         children: [
@@ -85,14 +95,15 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: cardBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: borderCol),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: _buildNavTab(
+                    context: context,
                     title: 'Weekly Faith Quiz',
                     icon: Icons.quiz_outlined,
                     index: 0,
@@ -100,6 +111,7 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                 ),
                 Expanded(
                   child: _buildNavTab(
+                    context: context,
                     title: 'Family Leaderboard',
                     icon: Icons.emoji_events_outlined,
                     index: 1,
@@ -111,36 +123,48 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
 
           Expanded(
             child: _activeTab == 0
-                ? _buildQuizContent(quiz)
-                : _buildLeaderboardContent(state),
+                ? _buildQuizContent(context, quiz)
+                : _buildLeaderboardContent(context, state),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNavTab({required String title, required IconData icon, required int index}) {
+  Widget _buildNavTab({
+    required BuildContext context,
+    required String title,
+    required IconData icon,
+    required int index,
+  }) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
     final isSelected = _activeTab == index;
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: () => setState(() => _activeTab = index),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.surfaceElevated : Colors.transparent,
+          color: isSelected ? elevatedBg : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: isSelected ? Border.all(color: AppTheme.goldAccent.withOpacity(0.5)) : null,
+          border: isSelected ? Border.all(color: primaryAccent.withOpacity(0.5)) : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: isSelected ? AppTheme.goldLight : AppTheme.textSecondary),
+            Icon(icon, size: 16, color: isSelected ? primaryAccent : textMuted),
             const SizedBox(width: 6),
             Text(
               title,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                color: isSelected ? (isDark ? primaryAccent : textCol) : textMuted,
               ),
             ),
           ],
@@ -152,10 +176,19 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
   // ----------------------------------------------------
   // TAB 0: QUIZ PLAY & RESULTS
   // ----------------------------------------------------
-  Widget _buildQuizContent(TriviaQuizModel quiz) {
+  Widget _buildQuizContent(BuildContext context, TriviaQuizModel quiz) {
     if (_isQuizFinished) {
-      return _buildQuizResult(quiz);
+      return _buildQuizResult(context, quiz);
     }
+
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
 
     final question = quiz.questions[_currentQuestionIndex];
     final progress = (_currentQuestionIndex + 1) / quiz.questions.length;
@@ -169,9 +202,9 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: cardBg,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: borderCol),
             ),
             child: Column(
               children: [
@@ -180,7 +213,7 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                   children: [
                     Text(
                       'Question ${_currentQuestionIndex + 1} of ${quiz.questions.length}',
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E)),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: primaryAccent),
                     ),
                     Text(
                       'Score: $_score',
@@ -194,8 +227,8 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                   child: LinearProgressIndicator(
                     value: progress,
                     minHeight: 6,
-                    backgroundColor: AppTheme.surfaceColor,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF5A65E)),
+                    backgroundColor: elevatedBg,
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
                   ),
                 ),
               ],
@@ -208,33 +241,36 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF283344), Color(0xFF1A2230)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: cardBg,
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: AppTheme.goldAccent.withOpacity(0.4)),
+              border: Border.all(color: primaryAccent.withOpacity(0.4)),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   question.questionAmharic,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'serif',
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: textCol,
                     height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   question.questionEnglish,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: textMuted,
                     height: 1.3,
                   ),
                 ),
@@ -250,20 +286,20 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
             final isSelected = _selectedOptionIndex == optIndex;
             final isCorrect = optIndex == question.correctOptionIndex;
 
-            Color bgColor = AppTheme.secondaryBg;
-            Color borderColor = AppTheme.borderMuted;
+            Color bgColor = cardBg;
+            Color borderColor = borderCol;
 
             if (_isAnswerRevealed) {
               if (isCorrect) {
-                bgColor = const Color(0xFF064E3B);
+                bgColor = isDark ? const Color(0xFF064E3B) : const Color(0xFFD1FAE5);
                 borderColor = const Color(0xFF10B981);
               } else if (isSelected && !isCorrect) {
-                bgColor = const Color(0xFF450A0A);
+                bgColor = isDark ? const Color(0xFF450A0A) : const Color(0xFFFEE2E2);
                 borderColor = const Color(0xFFEF4444);
               }
             } else if (isSelected) {
-              bgColor = const Color(0xFF2A364A);
-              borderColor = AppTheme.goldAccent;
+              bgColor = elevatedBg;
+              borderColor = primaryAccent;
             }
 
             return GestureDetector(
@@ -274,19 +310,22 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                 decoration: BoxDecoration(
                   color: bgColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: borderColor, width: isSelected || (_isAnswerRevealed && isCorrect) ? 1.5 : 1.0),
+                  border: Border.all(
+                    color: borderColor,
+                    width: isSelected || (_isAnswerRevealed && isCorrect) ? 1.5 : 1.0,
+                  ),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: isSelected ? const Color(0xFFF5A65E) : AppTheme.surfaceElevated,
+                      backgroundColor: isSelected ? primaryAccent : elevatedBg,
                       child: Text(
                         String.fromCharCode(65 + optIndex), // A, B, C, D
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: isSelected ? Colors.black : Colors.white,
+                          color: isSelected ? (isDark ? Colors.black : Colors.white) : textCol,
                         ),
                       ),
                     ),
@@ -297,7 +336,7 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                          color: Colors.white,
+                          color: textCol,
                         ),
                       ),
                     ),
@@ -316,27 +355,27 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF192433),
+                color: elevatedBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.4)),
+                border: Border.all(color: primaryAccent.withOpacity(0.4)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.menu_book, color: Color(0xFF60A5FA), size: 16),
+                      Icon(Icons.menu_book, color: primaryAccent, size: 16),
                       const SizedBox(width: 6),
                       Text(
                         'Explanation • ${question.bibleReference}',
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF93C5FD)),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryAccent),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
                     question.explanation,
-                    style: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0), height: 1.4),
+                    style: TextStyle(fontSize: 12, color: textCol, height: 1.4),
                   ),
                 ],
               ),
@@ -356,13 +395,17 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                     }
                   },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFF5A65E),
+              backgroundColor: primaryAccent,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
             child: Text(
               !_isAnswerRevealed ? 'Check Answer' : (_currentQuestionIndex < quiz.questions.length - 1 ? 'Next Question' : 'Finish Quiz'),
-              style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
+              style: TextStyle(
+                color: isDark ? Colors.black : Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -370,7 +413,15 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
     );
   }
 
-  Widget _buildQuizResult(TriviaQuizModel quiz) {
+  Widget _buildQuizResult(BuildContext context, TriviaQuizModel quiz) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     final percentage = (_score / quiz.questions.length) * 100;
 
     return Center(
@@ -379,33 +430,36 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF283446), Color(0xFF1B2332)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: cardBg,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppTheme.goldAccent.withOpacity(0.5)),
+            border: Border.all(color: primaryAccent.withOpacity(0.5)),
+            boxShadow: [
+              BoxShadow(
+                color: isDark ? Colors.black.withOpacity(0.4) : Colors.black.withOpacity(0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.military_tech, color: Color(0xFFF5A65E), size: 70),
+              Icon(Icons.military_tech, color: primaryAccent, size: 70),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Faith Quiz Completed!',
-                style: TextStyle(fontFamily: 'serif', fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(fontFamily: 'serif', fontSize: 20, fontWeight: FontWeight.bold, color: textCol),
               ),
               const SizedBox(height: 6),
               Text(
                 'You scored $_score of ${quiz.questions.length} (${percentage.toInt()}%)',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E)),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent),
               ),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated,
+                  color: elevatedBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -421,11 +475,11 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                     child: OutlinedButton(
                       onPressed: _restartQuiz,
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppTheme.borderMuted),
+                        side: BorderSide(color: borderCol),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: const Text('Retake Quiz', style: TextStyle(color: Colors.white)),
+                      child: Text('Retake Quiz', style: TextStyle(color: textCol)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -433,11 +487,17 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                     child: ElevatedButton(
                       onPressed: () => setState(() => _activeTab = 1),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF5A65E),
+                        backgroundColor: primaryAccent,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      child: const Text('Leaderboard', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                      child: Text(
+                        'Leaderboard',
+                        style: TextStyle(
+                          color: isDark ? Colors.black : Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -452,7 +512,16 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
   // ----------------------------------------------------
   // TAB 1: SPIRITUAL FAMILY LEADERBOARD
   // ----------------------------------------------------
-  Widget _buildLeaderboardContent(FellowshipState state) {
+  Widget _buildLeaderboardContent(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     return ListView.builder(
       padding: const EdgeInsets.all(18),
       itemCount: state.familyLeaderboard.length,
@@ -464,10 +533,10 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: isTop1 ? const Color(0xFF263346) : AppTheme.secondaryBg,
+            color: isTop1 ? elevatedBg : cardBg,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
-              color: isTop1 ? AppTheme.goldAccent : AppTheme.borderMuted,
+              color: isTop1 ? primaryAccent : borderCol,
               width: isTop1 ? 1.5 : 1.0,
             ),
           ),
@@ -477,18 +546,20 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
               CircleAvatar(
                 radius: 18,
                 backgroundColor: isTop1
-                    ? const Color(0xFFF5A65E)
+                    ? primaryAccent
                     : entry.rank == 2
                         ? const Color(0xFF94A3B8)
                         : entry.rank == 3
                             ? const Color(0xFFB45309)
-                            : AppTheme.surfaceElevated,
+                            : elevatedBg,
                 child: Text(
                   '#${entry.rank}',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: isTop1 ? Colors.black : Colors.white,
+                    color: isTop1
+                        ? (isDark ? Colors.black : Colors.white)
+                        : (entry.rank <= 3 ? Colors.white : textCol),
                   ),
                 ),
               ),
@@ -503,13 +574,13 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                         fontFamily: 'serif',
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
-                        color: isTop1 ? const Color(0xFFF5A65E) : Colors.white,
+                        color: isTop1 ? primaryAccent : textCol,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${entry.participantsCount} Fellows completed quizzes',
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: textMuted),
                     ),
                   ],
                 ),
@@ -519,13 +590,13 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                 children: [
                   Text(
                     '${entry.totalScore} pts',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFFF5A65E),
+                      color: primaryAccent,
                     ),
                   ),
-                  const Text('Total Score', style: TextStyle(fontSize: 9, color: AppTheme.textTertiary)),
+                  Text('Total Score', style: TextStyle(fontSize: 9, color: textMuted.withOpacity(0.7))),
                 ],
               ),
             ],

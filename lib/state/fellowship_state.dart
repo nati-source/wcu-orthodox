@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/app_models.dart';
 
@@ -7,15 +8,34 @@ class FellowshipState extends ChangeNotifier {
   // ----------------------------------------------------
   // ACTIVE USER, THEME & ROLE SWITCHING
   // ----------------------------------------------------
+  static const String _themePrefKey = 'selected_theme_palette_index';
+
   UserRole _activeRole = UserRole.student;
   UserRole get activeRole => _activeRole;
 
-  AppThemePalette _currentThemePalette = AppThemePalette.midnightGold;
+  AppThemePalette _currentThemePalette = AppThemePalette.midnightFellowship;
   AppThemePalette get currentThemePalette => _currentThemePalette;
 
-  void setThemePalette(AppThemePalette palette) {
+  Future<void> _loadSavedTheme() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedIndex = prefs.getInt(_themePrefKey);
+      if (savedIndex != null && savedIndex >= 0 && savedIndex < AppThemePalette.values.length) {
+        _currentThemePalette = AppThemePalette.values[savedIndex];
+        notifyListeners();
+      }
+    } catch (_) {
+      // Fallback silently if storage unavailable
+    }
+  }
+
+  Future<void> setThemePalette(AppThemePalette palette) async {
     _currentThemePalette = palette;
     notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_themePrefKey, palette.index);
+    } catch (_) {}
   }
 
   UserModel _currentUser = UserModel(
@@ -1109,6 +1129,7 @@ class FellowshipState extends ChangeNotifier {
   // INITIALIZATION & MOCK DATA SETUP
   // ----------------------------------------------------
   FellowshipState() {
+    _loadSavedTheme();
     _initMockData();
     _startPinRotation();
     _startCountdownTicker();

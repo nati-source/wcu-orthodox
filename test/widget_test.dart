@@ -1,9 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wcu_orthodox/main.dart';
 import 'package:wcu_orthodox/models/app_models.dart';
 import 'package:wcu_orthodox/state/fellowship_state.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('WCU Orthodox App smoke & role switcher test', (WidgetTester tester) async {
     await tester.pumpWidget(const WcuOrthodoxApp());
     await tester.pumpAndSettle();
@@ -162,11 +167,11 @@ void main() {
     expect(updatedAppt.notes, 'Meet at Youth Hall Room 3 at 4 PM');
 
     // 10. Theme Palette Switching Test
-    expect(state.currentThemePalette, AppThemePalette.midnightGold);
-    state.setThemePalette(AppThemePalette.axumiteBurgundy);
-    expect(state.currentThemePalette, AppThemePalette.axumiteBurgundy);
-    state.setThemePalette(AppThemePalette.lalibelaSandstone);
-    expect(state.currentThemePalette, AppThemePalette.lalibelaSandstone);
+    expect(state.currentThemePalette, AppThemePalette.midnightFellowship);
+    state.setThemePalette(AppThemePalette.parchmentIncense);
+    expect(state.currentThemePalette, AppThemePalette.parchmentIncense);
+    state.setThemePalette(AppThemePalette.axumiteEmerald);
+    expect(state.currentThemePalette, AppThemePalette.axumiteEmerald);
 
     // 11. WCU Departments List Test
     expect(WcuDepartments.all.length >= 55, true);

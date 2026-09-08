@@ -15,7 +15,12 @@ class StudentRoadmapScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
     final roadmaps = state.roadmaps;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Stack(
       children: [
@@ -24,24 +29,24 @@ class StudentRoadmapScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Intro Header Card matching screen1 - Copy.png
-              const Text(
+              // Intro Header Card
+              Text(
                 'Spiritual Journey',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontFamily: 'serif',
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textCol,
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Track your progress through the fellowship\'s core curriculum. Attend sessions and participate in study to unlock deeper mysteries of the faith.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 13,
-                  color: AppTheme.textSecondary,
+                  color: textMuted,
                   height: 1.45,
                 ),
               ),
@@ -61,7 +66,7 @@ class StudentRoadmapScreen extends StatelessWidget {
           ),
         ),
 
-        // Floating "Check In [QR]" Button matching screen1 - Copy.png
+        // Floating "Check In [QR]" Button
         Positioned(
           right: 20,
           bottom: 20,
@@ -69,12 +74,10 @@ class StudentRoadmapScreen extends StatelessWidget {
             height: 52,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(26),
-              gradient: const LinearGradient(
-                colors: [Color(0xFFE57E12), Color(0xFFD4690B)],
-              ),
+              color: primaryAccent,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFD4690B).withOpacity(0.5),
+                  color: primaryAccent.withOpacity(0.4),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
@@ -82,13 +85,17 @@ class StudentRoadmapScreen extends StatelessWidget {
             ),
             child: ElevatedButton.icon(
               onPressed: onOpenScanner,
-              icon: const Icon(Icons.qr_code_scanner, color: Colors.black, size: 22),
-              label: const Text(
+              icon: Icon(
+                Icons.qr_code_scanner,
+                color: isDark ? Colors.black : Colors.white,
+                size: 22,
+              ),
+              label: Text(
                 'Check In',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: isDark ? Colors.black : Colors.white,
                   letterSpacing: 0.3,
                 ),
               ),
@@ -110,20 +117,28 @@ class StudentRoadmapScreen extends StatelessWidget {
     required RoadmapPhaseModel phase,
     required bool isLast,
   }) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     Color indicatorColor;
     IconData indicatorIcon;
 
     switch (phase.status) {
       case RoadmapStatus.completed:
-        indicatorColor = const Color(0xFFE57E12);
+        indicatorColor = primaryAccent;
         indicatorIcon = Icons.check;
         break;
       case RoadmapStatus.inProgress:
-        indicatorColor = const Color(0xFFE5A65E);
+        indicatorColor = primaryAccent;
         indicatorIcon = Icons.menu_book_outlined;
         break;
       case RoadmapStatus.locked:
-        indicatorColor = AppTheme.borderMuted;
+        indicatorColor = borderCol;
         indicatorIcon = Icons.lock_outline;
         break;
     }
@@ -143,7 +158,7 @@ class StudentRoadmapScreen extends StatelessWidget {
                   height: 42,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppTheme.secondaryBg,
+                    color: cardBg,
                     border: Border.all(
                       color: indicatorColor,
                       width: phase.status == RoadmapStatus.inProgress ? 2.5 : 2,
@@ -151,7 +166,7 @@ class StudentRoadmapScreen extends StatelessWidget {
                     boxShadow: phase.status == RoadmapStatus.inProgress
                         ? [
                             BoxShadow(
-                              color: indicatorColor.withOpacity(0.4),
+                              color: indicatorColor.withOpacity(0.35),
                               blurRadius: 10,
                               spreadRadius: 1,
                             )
@@ -166,8 +181,8 @@ class StudentRoadmapScreen extends StatelessWidget {
                     child: Container(
                       width: 2,
                       color: phase.status == RoadmapStatus.completed
-                          ? const Color(0xFFD4690B)
-                          : AppTheme.borderMuted,
+                          ? primaryAccent
+                          : borderCol,
                     ),
                   ),
               ],
@@ -185,17 +200,17 @@ class StudentRoadmapScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppTheme.secondaryBg,
+                    color: cardBg,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: phase.status == RoadmapStatus.inProgress
-                          ? AppTheme.goldAccent.withOpacity(0.6)
-                          : AppTheme.borderMuted,
+                          ? primaryAccent.withOpacity(0.6)
+                          : borderCol,
                       width: phase.status == RoadmapStatus.inProgress ? 1.5 : 1,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.25),
+                        color: isDark ? Colors.black.withOpacity(0.25) : Colors.black.withOpacity(0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 3),
                       ),
@@ -208,38 +223,38 @@ class StudentRoadmapScreen extends StatelessWidget {
                       Row(
                         children: [
                           if (phase.status == RoadmapStatus.completed) ...[
-                            const Icon(Icons.check_circle, color: Color(0xFFE57E12), size: 16),
+                            Icon(Icons.check_circle, color: primaryAccent, size: 16),
                             const SizedBox(width: 6),
-                            const Text(
+                            Text(
                               'COMPLETED',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFFE57E12),
+                                color: primaryAccent,
                                 letterSpacing: 1.2,
                               ),
                             ),
                           ] else if (phase.status == RoadmapStatus.inProgress) ...[
-                            const Icon(Icons.autorenew, color: Color(0xFFF5A65E), size: 16),
+                            Icon(Icons.autorenew, color: primaryAccent, size: 16),
                             const SizedBox(width: 6),
-                            const Text(
+                            Text(
                               'IN PROGRESS',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFFF5A65E),
+                                color: primaryAccent,
                                 letterSpacing: 1.2,
                               ),
                             ),
                           ] else ...[
-                            const Icon(Icons.lock, color: AppTheme.textTertiary, size: 16),
+                            Icon(Icons.lock, color: textMuted.withOpacity(0.7), size: 16),
                             const SizedBox(width: 6),
-                            const Text(
+                            Text(
                               'LOCKED',
                               style: TextStyle(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
-                                color: AppTheme.textTertiary,
+                                color: textMuted.withOpacity(0.7),
                                 letterSpacing: 1.2,
                               ),
                             ),
@@ -251,11 +266,11 @@ class StudentRoadmapScreen extends StatelessWidget {
                       // Title
                       Text(
                         phase.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: 'serif',
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: textCol,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -263,9 +278,9 @@ class StudentRoadmapScreen extends StatelessWidget {
                       // Description
                       Text(
                         phase.description,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: textMuted,
                           height: 1.4,
                         ),
                       ),
@@ -276,16 +291,16 @@ class StudentRoadmapScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Progress',
-                              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                              style: TextStyle(fontSize: 12, color: textMuted),
                             ),
                             Text(
                               '${(phase.progress * 100).toInt()}%',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFFF5A65E),
+                                color: primaryAccent,
                               ),
                             ),
                           ],
@@ -296,8 +311,8 @@ class StudentRoadmapScreen extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: phase.progress,
                             minHeight: 6,
-                            backgroundColor: AppTheme.surfaceElevated,
-                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE57E12)),
+                            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                            valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
                           ),
                         ),
                       ],
@@ -305,18 +320,18 @@ class StudentRoadmapScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Icon(Icons.person_pin, size: 14, color: AppTheme.textTertiary),
+                          Icon(Icons.person_pin, size: 14, color: textMuted),
                           const SizedBox(width: 4),
                           Text(
                             phase.instructor,
-                            style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                            style: TextStyle(fontSize: 11, color: textMuted),
                           ),
                           const Spacer(),
-                          const Text(
+                          Text(
                             'View Lessons',
-                            style: TextStyle(fontSize: 12, color: AppTheme.goldLight, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.bold),
                           ),
-                          const Icon(Icons.chevron_right, size: 16, color: AppTheme.goldLight),
+                          Icon(Icons.chevron_right, size: 16, color: primaryAccent),
                         ],
                       ),
                     ],
@@ -331,9 +346,17 @@ class StudentRoadmapScreen extends StatelessWidget {
   }
 
   void _openPhaseLessonsSheet(BuildContext context, RoadmapPhaseModel phase) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surfaceColor,
+      backgroundColor: cardBg,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -356,7 +379,7 @@ class StudentRoadmapScreen extends StatelessWidget {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: AppTheme.borderMuted,
+                        color: borderCol,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -364,36 +387,36 @@ class StudentRoadmapScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     phase.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.goldLight,
+                      color: primaryAccent,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     'Instructor: ${phase.instructor} • ${phase.semester}',
-                    style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                    style: TextStyle(fontSize: 13, color: textMuted),
                   ),
                   const SizedBox(height: 16),
-                  const Divider(),
+                  Divider(color: borderCol),
                   const SizedBox(height: 10),
-                  const Text(
+                  Text(
                     'Weekly Curriculum & Reading List',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: textCol,
                     ),
                   ),
                   const SizedBox(height: 12),
                   if (phase.weeklyLessons.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(16),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
                       child: Text(
                         'Weekly curriculum for this phase will unlock once prerequisites are met.',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                        style: TextStyle(color: textMuted, fontSize: 13),
                       ),
                     )
                   else
@@ -402,9 +425,9 @@ class StudentRoadmapScreen extends StatelessWidget {
                         margin: const EdgeInsets.only(bottom: 12),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppTheme.secondaryBg,
+                          color: elevatedBg,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppTheme.borderMuted),
+                          border: Border.all(color: borderCol),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -415,17 +438,17 @@ class StudentRoadmapScreen extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     lesson.title,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                                      color: textCol,
                                     ),
                                   ),
                                 ),
                                 IconButton(
                                   icon: Icon(
                                     lesson.isDownloaded ? Icons.download_done : Icons.download_outlined,
-                                    color: lesson.isDownloaded ? AppTheme.emerald : AppTheme.goldLight,
+                                    color: lesson.isDownloaded ? AppTheme.emerald : primaryAccent,
                                   ),
                                   onPressed: () {
                                     state.toggleLessonDownload(phase.id, lesson.id);
@@ -435,7 +458,7 @@ class StudentRoadmapScreen extends StatelessWidget {
                                         content: Text(lesson.isDownloaded
                                             ? 'Lesson removed from offline cache'
                                             : 'Downloaded for offline study'),
-                                        backgroundColor: AppTheme.surfaceColor,
+                                        backgroundColor: cardBg,
                                       ),
                                     );
                                   },
@@ -446,24 +469,24 @@ class StudentRoadmapScreen extends StatelessWidget {
                             const SizedBox(height: 6),
                             Text(
                               lesson.summary,
-                              style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.4),
+                              style: TextStyle(fontSize: 13, color: textMuted, height: 1.4),
                             ),
                             const SizedBox(height: 10),
-                            const Text(
+                            Text(
                               'Required Readings:',
-                              style: TextStyle(fontSize: 12, color: AppTheme.goldLight, fontWeight: FontWeight.w600),
+                              style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 4),
                             ...lesson.readingList.map((reading) => Padding(
                                   padding: const EdgeInsets.only(left: 4, bottom: 2),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.circle, size: 6, color: AppTheme.textTertiary),
+                                      Icon(Icons.circle, size: 6, color: textMuted.withOpacity(0.5)),
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
                                           reading,
-                                          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                                          style: TextStyle(fontSize: 12, color: textMuted),
                                         ),
                                       ),
                                     ],

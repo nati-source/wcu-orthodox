@@ -27,12 +27,14 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Academic Mentorship • አካዳሚክ ማማከር'),
-        backgroundColor: AppTheme.primaryBg,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: Column(
@@ -42,14 +44,15 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: _buildNavTab(
+                    context: context,
                     title: 'Senior Mentors',
                     icon: Icons.school_outlined,
                     index: 0,
@@ -57,6 +60,7 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                 ),
                 Expanded(
                   child: _buildNavTab(
+                    context: context,
                     title: 'My Matches (${state.myMentorshipRequests.length})',
                     icon: Icons.people_alt_outlined,
                     index: 1,
@@ -68,36 +72,39 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
 
           Expanded(
             child: _activeTab == 0
-                ? _buildMentorsTab(state)
-                : _buildMyMatchesTab(state),
+                ? _buildMentorsTab(context, state)
+                : _buildMyMatchesTab(context, state),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNavTab({required String title, required IconData icon, required int index}) {
+  Widget _buildNavTab({required BuildContext context, required String title, required IconData icon, required int index}) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final isSelected = _activeTab == index;
+
     return GestureDetector(
       onTap: () => setState(() => _activeTab = index),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.surfaceElevated : Colors.transparent,
+          color: isSelected ? primaryAccent.withOpacity(0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: isSelected ? Border.all(color: AppTheme.goldAccent.withOpacity(0.5)) : null,
+          border: isSelected ? Border.all(color: primaryAccent.withOpacity(0.5)) : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: isSelected ? AppTheme.goldLight : AppTheme.textSecondary),
+            Icon(icon, size: 16, color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
             const SizedBox(width: 6),
             Text(
               title,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
               ),
             ),
           ],
@@ -109,7 +116,11 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
   // ----------------------------------------------------
   // TAB 0: BROWSE SENIOR DEPARTMENT MENTORS
   // ----------------------------------------------------
-  Widget _buildMentorsTab(FellowshipState state) {
+  Widget _buildMentorsTab(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     final filteredMentors = state.academicMentors.where((m) {
       if (_selectedDeptFilter != 'All Departments' && m.department != _selectedDeptFilter) {
         return false;
@@ -124,30 +135,31 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF202C3D), Color(0xFF141C28)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+            gradient: LinearGradient(
+              colors: [
+                primaryAccent.withOpacity(0.12),
+                primaryAccent.withOpacity(0.04),
+              ],
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.4)),
+            border: Border.all(color: primaryAccent.withOpacity(0.3)),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.hub_outlined, color: Color(0xFF60A5FA), size: 28),
-              SizedBox(width: 14),
+              Icon(Icons.hub_outlined, color: primaryAccent, size: 28),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Department Mentorship Network',
-                      style: TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                     ),
-                    SizedBox(height: 3),
+                    const SizedBox(height: 3),
                     Text(
                       'Connect with senior 4th & 5th-year fellowship fellows in your faculty for course tutoring, exam study tips, and academic coaching.',
-                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, height: 1.3),
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, height: 1.3),
                     ),
                   ],
                 ),
@@ -172,11 +184,11 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                 padding: const EdgeInsets.only(right: 8),
                 child: FilterChip(
                   selected: isSelected,
-                  label: Text(dept, style: const TextStyle(fontSize: 11)),
-                  selectedColor: AppTheme.goldAccent.withOpacity(0.2),
-                  checkmarkColor: AppTheme.goldLight,
-                  backgroundColor: AppTheme.secondaryBg,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  label: Text(dept, style: TextStyle(fontSize: 11, color: isSelected ? primaryAccent : theme.colorScheme.onSurface)),
+                  selectedColor: primaryAccent.withOpacity(0.18),
+                  checkmarkColor: primaryAccent,
+                  backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: isSelected ? primaryAccent : theme.dividerColor)),
                   onSelected: (_) => setState(() => _selectedDeptFilter = dept),
                 ),
               );
@@ -193,9 +205,9 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,8 +217,8 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: const Color(0xFF3B82F6).withOpacity(0.15),
-                      child: const Icon(Icons.school, color: Color(0xFF60A5FA), size: 28),
+                      backgroundColor: primaryAccent.withOpacity(0.15),
+                      child: Icon(Icons.school, color: primaryAccent, size: 28),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -215,22 +227,22 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                         children: [
                           Text(
                             mentor.fullName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'serif',
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             'B.N. ${mentor.baptismalName} • Year ${mentor.academicYear}',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E), fontWeight: FontWeight.w600),
+                            style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             mentor.department,
-                            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                            style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                           ),
                         ],
                       ),
@@ -240,7 +252,7 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                 const SizedBox(height: 12),
 
                 // Specialties Tags
-                const Text('Specialties & Tutoring Focus:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+                Text('Specialties & Tutoring Focus:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
@@ -249,16 +261,16 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                     return Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppTheme.surfaceElevated,
+                        color: theme.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(spec, style: const TextStyle(fontSize: 10, color: Color(0xFF93C5FD))),
+                      child: Text(spec, style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.w600)),
                     );
                   }).toList(),
                 ),
 
                 const SizedBox(height: 14),
-                const Divider(color: AppTheme.borderMuted),
+                Divider(color: theme.dividerColor),
                 const SizedBox(height: 10),
 
                 Row(
@@ -266,21 +278,22 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                   children: [
                     Text(
                       '${mentor.activeMenteesCount}/${mentor.maxMentees} Mentees Active',
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                     ),
                     ElevatedButton(
                       onPressed: isRequested
                           ? null
                           : () => _openRequestMentorshipDialog(context, mentor),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF5A65E),
+                        backgroundColor: primaryAccent,
+                        foregroundColor: isDark ? Colors.black : Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       ),
                       child: Text(
                         isRequested ? 'Requested' : 'Request Mentor',
                         style: TextStyle(
-                          color: isRequested ? AppTheme.textTertiary : Colors.black,
+                          color: isRequested ? (theme.textTheme.bodyMedium?.color?.withOpacity(0.6) ?? AppTheme.textTertiary) : (isDark ? Colors.black : Colors.white),
                           fontWeight: FontWeight.bold,
                           fontSize: 11,
                         ),
@@ -299,7 +312,10 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
   // ----------------------------------------------------
   // TAB 1: MY MENTORSHIP MATCHES
   // ----------------------------------------------------
-  Widget _buildMyMatchesTab(FellowshipState state) {
+  Widget _buildMyMatchesTab(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
     final requests = state.myMentorshipRequests;
 
     if (requests.isEmpty) {
@@ -309,16 +325,16 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.school_outlined, size: 60, color: AppTheme.textTertiary),
+              Icon(Icons.school_outlined, size: 60, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6) ?? AppTheme.textTertiary),
               const SizedBox(height: 16),
-              const Text('No Mentorship Matches Yet', style: TextStyle(fontFamily: 'serif', fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('No Mentorship Matches Yet', style: TextStyle(fontFamily: 'serif', fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
               const SizedBox(height: 8),
-              const Text('Request mentorship from senior students in your department above.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              Text('Request mentorship from senior students in your department above.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
               const SizedBox(height: 18),
               ElevatedButton(
                 onPressed: () => setState(() => _activeTab = 0),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
-                child: const Text('Browse Senior Mentors', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(backgroundColor: primaryAccent, foregroundColor: isDark ? Colors.black : Colors.white),
+                child: const Text('Browse Senior Mentors', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -336,9 +352,9 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.goldAccent.withOpacity(0.5)),
+            border: Border.all(color: primaryAccent.withOpacity(0.5)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,7 +364,7 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                 children: [
                   Text(
                     'Mentor: ${req.mentorName}',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -364,12 +380,12 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
               const SizedBox(height: 8),
               Text(
                 'Department: ${req.department}',
-                style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E)),
+                style: TextStyle(fontSize: 12, color: primaryAccent),
               ),
               const SizedBox(height: 4),
               Text(
                 'Courses: ${req.coursesNeeded}',
-                style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
               ),
               const SizedBox(height: 14),
               Row(
@@ -382,7 +398,7 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.phone, color: AppTheme.goldLight, size: 20),
+                    icon: Icon(Icons.phone, color: primaryAccent, size: 20),
                     onPressed: () => state.launchCall('+251911335577'),
                   ),
                 ],
@@ -395,20 +411,23 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
   }
 
   void _openRequestMentorshipDialog(BuildContext context, AcademicMentorModel mentor) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
     final coursesController = TextEditingController(text: mentor.specialties.first);
 
     showDialog(
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppTheme.surfaceElevated,
+          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Request Mentorship with ${mentor.fullName}', style: const TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E))),
+          title: Text('Request Mentorship with ${mentor.fullName}', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Department: ${mentor.department}', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              Text('Department: ${mentor.department}', style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
               const SizedBox(height: 12),
               TextField(
                 controller: coursesController,
@@ -420,7 +439,7 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary))),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary))),
             ElevatedButton(
               onPressed: () {
                 widget.state.requestMentorship(
@@ -429,12 +448,12 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                 );
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Mentorship request sent to ${mentor.fullName}'), backgroundColor: AppTheme.surfaceColor),
+                  SnackBar(content: Text('Mentorship request sent to ${mentor.fullName}'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
                 );
                 setState(() => _activeTab = 1);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
-              child: const Text('Send Request', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(backgroundColor: primaryAccent),
+              child: Text('Send Request', style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         );

@@ -33,32 +33,48 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     final state = widget.state;
     final currentDay = state.currentCalendarDay;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Liturgical Calendar • ባሕረ ሐሳብ'),
-        backgroundColor: AppTheme.primaryBg,
+        title: Text('Liturgical Calendar • ባሕረ ሐሳብ', style: TextStyle(color: textCol)),
+        backgroundColor: cardBg,
         elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline, color: AppTheme.goldLight),
+            icon: Icon(Icons.info_outline, color: primaryAccent),
             onPressed: () {
               showDialog(
                 context: context,
                 builder: (_) => AlertDialog(
-                  backgroundColor: AppTheme.surfaceElevated,
-                  title: const Text('Ethiopian Orthodox Calendar', style: TextStyle(fontFamily: 'serif', color: AppTheme.goldLight)),
-                  content: const Text(
+                  backgroundColor: cardBg,
+                  title: Text(
+                    'Ethiopian Orthodox Calendar',
+                    style: TextStyle(fontFamily: 'serif', color: primaryAccent),
+                  ),
+                  content: Text(
                     'The Ethiopian Orthodox Tewahedo Church follows the Ge\'ez calendar (ባሕረ ሐሳብ), having 12 months of 30 days plus Pagumēn (ጳጉሜን) of 5 or 6 days. Each day commemorates specific Saints, Angels, and liturgical scriptures.',
-                    style: TextStyle(color: AppTheme.textPrimary, fontSize: 13, height: 1.4),
+                    style: TextStyle(color: textCol, fontSize: 13, height: 1.4),
                   ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Close', style: TextStyle(color: AppTheme.goldLight)),
+                      child: Text('Close', style: TextStyle(color: primaryAccent)),
                     ),
                   ],
                 ),
@@ -76,16 +92,12 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
             Container(
               padding: const EdgeInsets.all(22),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF2C3548), Color(0xFF1B2332), AppTheme.secondaryBg],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: cardBg,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppTheme.goldAccent.withOpacity(0.4), width: 1.2),
+                border: Border.all(color: primaryAccent.withOpacity(0.4), width: 1.2),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.35),
+                    color: isDark ? Colors.black.withOpacity(0.35) : Colors.black.withOpacity(0.06),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
@@ -100,27 +112,31 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.goldAccent.withOpacity(0.2),
+                          color: primaryAccent.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.goldAccent.withOpacity(0.5)),
+                          border: Border.all(color: primaryAccent.withOpacity(0.5)),
                         ),
                         child: Text(
                           currentDay.geezDateString,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'serif',
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFFF5A65E),
+                            color: primaryAccent,
                           ),
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: currentDay.isFasting ? const Color(0xFFEF4444).withOpacity(0.2) : const Color(0xFF10B981).withOpacity(0.2),
+                          color: currentDay.isFasting
+                              ? const Color(0xFFEF4444).withOpacity(0.15)
+                              : const Color(0xFF10B981).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: currentDay.isFasting ? const Color(0xFFEF4444).withOpacity(0.5) : const Color(0xFF10B981).withOpacity(0.5),
+                            color: currentDay.isFasting
+                                ? const Color(0xFFEF4444).withOpacity(0.5)
+                                : const Color(0xFF10B981).withOpacity(0.5),
                           ),
                         ),
                         child: Row(
@@ -147,50 +163,50 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                   const SizedBox(height: 16),
                   Text(
                     currentDay.saintOfTodayGeEz,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: textCol,
                       height: 1.3,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     currentDay.saintOfToday,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: AppTheme.textSecondary,
+                      color: textMuted,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryBg.withOpacity(0.6),
+                      color: elevatedBg,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.wb_twilight, color: AppTheme.goldLight, size: 20),
+                        Icon(Icons.wb_twilight, color: primaryAccent, size: 20),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             currentDay.fastName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
+                              color: textCol,
                             ),
                           ),
                         ),
                         if (currentDay.isFasting)
                           Text(
                             'Until ${currentDay.fastingUntilHour}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
-                              color: AppTheme.goldLight,
+                              color: primaryAccent,
                             ),
                           ),
                       ],
@@ -203,12 +219,12 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
             const SizedBox(height: 20),
 
             // 2. Day Selector Carousel
-            const Text(
+            Text(
               'SELECT DAY • ዕለታት',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
-                color: AppTheme.textTertiary,
+                color: textMuted.withOpacity(0.7),
                 letterSpacing: 1.5,
               ),
             ),
@@ -230,10 +246,10 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                       margin: const EdgeInsets.only(right: 10),
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF2B3648) : AppTheme.secondaryBg,
+                        color: isSelected ? elevatedBg : cardBg,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: isSelected ? AppTheme.goldAccent : AppTheme.borderMuted,
+                          color: isSelected ? primaryAccent : borderCol,
                           width: isSelected ? 1.5 : 1.0,
                         ),
                       ),
@@ -245,7 +261,7 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: isSelected ? const Color(0xFFF5A65E) : AppTheme.textPrimary,
+                              color: isSelected ? primaryAccent : textCol,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -271,14 +287,15 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: AppTheme.secondaryBg,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderMuted),
+                border: Border.all(color: borderCol),
               ),
               child: Row(
                 children: [
                   Expanded(
                     child: _buildTabPill(
+                      context: context,
                       title: 'Scriptures (ምንባባት)',
                       icon: Icons.auto_stories,
                       index: 0,
@@ -286,6 +303,7 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                   ),
                   Expanded(
                     child: _buildTabPill(
+                      context: context,
                       title: 'Rules (ሥርዓተ ጾም)',
                       icon: Icons.rule,
                       index: 1,
@@ -293,6 +311,7 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                   ),
                   Expanded(
                     child: _buildTabPill(
+                      context: context,
                       title: 'Synaxarium (ስንክሳር)',
                       icon: Icons.history_edu,
                       index: 2,
@@ -305,9 +324,9 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
             const SizedBox(height: 18),
 
             // 4. Tab Views
-            if (_selectedTabIndex == 0) _buildScripturesTab(currentDay.scriptures),
-            if (_selectedTabIndex == 1) _buildFastingRulesTab(currentDay),
-            if (_selectedTabIndex == 2) _buildSynaxariumTab(currentDay),
+            if (_selectedTabIndex == 0) _buildScripturesTab(context, currentDay.scriptures),
+            if (_selectedTabIndex == 1) _buildFastingRulesTab(context, currentDay),
+            if (_selectedTabIndex == 2) _buildSynaxariumTab(context, currentDay),
 
             const SizedBox(height: 24),
           ],
@@ -316,23 +335,35 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
     );
   }
 
-  Widget _buildTabPill({required String title, required IconData icon, required int index}) {
+  Widget _buildTabPill({
+    required BuildContext context,
+    required String title,
+    required IconData icon,
+    required int index,
+  }) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
     final isSelected = _selectedTabIndex == index;
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: () => setState(() => _selectedTabIndex = index),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.surfaceElevated : Colors.transparent,
+          color: isSelected ? elevatedBg : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: isSelected ? Border.all(color: AppTheme.goldAccent.withOpacity(0.4)) : null,
+          border: isSelected ? Border.all(color: primaryAccent.withOpacity(0.4)) : null,
         ),
         child: Column(
           children: [
             Icon(
               icon,
               size: 18,
-              color: isSelected ? AppTheme.goldLight : AppTheme.textSecondary,
+              color: isSelected ? primaryAccent : textMuted,
             ),
             const SizedBox(height: 4),
             Text(
@@ -341,7 +372,7 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                color: isSelected ? (isDark ? primaryAccent : textCol) : textMuted,
               ),
             ),
           ],
@@ -350,7 +381,13 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
     );
   }
 
-  Widget _buildScripturesTab(DailyScriptureModel sc) {
+  Widget _buildScripturesTab(BuildContext context, DailyScriptureModel sc) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final borderCol = theme.dividerColor;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -358,23 +395,23 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E2838),
+            color: cardBg,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppTheme.goldAccent.withOpacity(0.3)),
+            border: Border.all(color: primaryAccent.withOpacity(0.3)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.format_quote, color: AppTheme.goldLight, size: 28),
+              Icon(Icons.format_quote, color: primaryAccent, size: 28),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   sc.reflection,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'serif',
                     fontSize: 14,
                     fontStyle: FontStyle.italic,
-                    color: Color(0xFFF3F4F6),
+                    color: textCol,
                     height: 1.4,
                   ),
                 ),
@@ -384,33 +421,41 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
         ),
         const SizedBox(height: 14),
 
-        _buildScriptureTile('Epistle of St. Paul (መልእክተ ጳውሎስ)', sc.epistle, Icons.mail_outline),
-        _buildScriptureTile('Catholic Epistle (መልእክተ ሐዋርያት)', sc.catholicEpistle, Icons.menu_book),
-        _buildScriptureTile('Acts of the Apostles (ግብረ ሐዋርያት)', sc.acts, Icons.history),
-        _buildScriptureTile('Daily Psalm (ምስባከ ዳዊት)', sc.psalm, Icons.music_note),
-        _buildScriptureTile('Holy Gospel (ወንጌል ቅዱስ)', sc.gospel, Icons.local_fire_department, isHighlight: true),
+        _buildScriptureTile(context, 'Epistle of St. Paul (መልእክተ ጳውሎስ)', sc.epistle, Icons.mail_outline),
+        _buildScriptureTile(context, 'Catholic Epistle (መልእክተ ሐዋርያት)', sc.catholicEpistle, Icons.menu_book),
+        _buildScriptureTile(context, 'Acts of the Apostles (ግብረ ሐዋርያት)', sc.acts, Icons.history),
+        _buildScriptureTile(context, 'Daily Psalm (ምስባከ ዳዊት)', sc.psalm, Icons.music_note),
+        _buildScriptureTile(context, 'Holy Gospel (ወንጌል ቅዱስ)', sc.gospel, Icons.local_fire_department, isHighlight: true),
       ],
     );
   }
 
-  Widget _buildScriptureTile(String label, String reading, IconData icon, {bool isHighlight = false}) {
+  Widget _buildScriptureTile(BuildContext context, String label, String reading, IconData icon, {bool isHighlight = false}) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isHighlight ? const Color(0xFF252F42) : AppTheme.secondaryBg,
+        color: isHighlight ? elevatedBg : cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isHighlight ? AppTheme.goldAccent.withOpacity(0.6) : AppTheme.borderMuted),
+        border: Border.all(color: isHighlight ? primaryAccent.withOpacity(0.6) : borderCol),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isHighlight ? AppTheme.goldAccent.withOpacity(0.2) : AppTheme.surfaceColor,
+              color: isHighlight ? primaryAccent.withOpacity(0.2) : elevatedBg,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: isHighlight ? AppTheme.goldLight : AppTheme.textSecondary, size: 18),
+            child: Icon(icon, color: isHighlight ? primaryAccent : textMuted, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -421,7 +466,7 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                   label,
                   style: TextStyle(
                     fontSize: 11,
-                    color: isHighlight ? AppTheme.goldLight : AppTheme.textSecondary,
+                    color: isHighlight ? primaryAccent : textMuted,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -431,7 +476,7 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: isHighlight ? Colors.white : AppTheme.textPrimary,
+                    color: textCol,
                   ),
                 ),
               ],
@@ -442,13 +487,19 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
     );
   }
 
-  Widget _buildFastingRulesTab(EthiopianCalendarDay day) {
+  Widget _buildFastingRulesTab(BuildContext context, EthiopianCalendarDay day) {
+    final theme = Theme.of(context);
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final borderCol = theme.dividerColor;
+
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppTheme.secondaryBg,
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.borderMuted),
+        border: Border.all(color: borderCol),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,11 +514,11 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
               const SizedBox(width: 10),
               Text(
                 day.fastName,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'serif',
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textCol,
                 ),
               ),
             ],
@@ -475,43 +526,54 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
           const SizedBox(height: 12),
           Text(
             day.fastRules,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: AppTheme.textSecondary,
+              color: textMuted,
               height: 1.5,
             ),
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppTheme.borderMuted),
+          Divider(color: borderCol),
           const SizedBox(height: 12),
-          _buildRuleRow('Fasting Duration', day.isFasting ? 'Until 3:00 PM (9:00 LT)' : 'None'),
-          _buildRuleRow('Dietary Observance', day.isFasting ? 'Vegan (No meat, dairy, eggs)' : 'Regular food permitted'),
-          _buildRuleRow('Fish Permitted?', day.isFishAllowed ? 'Yes (በዓለ ሃምሳ / ገሃድ)' : 'No (የተከለከለ)'),
+          _buildRuleRow(context, 'Fasting Duration', day.isFasting ? 'Until 3:00 PM (9:00 LT)' : 'None'),
+          _buildRuleRow(context, 'Dietary Observance', day.isFasting ? 'Vegan (No meat, dairy, eggs)' : 'Regular food permitted'),
+          _buildRuleRow(context, 'Fish Permitted?', day.isFishAllowed ? 'Yes (በዓለ ሃምሳ / ገሃድ)' : 'No (የተከለከለ)'),
         ],
       ),
     );
   }
 
-  Widget _buildRuleRow(String key, String value) {
+  Widget _buildRuleRow(BuildContext context, String key, String value) {
+    final theme = Theme.of(context);
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(key, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+          Text(key, style: TextStyle(fontSize: 12, color: textMuted)),
+          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textCol)),
         ],
       ),
     );
   }
 
-  Widget _buildSynaxariumTab(EthiopianCalendarDay day) {
+  Widget _buildSynaxariumTab(BuildContext context, EthiopianCalendarDay day) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final borderCol = theme.dividerColor;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.secondaryBg,
+        color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.borderMuted),
+        border: Border.all(color: borderCol),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -521,13 +583,13 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.goldAccent.withOpacity(0.15),
+                  color: primaryAccent.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.history_edu, color: AppTheme.goldLight, size: 22),
+                child: Icon(Icons.history_edu, color: primaryAccent, size: 22),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -537,12 +599,12 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                         fontFamily: 'serif',
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: textCol,
                       ),
                     ),
                     Text(
                       'Commemoration of the Saints of Today',
-                      style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: textMuted),
                     ),
                   ],
                 ),
@@ -552,10 +614,10 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
           const SizedBox(height: 16),
           Text(
             day.scriptures.synaxariumExcerpt,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'serif',
               fontSize: 14,
-              color: AppTheme.textPrimary,
+              color: textCol,
               height: 1.6,
             ),
           ),

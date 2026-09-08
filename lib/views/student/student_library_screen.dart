@@ -10,6 +10,15 @@ class StudentLibraryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+
     final items = state.filteredLibraryItems;
     final activeMezmur = state.activeAudioMezmur;
 
@@ -23,17 +32,28 @@ class StudentLibraryScreen extends StatelessWidget {
               // Search Field
               TextField(
                 onChanged: (val) => state.setLibrarySearch(val),
-                style: const TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+                style: TextStyle(color: textCol, fontSize: 14),
                 decoration: InputDecoration(
                   hintText: 'Search liturgical texts, patristics, mezmur...',
-                  prefixIcon: const Icon(Icons.search, color: AppTheme.goldAccent, size: 20),
+                  hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
+                  prefixIcon: Icon(Icons.search, color: primaryAccent, size: 20),
                   suffixIcon: state.librarySearchQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, color: AppTheme.textTertiary, size: 18),
+                          icon: Icon(Icons.clear, color: textMuted, size: 18),
                           onPressed: () => state.setLibrarySearch(''),
                         )
                       : null,
+                  filled: true,
+                  fillColor: cardBg,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: borderCol),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: primaryAccent, width: 1.5),
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -44,30 +64,35 @@ class StudentLibraryScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     _buildCategoryChip(
+                      context: context,
                       label: 'All Material',
                       isSelected: state.selectedCategory == null,
                       onTap: () => state.setLibraryCategory(null),
                     ),
                     const SizedBox(width: 8),
                     _buildCategoryChip(
+                      context: context,
                       label: 'Patristics',
                       isSelected: state.selectedCategory == LibraryCategory.patristics,
                       onTap: () => state.setLibraryCategory(LibraryCategory.patristics),
                     ),
                     const SizedBox(width: 8),
                     _buildCategoryChip(
+                      context: context,
                       label: 'Liturgical',
                       isSelected: state.selectedCategory == LibraryCategory.liturgical,
                       onTap: () => state.setLibraryCategory(LibraryCategory.liturgical),
                     ),
                     const SizedBox(width: 8),
                     _buildCategoryChip(
+                      context: context,
                       label: 'Mezmur Audio',
                       isSelected: state.selectedCategory == LibraryCategory.mezmur,
                       onTap: () => state.setLibraryCategory(LibraryCategory.mezmur),
                     ),
                     const SizedBox(width: 8),
                     _buildCategoryChip(
+                      context: context,
                       label: 'Dogma',
                       isSelected: state.selectedCategory == LibraryCategory.dogma,
                       onTap: () => state.setLibraryCategory(LibraryCategory.dogma),
@@ -82,10 +107,10 @@ class StudentLibraryScreen extends StatelessWidget {
         // Material List
         Expanded(
           child: items.isEmpty
-              ? const Center(
+              ? Center(
                   child: Text(
                     'No material found matching your query.',
-                    style: TextStyle(color: AppTheme.textSecondary),
+                    style: TextStyle(color: textMuted),
                   ),
                 )
               : ListView.builder(
@@ -94,10 +119,8 @@ class StudentLibraryScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final item = items[index];
                     if (index == 0 && state.selectedCategory == null && state.librarySearchQuery.isEmpty) {
-                      // Featured Item Card (Matching Top of screen5 - Copy.png)
                       return _buildFeaturedLibraryCard(context, item);
                     }
-                    // Standard Card
                     return _buildStandardLibraryCard(context, item);
                   },
                 ),
@@ -111,20 +134,27 @@ class StudentLibraryScreen extends StatelessWidget {
   }
 
   Widget _buildCategoryChip({
+    required BuildContext context,
     required String label,
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final textCol = theme.colorScheme.onSurface;
+    final isDark = theme.brightness == Brightness.dark;
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.goldAccent : AppTheme.secondaryBg,
+          color: isSelected ? primaryAccent : cardBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppTheme.goldLight : AppTheme.borderMuted,
+            color: isSelected ? primaryAccent : theme.dividerColor,
           ),
         ),
         child: Text(
@@ -132,7 +162,9 @@ class StudentLibraryScreen extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-            color: isSelected ? Colors.black : AppTheme.textSecondary,
+            color: isSelected
+                ? (isDark ? Colors.black : Colors.white)
+                : textCol.withOpacity(0.8),
           ),
         ),
       ),
@@ -140,15 +172,24 @@ class StudentLibraryScreen extends StatelessWidget {
   }
 
   Widget _buildFeaturedLibraryCard(BuildContext context, LibraryItemModel item) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: AppTheme.secondaryBg,
+        color: cardBg,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.borderMuted),
+        border: Border.all(color: borderCol),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.35),
+            color: isDark ? Colors.black.withOpacity(0.35) : Colors.black.withOpacity(0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -165,9 +206,9 @@ class StudentLibraryScreen extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF4A2F0F),
-                  const Color(0xFF23180C),
-                  AppTheme.secondaryBg,
+                  primaryAccent.withOpacity(0.85),
+                  primaryAccent.withOpacity(0.4),
+                  cardBg,
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
@@ -179,7 +220,7 @@ class StudentLibraryScreen extends StatelessWidget {
                   child: Icon(
                     Icons.auto_stories,
                     size: 90,
-                    color: AppTheme.goldLight.withOpacity(0.25),
+                    color: primaryAccent.withOpacity(0.25),
                   ),
                 ),
                 Positioned(
@@ -188,18 +229,18 @@ class StudentLibraryScreen extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                      color: isDark ? Colors.black.withOpacity(0.6) : Colors.white.withOpacity(0.85),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppTheme.goldAccent.withOpacity(0.4)),
+                      border: Border.all(color: primaryAccent.withOpacity(0.5)),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.star, color: AppTheme.goldLight, size: 14),
-                        SizedBox(width: 4),
+                        Icon(Icons.star, color: primaryAccent, size: 14),
+                        const SizedBox(width: 4),
                         Text(
                           'Featured Text',
-                          style: TextStyle(color: AppTheme.goldLight, fontSize: 11, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: primaryAccent, fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -217,27 +258,27 @@ class StudentLibraryScreen extends StatelessWidget {
                 // Tags
                 Wrap(
                   spacing: 6,
-                  children: item.tags.map((tag) => _buildTag(tag)).toList(),
+                  children: item.tags.map((tag) => _buildTag(context, tag)).toList(),
                 ),
                 const SizedBox(height: 12),
 
                 // Title & Subtitle
                 Text(
                   item.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'serif',
-                    fontSize: 24,
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: textCol,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   item.subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFFF5A65E),
-                    fontWeight: FontWeight.w500,
+                    color: primaryAccent,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -245,27 +286,31 @@ class StudentLibraryScreen extends StatelessWidget {
                 // Description
                 Text(
                   item.description,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppTheme.textSecondary,
+                    color: textMuted,
                     height: 1.45,
                   ),
                 ),
                 const SizedBox(height: 18),
 
-                // Buttons: View Details & Telegram Link (Matching screen5 - Copy.png)
+                // Buttons: View Details & Telegram Link
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => _openDetailsDialog(context, item),
-                        icon: const Icon(Icons.info_outline, size: 18, color: Colors.black),
-                        label: const Text(
+                        icon: Icon(Icons.info_outline, size: 18, color: isDark ? Colors.black : Colors.white),
+                        label: Text(
                           'View Details',
-                          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
+                          style: TextStyle(
+                            color: isDark ? Colors.black : Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFE57E12),
+                          backgroundColor: primaryAccent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
@@ -275,14 +320,14 @@ class StudentLibraryScreen extends StatelessWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () => state.launchTelegram(item.telegramUrl),
-                        icon: const Icon(Icons.send, size: 16, color: AppTheme.goldLight),
-                        label: const Text(
+                        icon: Icon(Icons.send, size: 16, color: primaryAccent),
+                        label: Text(
                           'Telegram Link',
-                          style: TextStyle(color: AppTheme.goldLight, fontWeight: FontWeight.bold, fontSize: 13),
+                          style: TextStyle(color: primaryAccent, fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppTheme.borderMuted),
-                          backgroundColor: const Color(0xFF222B3A),
+                          side: BorderSide(color: borderCol),
+                          backgroundColor: elevatedBg,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
@@ -299,13 +344,21 @@ class StudentLibraryScreen extends StatelessWidget {
   }
 
   Widget _buildStandardLibraryCard(BuildContext context, LibraryItemModel item) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.secondaryBg,
+        color: cardBg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.borderMuted),
+        border: Border.all(color: borderCol),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,9 +371,9 @@ class StudentLibraryScreen extends StatelessWidget {
                 width: 50,
                 height: 50,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF222B3A),
+                  color: elevatedBg,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppTheme.goldAccent.withOpacity(0.3)),
+                  border: Border.all(color: primaryAccent.withOpacity(0.3)),
                 ),
                 child: Center(
                   child: Icon(
@@ -329,7 +382,7 @@ class StudentLibraryScreen extends StatelessWidget {
                         : item.category == LibraryCategory.patristics
                             ? Icons.menu_book
                             : Icons.auto_stories,
-                    color: AppTheme.goldLight,
+                    color: primaryAccent,
                     size: 26,
                   ),
                 ),
@@ -343,25 +396,25 @@ class StudentLibraryScreen extends StatelessWidget {
                   children: [
                     Text(
                       item.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'serif',
-                        fontSize: 17,
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: textCol,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       item.subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppTheme.textSecondary,
+                        color: textMuted,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 4,
-                      children: item.tags.map((t) => _buildTag(t)).toList(),
+                      children: item.tags.map((t) => _buildTag(context, t)).toList(),
                     ),
                   ],
                 ),
@@ -369,7 +422,7 @@ class StudentLibraryScreen extends StatelessWidget {
 
               // Open Telegram Link Action
               IconButton(
-                icon: const Icon(Icons.open_in_new, color: AppTheme.goldLight, size: 20),
+                icon: Icon(Icons.open_in_new, color: primaryAccent, size: 20),
                 onPressed: () => state.launchTelegram(item.telegramUrl),
                 tooltip: 'Open in Telegram Channel',
               ),
@@ -383,7 +436,7 @@ class StudentLibraryScreen extends StatelessWidget {
             children: [
               Text(
                 item.readTime ?? item.audioDuration ?? 'WCU Orthodox Archive',
-                style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                style: TextStyle(fontSize: 11, color: textMuted.withOpacity(0.8)),
               ),
               Row(
                 children: [
@@ -394,17 +447,17 @@ class StudentLibraryScreen extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: AppTheme.goldAccent.withOpacity(0.2),
+                          color: primaryAccent.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.goldAccent.withOpacity(0.5)),
+                          border: Border.all(color: primaryAccent.withOpacity(0.4)),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.play_arrow, color: AppTheme.goldLight, size: 16),
-                            SizedBox(width: 4),
+                            Icon(Icons.play_arrow, color: primaryAccent, size: 16),
+                            const SizedBox(width: 4),
                             Text(
                               'Play Mezmur',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.goldLight),
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryAccent),
                             ),
                           ],
                         ),
@@ -415,9 +468,9 @@ class StudentLibraryScreen extends StatelessWidget {
                   TextButton(
                     onPressed: () => _openDetailsDialog(context, item),
                     style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                    child: const Text(
+                    child: Text(
                       'Details',
-                      style: TextStyle(color: AppTheme.goldLight, fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: primaryAccent, fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -430,14 +483,22 @@ class StudentLibraryScreen extends StatelessWidget {
   }
 
   Widget _buildMezmurPlayerBar(BuildContext context, LibraryItemModel item) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF192230),
-        border: const Border(top: BorderSide(color: Color(0xFFD4690B), width: 2)),
+        color: cardBg,
+        border: Border(top: BorderSide(color: primaryAccent, width: 2)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: isDark ? Colors.black.withOpacity(0.4) : Colors.black.withOpacity(0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -450,7 +511,7 @@ class StudentLibraryScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.music_note, color: AppTheme.goldLight, size: 22),
+                Icon(Icons.music_note, color: primaryAccent, size: 22),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -458,13 +519,13 @@ class StudentLibraryScreen extends StatelessWidget {
                     children: [
                       Text(
                         item.title,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textCol),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
                         'St. Yaredic Hymn • ${item.audioDuration ?? 'Playing'}',
-                        style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 11, color: textMuted),
                       ),
                     ],
                   ),
@@ -472,13 +533,13 @@ class StudentLibraryScreen extends StatelessWidget {
                 IconButton(
                   icon: Icon(
                     state.isAudioPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
-                    color: const Color(0xFFF5A65E),
+                    color: primaryAccent,
                     size: 32,
                   ),
                   onPressed: () => state.toggleAudioPlayback(),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.open_in_new, color: AppTheme.goldLight, size: 20),
+                  icon: Icon(Icons.open_in_new, color: primaryAccent, size: 20),
                   onPressed: () => state.launchTelegram(item.telegramUrl),
                   tooltip: 'Open Telegram Audio',
                 ),
@@ -490,9 +551,9 @@ class StudentLibraryScreen extends StatelessWidget {
                 trackHeight: 2,
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
-                activeTrackColor: const Color(0xFFE57E12),
-                inactiveTrackColor: AppTheme.surfaceElevated,
-                thumbColor: AppTheme.goldLight,
+                activeTrackColor: primaryAccent,
+                inactiveTrackColor: elevatedBg,
+                thumbColor: primaryAccent,
               ),
               child: Slider(
                 value: state.audioProgress,
@@ -506,14 +567,23 @@ class StudentLibraryScreen extends StatelessWidget {
   }
 
   void _openDetailsDialog(BuildContext context, LibraryItemModel item) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceColor,
+        backgroundColor: cardBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           item.title,
-          style: const TextStyle(fontFamily: 'serif', color: AppTheme.goldLight, fontWeight: FontWeight.bold),
+          style: TextStyle(fontFamily: 'serif', color: textCol, fontWeight: FontWeight.bold),
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -522,30 +592,30 @@ class StudentLibraryScreen extends StatelessWidget {
             children: [
               Text(
                 item.subtitle,
-                style: const TextStyle(color: Color(0xFFF5A65E), fontWeight: FontWeight.w600, fontSize: 13),
+                style: TextStyle(color: primaryAccent, fontWeight: FontWeight.w600, fontSize: 13),
               ),
               const SizedBox(height: 10),
               Text(
                 item.description,
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.45),
+                style: TextStyle(color: textMuted, fontSize: 13, height: 1.45),
               ),
               if (item.lyricsOrExcerpts != null) ...[
                 const SizedBox(height: 14),
-                const Text(
+                Text(
                   'Liturgical Text / Lyrics:',
-                  style: TextStyle(color: AppTheme.goldLight, fontWeight: FontWeight.bold, fontSize: 12),
+                  style: TextStyle(color: primaryAccent, fontWeight: FontWeight.bold, fontSize: 12),
                 ),
                 const SizedBox(height: 6),
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppTheme.secondaryBg,
+                    color: elevatedBg,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppTheme.borderMuted),
+                    border: Border.all(color: borderCol),
                   ),
                   child: Text(
                     item.lyricsOrExcerpts!,
-                    style: const TextStyle(fontFamily: 'serif', color: AppTheme.textPrimary, fontSize: 13),
+                    style: TextStyle(fontFamily: 'serif', color: textCol, fontSize: 13),
                   ),
                 ),
               ],
@@ -553,17 +623,17 @@ class StudentLibraryScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryBg,
+                  color: elevatedBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
                     const Icon(Icons.telegram, color: Color(0xFF38A3E5), size: 22),
                     const SizedBox(width: 8),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Direct Telegram Link to Material',
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                        style: TextStyle(color: textMuted, fontSize: 12),
                       ),
                     ),
                   ],
@@ -575,33 +645,44 @@ class StudentLibraryScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close', style: TextStyle(color: AppTheme.textSecondary)),
+            child: Text('Close', style: TextStyle(color: textMuted)),
           ),
           ElevatedButton.icon(
             onPressed: () {
               Navigator.pop(ctx);
               state.launchTelegram(item.telegramUrl);
             },
-            icon: const Icon(Icons.send, size: 16, color: Colors.white),
-            label: const Text('Open in Telegram', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4690B)),
+            icon: Icon(Icons.send, size: 16, color: isDark ? Colors.black : Colors.white),
+            label: Text(
+              'Open in Telegram',
+              style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTag(String text) {
+  Widget _buildTag(BuildContext context, String text) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFF222B3A),
+        color: elevatedBg,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.borderMuted.withOpacity(0.5)),
+        border: Border.all(color: borderCol),
       ),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 10, color: AppTheme.goldLight, fontWeight: FontWeight.w600),
+        style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.w600),
       ),
     );
   }

@@ -63,9 +63,9 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
     _bookDescController.clear();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('New book Telegram link added to Digital Library!'),
-        backgroundColor: AppTheme.surfaceColor,
+      SnackBar(
+        content: const Text('New book Telegram link added to Digital Library!'),
+        backgroundColor: Theme.of(context).cardTheme.color,
       ),
     );
   }
@@ -82,30 +82,45 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
     );
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Emergency broadcast pushed to all active devices!'),
-        backgroundColor: AppTheme.surfaceColor,
+      SnackBar(
+        content: const Text('Emergency broadcast pushed to all active devices!'),
+        backgroundColor: Theme.of(context).cardTheme.color,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     final state = widget.state;
     final volunteerApps = state.volunteerApplications;
 
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: AppTheme.primaryBg,
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          title: const Text('Media & Programs Manager'),
-          bottom: const TabBar(
+          title: Text('Media & Programs Manager', style: TextStyle(color: textCol)),
+          backgroundColor: cardBg,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          bottom: TabBar(
             isScrollable: true,
-            indicatorColor: AppTheme.goldAccent,
-            labelColor: AppTheme.goldLight,
-            unselectedLabelColor: AppTheme.textTertiary,
-            tabs: [
+            indicatorColor: primaryAccent,
+            labelColor: primaryAccent,
+            unselectedLabelColor: textMuted,
+            tabs: const [
               Tab(text: 'Add Book Link'),
               Tab(text: 'Emergency Broadcast'),
               Tab(text: 'Volunteer Reviews'),
@@ -114,64 +129,82 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
         ),
         body: TabBarView(
           children: [
-            // Tab 1: Add Telegram Book Link (Adhering directly to user preference)
+            // Tab 1: Add Telegram Book Link
             SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'Publish Material to Digital Library',
                     style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.goldLight,
+                      color: primaryAccent,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Add direct Telegram channel or message links to liturgical texts, patristics books, and spiritual hymns.',
-                    style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                    style: TextStyle(fontSize: 13, color: textMuted),
                   ),
                   const SizedBox(height: 18),
 
-                  const Text('Book / Material Title', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text('Book / Material Title', style: TextStyle(color: textMuted, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _bookTitleController,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: const InputDecoration(hintText: 'e.g. Haymanote Abew, Wudase Mariam'),
+                    style: TextStyle(color: textCol, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. Haymanote Abew, Wudase Mariam',
+                      hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderCol),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
 
-                  const Text('Subtitle / Ge\'ez Title', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text('Subtitle / Ge\'ez Title', style: TextStyle(color: textMuted, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _bookSubtitleController,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: const InputDecoration(hintText: 'e.g. ሃይማኖተ አበው (Faith of the Fathers)'),
+                    style: TextStyle(color: textCol, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. ሃይማኖተ አበው (Faith of the Fathers)',
+                      hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderCol),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
 
-                  const Text('Category', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text('Category', style: TextStyle(color: textMuted, fontSize: 13)),
                   const SizedBox(height: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.secondaryBg,
+                      color: cardBg,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppTheme.borderMuted),
+                      border: Border.all(color: borderCol),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<LibraryCategory>(
                         value: _selectedCat,
-                        dropdownColor: AppTheme.surfaceColor,
-                        icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.goldAccent),
+                        dropdownColor: cardBg,
+                        icon: Icon(Icons.keyboard_arrow_down, color: primaryAccent),
                         items: LibraryCategory.values.map((cat) {
                           return DropdownMenuItem(
                             value: cat,
-                            child: Text(cat.name.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13)),
+                            child: Text(cat.name.toUpperCase(), style: TextStyle(color: textCol, fontSize: 13)),
                           );
                         }).toList(),
                         onChanged: (val) {
@@ -182,44 +215,76 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
                   ),
                   const SizedBox(height: 12),
 
-                  const Text('Telegram Link URL', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text('Telegram Link URL', style: TextStyle(color: textMuted, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _bookTelegramUrlController,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: textCol, fontSize: 14),
+                    decoration: InputDecoration(
                       hintText: 'https://t.me/WCU_Orthodox_Library/101',
-                      prefixIcon: Icon(Icons.telegram, color: Color(0xFF38A3E5)),
+                      hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
+                      prefixIcon: const Icon(Icons.telegram, color: Color(0xFF38A3E5)),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderCol),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  const Text('Tags (comma separated)', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text('Tags (comma separated)', style: TextStyle(color: textMuted, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _bookTagsController,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: const InputDecoration(hintText: 'Patristics, Ge\'ez / Amharic, Dogma'),
+                    style: TextStyle(color: textCol, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Patristics, Ge\'ez / Amharic, Dogma',
+                      hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderCol),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
 
-                  const Text('Description / Overview', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text('Description / Overview', style: TextStyle(color: textMuted, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _bookDescController,
                     maxLines: 2,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: const InputDecoration(hintText: 'Brief summary of contents, homilies or chapters...'),
+                    style: TextStyle(color: textCol, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Brief summary of contents, homilies or chapters...',
+                      hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderCol),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
 
                   ElevatedButton.icon(
                     onPressed: _submitBookLink,
-                    icon: const Icon(Icons.add_link, color: Colors.white),
-                    label: const Text('Add Telegram Book Link', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    icon: Icon(Icons.add_link, color: isDark ? Colors.black : Colors.white),
+                    label: Text(
+                      'Add Telegram Book Link',
+                      style: TextStyle(
+                        color: isDark ? Colors.black : Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD4690B),
+                      backgroundColor: primaryAccent,
                       padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -233,47 +298,74 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
+                  Text(
                     'Push Emergency Schedule Update',
                     style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.goldLight,
+                      color: primaryAccent,
                     ),
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Instantly broadcast schedule adjustments, feast alerts, or urgent announcements to all registered student screens.',
-                    style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                    style: TextStyle(fontSize: 13, color: textMuted),
                   ),
                   const SizedBox(height: 18),
 
-                  const Text('Broadcast Title', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text('Broadcast Title', style: TextStyle(color: textMuted, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _broadcastTitleController,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: const InputDecoration(hintText: 'e.g. Schedule Change, Feast Alert'),
+                    style: TextStyle(color: textCol, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. Schedule Change, Feast Alert',
+                      hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderCol),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
 
-                  const Text('Church / Sanctuary', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text('Church / Sanctuary', style: TextStyle(color: textMuted, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _broadcastChurchController,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: const InputDecoration(hintText: 'e.g. St. Mary\'s Orthodox Church'),
+                    style: TextStyle(color: textCol, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'e.g. St. Mary\'s Orthodox Church',
+                      hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderCol),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 12),
 
-                  const Text('Announcement Message', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                  Text('Announcement Message', style: TextStyle(color: textMuted, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
                     controller: _broadcastDescController,
                     maxLines: 3,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: const InputDecoration(hintText: 'Detail the schedule change or announcement...'),
+                    style: TextStyle(color: textCol, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Detail the schedule change or announcement...',
+                      hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: borderCol),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 24),
 
@@ -284,6 +376,7 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.crimson,
                       padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ],
@@ -292,8 +385,8 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
 
             // Tab 3: Volunteer Reviews
             volunteerApps.isEmpty
-                ? const Center(
-                    child: Text('No volunteer applications to review.', style: TextStyle(color: AppTheme.textSecondary)),
+                ? Center(
+                    child: Text('No volunteer applications to review.', style: TextStyle(color: textMuted)),
                   )
                 : ListView.builder(
                     padding: const EdgeInsets.all(18),
@@ -304,12 +397,12 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
                         margin: const EdgeInsets.only(bottom: 14),
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppTheme.secondaryBg,
+                          color: cardBg,
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
                             color: app.status == ApplicationStatus.approved
                                 ? AppTheme.emerald
-                                : AppTheme.borderMuted,
+                                : borderCol,
                           ),
                         ),
                         child: Column(
@@ -320,12 +413,12 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
                               children: [
                                 Text(
                                   app.studentName,
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textCol),
                                 ),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: AppTheme.surfaceElevated,
+                                    color: elevatedBg,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -333,7 +426,7 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
                                     style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
-                                      color: app.status == ApplicationStatus.approved ? AppTheme.emerald : AppTheme.amberGlow,
+                                      color: app.status == ApplicationStatus.approved ? AppTheme.emerald : primaryAccent,
                                     ),
                                   ),
                                 ),
@@ -342,17 +435,17 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
                             const SizedBox(height: 2),
                             Text(
                               'Target Ministry: ${app.ministryTitle} • Dept: ${app.studentDept}',
-                              style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E)),
+                              style: TextStyle(fontSize: 12, color: primaryAccent),
                             ),
                             const SizedBox(height: 8),
                             Text(
                               'Reason: "${app.reason}"',
-                              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontStyle: FontStyle.italic),
+                              style: TextStyle(fontSize: 12, color: textMuted, fontStyle: FontStyle.italic),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Experience: ${app.experience} | Availability: ${app.availability}',
-                              style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                              style: TextStyle(fontSize: 11, color: textMuted.withOpacity(0.7)),
                             ),
                             if (app.status == ApplicationStatus.pending) ...[
                               const SizedBox(height: 12),
@@ -372,10 +465,17 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
                                   ElevatedButton(
                                     onPressed: () => state.approveVolunteerApplication(app.id),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFD4690B),
+                                      backgroundColor: primaryAccent,
                                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                                     ),
-                                    child: const Text('Approve & Assign', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    child: Text(
+                                      'Approve & Assign',
+                                      style: TextStyle(
+                                        color: isDark ? Colors.black : Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),

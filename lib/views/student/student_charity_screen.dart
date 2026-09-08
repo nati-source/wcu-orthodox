@@ -18,12 +18,14 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Mutual Aid & Charity • መረዳጃና ምጽዋት'),
-        backgroundColor: AppTheme.primaryBg,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: Column(
@@ -33,45 +35,48 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               children: [
-                Expanded(child: _buildNavButton('Aid Campaigns', Icons.volunteer_activism, 0)),
-                Expanded(child: _buildNavButton('Pay Dues (መዋጮ)', Icons.payments_outlined, 1)),
-                Expanded(child: _buildNavButton('Request Aid (እርዳታ)', Icons.emergency_outlined, 2)),
+                Expanded(child: _buildNavButton(context, 'Aid Campaigns', Icons.volunteer_activism, 0)),
+                Expanded(child: _buildNavButton(context, 'Pay Dues (መዋጮ)', Icons.payments_outlined, 1)),
+                Expanded(child: _buildNavButton(context, 'Request Aid (እርዳታ)', Icons.emergency_outlined, 2)),
               ],
             ),
           ),
 
           Expanded(
             child: _activeTab == 0
-                ? _buildCampaignsTab(state)
+                ? _buildCampaignsTab(context, state)
                 : _activeTab == 1
-                    ? _buildPayDuesTab(state)
-                    : _buildRequestAidTab(state),
+                    ? _buildPayDuesTab(context, state)
+                    : _buildRequestAidTab(context, state),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNavButton(String title, IconData icon, int index) {
+  Widget _buildNavButton(BuildContext context, String title, IconData icon, int index) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final isSelected = _activeTab == index;
+
     return GestureDetector(
       onTap: () => setState(() => _activeTab = index),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.surfaceElevated : Colors.transparent,
+          color: isSelected ? primaryAccent.withOpacity(0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: isSelected ? Border.all(color: AppTheme.goldAccent.withOpacity(0.5)) : null,
+          border: isSelected ? Border.all(color: primaryAccent.withOpacity(0.5)) : null,
         ),
         child: Column(
           children: [
-            Icon(icon, size: 18, color: isSelected ? AppTheme.goldLight : AppTheme.textSecondary),
+            Icon(icon, size: 18, color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
             const SizedBox(height: 3),
             Text(
               title,
@@ -79,7 +84,7 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
               ),
             ),
           ],
@@ -91,7 +96,11 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
   // ----------------------------------------------------
   // TAB 0: CAMPAIGNS & MUTUAL AID
   // ----------------------------------------------------
-  Widget _buildCampaignsTab(FellowshipState state) {
+  Widget _buildCampaignsTab(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
@@ -99,18 +108,21 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF243328), Color(0xFF16241B), AppTheme.secondaryBg],
+            gradient: LinearGradient(
+              colors: [
+                const Color(0xFF10B981).withOpacity(0.15),
+                theme.cardTheme.color ?? theme.colorScheme.surface,
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.handshake_outlined, color: Color(0xFF34D399), size: 30),
-              SizedBox(width: 14),
+              const Icon(Icons.handshake_outlined, color: Color(0xFF10B981), size: 30),
+              const SizedBox(width: 14),
               Expanded(
                 child: Text(
                   '“እርስ በርሳችሁ ሸክማችሁን ተሸካከሙ፤ እንዲሁ የክርስቶስን ሕግ ትፈጽማላችሁ።” — ገላትያ 6፥2',
@@ -118,7 +130,7 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                     fontFamily: 'serif',
                     fontSize: 13,
                     fontStyle: FontStyle.italic,
-                    color: Colors.white,
+                    color: theme.colorScheme.onSurface,
                     height: 1.4,
                   ),
                 ),
@@ -129,9 +141,9 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
 
         const SizedBox(height: 20),
 
-        const Text(
+        Text(
           'ACTIVE FELLOWSHIP DRIVES & AID CAMPAIGNS',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary, letterSpacing: 1.5),
         ),
         const SizedBox(height: 12),
 
@@ -140,9 +152,9 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -167,19 +179,19 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                     ),
                     Text(
                       '${camp.donorsCount} Donors',
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 Text(
                   camp.title,
-                  style: const TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   camp.description,
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.35),
+                  style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, height: 1.35),
                 ),
                 const SizedBox(height: 14),
 
@@ -189,8 +201,8 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                   child: LinearProgressIndicator(
                     value: camp.progressPercentage,
                     minHeight: 8,
-                    backgroundColor: AppTheme.surfaceColor,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF5A65E)),
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -200,11 +212,11 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                   children: [
                     Text(
                       '${camp.raisedAmount.toInt()} ETB raised',
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E)),
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryAccent),
                     ),
                     Text(
                       'Goal: ${camp.targetAmount.toInt()} ETB',
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                     ),
                   ],
                 ),
@@ -213,11 +225,12 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                 ElevatedButton(
                   onPressed: () => _openDonateModal(context, camp),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFF5A65E),
+                    backgroundColor: primaryAccent,
+                    foregroundColor: isDark ? Colors.black : Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     minimumSize: const Size(double.infinity, 40),
                   ),
-                  child: const Text('Donate via Telebirr / CBE', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                  child: const Text('Donate via Telebirr / CBE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
             ),
@@ -230,40 +243,44 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
   // ----------------------------------------------------
   // TAB 1: PAY MONTHLY DUES (የአባልነት መዋጮ)
   // ----------------------------------------------------
-  Widget _buildPayDuesTab(FellowshipState state) {
+  Widget _buildPayDuesTab(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.borderMuted),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Fellowship Membership Dues (የአባልነት መዋጮ)',
-                style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'Active students contribute a suggested 50 ETB monthly to sustain Sunday school teaching materials, monastery visits, and mutual student aid.',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
+                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, height: 1.4),
               ),
               const SizedBox(height: 16),
-              _buildAccountInfo('Telebirr', '+251911223344', 'WCU Orthodox Student Fellowship'),
+              _buildAccountInfo(context, 'Telebirr', '+251911223344', 'WCU Orthodox Student Fellowship'),
               const SizedBox(height: 8),
-              _buildAccountInfo('CBE Account', '1000234567890', 'WCU Orthodox Fellowship'),
+              _buildAccountInfo(context, 'CBE Account', '1000234567890', 'WCU Orthodox Fellowship'),
               const SizedBox(height: 18),
               ElevatedButton.icon(
                 onPressed: () => _openPayDuesModal(context),
-                icon: const Icon(Icons.send_outlined, color: Colors.black, size: 16),
-                label: const Text('Submit Dues Payment Receipt', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                icon: Icon(Icons.send_outlined, color: isDark ? Colors.black : Colors.white, size: 16),
+                label: Text('Submit Dues Payment Receipt', style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF5A65E),
+                  backgroundColor: primaryAccent,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   minimumSize: const Size(double.infinity, 44),
                 ),
@@ -274,9 +291,9 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
 
         const SizedBox(height: 24),
 
-        const Text(
+        Text(
           'PAYMENT HISTORY & RECEIPTS',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary, letterSpacing: 1.5),
         ),
         const SizedBox(height: 10),
 
@@ -285,9 +302,9 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -295,15 +312,15 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p.purpose, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text(p.purpose, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
                     const SizedBox(height: 2),
-                    Text('Ref: ${p.transactionReference}', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                    Text('Ref: ${p.transactionReference}', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                   ],
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('${p.amount.toInt()} ETB', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E))),
+                    Text('${p.amount.toInt()} ETB', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: primaryAccent)),
                     const SizedBox(height: 2),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -323,11 +340,14 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
     );
   }
 
-  Widget _buildAccountInfo(String title, String number, String name) {
+  Widget _buildAccountInfo(BuildContext context, String title, String number, String name) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceElevated,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -336,16 +356,16 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 11, color: Color(0xFFF5A65E), fontWeight: FontWeight.bold)),
-              Text(number, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
-              Text(name, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+              Text(title, style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.bold)),
+              Text(number, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+              Text(name, style: TextStyle(fontSize: 10, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
             ],
           ),
           IconButton(
-            icon: const Icon(Icons.copy, size: 16, color: AppTheme.goldLight),
+            icon: Icon(Icons.copy, size: 16, color: primaryAccent),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Copied $title ($number)'), backgroundColor: AppTheme.surfaceColor),
+                SnackBar(content: Text('Copied $title ($number)'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
               );
             },
           ),
@@ -357,7 +377,10 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
   // ----------------------------------------------------
   // TAB 2: APPLY FOR EMERGENCY AID (እርዳታ መጠየቂያ)
   // ----------------------------------------------------
-  Widget _buildRequestAidTab(FellowshipState state) {
+  Widget _buildRequestAidTab(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
     final myRequests = state.myEmergencyAidRequests;
 
     return ListView(
@@ -366,35 +389,35 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.borderMuted),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.lock_clock_outlined, color: Color(0xFFF5A65E), size: 22),
-                  SizedBox(width: 10),
+                  Icon(Icons.lock_clock_outlined, color: primaryAccent, size: 22),
+                  const SizedBox(width: 10),
                   Text(
                     'Confidential Student Emergency Aid',
-                    style: TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Are you facing sudden illness, cafeteria meal crisis, or family emergency? The fellowship mutual aid committee is here for you in strict confidence.',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
+                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, height: 1.4),
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
                 onPressed: () => _openAidApplicationDialog(context),
-                icon: const Icon(Icons.add_circle_outline, color: Colors.black, size: 18),
-                label: const Text('Apply for Emergency Assistance', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                icon: Icon(Icons.add_circle_outline, color: isDark ? Colors.black : Colors.white, size: 18),
+                label: Text('Apply for Emergency Assistance', style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF5A65E),
+                  backgroundColor: primaryAccent,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   minimumSize: const Size(double.infinity, 44),
                 ),
@@ -405,17 +428,17 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
 
         const SizedBox(height: 24),
 
-        const Text(
+        Text(
           'MY AID APPLICATIONS',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary, letterSpacing: 1.5),
         ),
         const SizedBox(height: 10),
 
         if (myRequests.isEmpty)
-          const Center(
+          Center(
             child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('No active emergency aid applications.', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              padding: const EdgeInsets.all(24),
+              child: Text('No active emergency aid applications.', style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
             ),
           )
         else
@@ -424,7 +447,7 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.secondaryBg,
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: req.status.color.withOpacity(0.5)),
               ),
@@ -434,7 +457,7 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(req.category.displayName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Text(req.category.displayName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -447,15 +470,15 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text('Requested Amount: ${req.amountRequested.toInt()} ETB', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E))),
+                  Text('Requested Amount: ${req.amountRequested.toInt()} ETB', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: primaryAccent)),
                   const SizedBox(height: 4),
-                  Text(req.description, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                  Text(req.description, style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                   if (req.adminNote != null) ...[
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: AppTheme.surfaceElevated, borderRadius: BorderRadius.circular(8)),
-                      child: Text('Committee Note: ${req.adminNote}', style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary)),
+                      decoration: BoxDecoration(color: theme.colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(8)),
+                      child: Text('Committee Note: ${req.adminNote}', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface)),
                     ),
                   ],
                 ],
@@ -467,11 +490,14 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
   }
 
   void _openDonateModal(BuildContext context, CharityCampaignModel camp) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
     final amountController = TextEditingController(text: '100');
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surfaceElevated,
+      backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) {
         return Padding(
@@ -480,7 +506,7 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Donate to ${camp.title}', style: const TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E))),
+              Text('Donate to ${camp.title}', style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent)),
               const SizedBox(height: 14),
               TextField(
                 controller: amountController,
@@ -494,14 +520,15 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                   widget.state.donateToCharityCampaign(camp.id, amt);
                   Navigator.pop(ctx);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Donated $amt ETB! May God reward you abundantly.'), backgroundColor: AppTheme.surfaceColor),
+                    SnackBar(content: Text('Donated $amt ETB! May God reward you abundantly.'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF5A65E),
+                  backgroundColor: primaryAccent,
+                  foregroundColor: isDark ? Colors.black : Colors.white,
                   minimumSize: const Size(double.infinity, 44),
                 ),
-                child: const Text('Confirm Donation via Telebirr', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                child: const Text('Confirm Donation via Telebirr', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -511,13 +538,16 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
   }
 
   void _openPayDuesModal(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
     final refController = TextEditingController();
     PaymentMethodType method = PaymentMethodType.telebirr;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.surfaceElevated,
+      backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) {
         return StatefulBuilder(
@@ -533,13 +563,13 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Submit Monthly Dues (50 ETB)', style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E))),
+                  Text('Submit Monthly Dues (50 ETB)', style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent)),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<PaymentMethodType>(
                     value: method,
-                    dropdownColor: AppTheme.surfaceElevated,
+                    dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                     items: [PaymentMethodType.telebirr, PaymentMethodType.cbeAccount]
-                        .map((m) => DropdownMenuItem(value: m, child: Text(m.displayName, style: const TextStyle(fontSize: 12))))
+                        .map((m) => DropdownMenuItem(value: m, child: Text(m.displayName, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface))))
                         .toList(),
                     onChanged: (val) => setModalState(() => method = val!),
                   ),
@@ -560,14 +590,15 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                       );
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Payment receipt submitted for verification'), backgroundColor: AppTheme.surfaceColor),
+                        SnackBar(content: const Text('Payment receipt submitted for verification'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF5A65E),
+                      backgroundColor: primaryAccent,
+                      foregroundColor: isDark ? Colors.black : Colors.white,
                       minimumSize: const Size(double.infinity, 44),
                     ),
-                    child: const Text('Submit Receipt', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                    child: const Text('Submit Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -579,6 +610,10 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
   }
 
   void _openAidApplicationDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     EmergencyAidCategory selectedCategory = EmergencyAidCategory.medical;
     final amountController = TextEditingController(text: '500');
     final descController = TextEditingController();
@@ -589,18 +624,18 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppTheme.surfaceElevated,
+              backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text('Confidential Aid Request', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E))),
+              title: Text('Confidential Aid Request', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<EmergencyAidCategory>(
                       value: selectedCategory,
-                      dropdownColor: AppTheme.surfaceElevated,
+                      dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                       items: EmergencyAidCategory.values
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c.displayName, style: const TextStyle(fontSize: 11))))
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c.displayName, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface))))
                           .toList(),
                       onChanged: (val) => setDialogState(() => selectedCategory = val!),
                     ),
@@ -620,7 +655,7 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary))),
+                TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary))),
                 ElevatedButton(
                   onPressed: () {
                     final amt = double.tryParse(amountController.text.trim()) ?? 500.0;
@@ -632,11 +667,11 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                     );
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Aid application received by committee'), backgroundColor: AppTheme.surfaceColor),
+                      SnackBar(content: const Text('Aid application received by committee'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
                     );
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
-                  child: const Text('Submit Application', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: primaryAccent),
+                  child: Text('Submit Application', style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );

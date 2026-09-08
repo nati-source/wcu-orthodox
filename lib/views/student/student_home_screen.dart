@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/interactive_fellowship_card.dart';
 import 'student_liturgical_calendar_screen.dart';
 import 'student_prayer_book_screen.dart';
 import 'student_confessor_screen.dart';
@@ -47,9 +49,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final state = widget.state;
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
-    final secondaryAccent = theme.colorScheme.secondary;
     final countdownStr = _formatDuration(state.liturgyCountdown);
     final calDay = state.currentCalendarDay;
+    final isDark = theme.brightness == Brightness.dark;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -59,9 +61,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           // Greeting Subtitle
           Text(
             'Welcome, ${state.currentUser.fullName.split(' ').first}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: AppTheme.textSecondary,
+              color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -69,14 +71,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
           // 0. Daily Liturgical Calendar & Fasting Banner (Interactive)
           GestureDetector(
-            onTap: () => _navigateTo(StudentLiturgicalCalendarScreen(state: state)),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              _navigateTo(StudentLiturgicalCalendarScreen(state: state));
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
                     theme.colorScheme.surfaceContainerHighest,
-                    theme.colorScheme.surface,
+                    theme.cardTheme.color ?? theme.colorScheme.surface,
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -113,7 +118,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: calDay.isFasting ? const Color(0xFFEF4444).withOpacity(0.2) : const Color(0xFF10B981).withOpacity(0.2),
+                                color: calDay.isFasting
+                                    ? const Color(0xFFEF4444).withOpacity(0.2)
+                                    : const Color(0xFF10B981).withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -132,11 +139,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                           calDay.saintOfTodayGeEz,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: 'serif',
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                       ],
@@ -150,14 +157,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
           const SizedBox(height: 14),
 
-          // 1. Upcoming Liturgy Big Glow Card (Matching screen4 - Copy.png)
+          // 1. Upcoming Liturgy Big Glow Card
           Container(
             padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
                   theme.colorScheme.surfaceContainerHighest,
-                  theme.colorScheme.surface,
+                  theme.cardTheme.color ?? theme.colorScheme.surface,
                   theme.scaffoldBackgroundColor,
                 ],
                 begin: Alignment.topLeft,
@@ -167,7 +174,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               border: Border.all(color: primaryAccent.withOpacity(0.4), width: 1.2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withOpacity(isDark ? 0.35 : 0.08),
                   blurRadius: 16,
                   offset: const Offset(0, 6),
                 ),
@@ -179,13 +186,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Upcoming Liturgy',
                       style: TextStyle(
                         fontFamily: 'serif',
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                     // Liturgy Reminder Switch
@@ -193,17 +200,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       scale: 0.85,
                       child: Switch(
                         value: _reminderEnabled,
-                        activeColor: Colors.black,
+                        activeColor: isDark ? Colors.black : Colors.white,
                         activeTrackColor: primaryAccent,
-                        inactiveThumbColor: AppTheme.textSecondary,
-                        inactiveTrackColor: theme.colorScheme.surface,
+                        inactiveThumbColor: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                        inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
                         onChanged: (val) {
                           setState(() => _reminderEnabled = val);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(val ? 'Liturgy reminder activated' : 'Reminder silenced'),
                               duration: const Duration(seconds: 1),
-                              backgroundColor: theme.colorScheme.surface,
+                              backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                             ),
                           );
                         },
@@ -216,11 +223,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   children: [
                     Icon(Icons.location_on_outlined, color: primaryAccent, size: 16),
                     const SizedBox(width: 4),
-                    const Text(
+                    Text(
                       'St. Mary\'s Orthodox Church',
                       style: TextStyle(
                         fontSize: 13,
-                        color: AppTheme.textSecondary,
+                        color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
                       ),
                     ),
                   ],
@@ -239,12 +246,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   'TIME REMAINING',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
-                    color: AppTheme.textTertiary,
+                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary,
                     letterSpacing: 1.5,
                   ),
                 ),
@@ -255,12 +262,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           const SizedBox(height: 24),
 
           // QUICK ACTIONS Header
-          const Text(
+          Text(
             'FELLOWSHIP SERVICES & QUICK ACTIONS',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
-              color: AppTheme.textTertiary,
+              color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary,
               letterSpacing: 1.5,
             ),
           ),
@@ -273,7 +280,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               Expanded(
                 child: _buildQuickActionCard(
                   icon: Icons.menu_book,
-                  iconColor: const Color(0xFFF5A65E),
+                  iconColor: primaryAccent,
                   title: 'Daily\nPrayers',
                   onTap: () => _navigateTo(StudentPrayerBookScreen(state: state)),
                 ),
@@ -284,7 +291,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               Expanded(
                 child: _buildQuickActionCard(
                   icon: Icons.shield_outlined,
-                  iconColor: const Color(0xFFF5A65E),
+                  iconColor: primaryAccent,
                   title: 'Father\nConfessor',
                   onTap: () => _navigateTo(StudentConfessorScreen(state: state)),
                 ),
@@ -295,7 +302,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               Expanded(
                 child: _buildQuickActionCard(
                   icon: Icons.directions_bus_outlined,
-                  iconColor: const Color(0xFFF5A65E),
+                  iconColor: primaryAccent,
                   title: 'Pilgrimage\nTrips',
                   onTap: () => _navigateTo(StudentPilgrimageScreen(state: state)),
                 ),
@@ -305,14 +312,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
           const SizedBox(height: 10),
 
-          // Secondary Quick Action 4-Card Grid
+          // Secondary Quick Action 3-Card Grid
           Row(
             children: [
               // 4. Mutual Aid & Charity
               Expanded(
                 child: _buildQuickActionCard(
                   icon: Icons.volunteer_activism_outlined,
-                  iconColor: const Color(0xFF34D399),
+                  iconColor: const Color(0xFF10B981),
                   title: 'Mutual Aid\n& Charity',
                   onTap: () => _navigateTo(StudentCharityScreen(state: state)),
                 ),
@@ -348,9 +355,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,13 +375,13 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.goldAccent.withOpacity(0.15),
+                        color: primaryAccent.withOpacity(0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.menu_book, color: AppTheme.goldLight, size: 24),
+                      child: Icon(Icons.menu_book, color: primaryAccent, size: 24),
                     ),
                     const SizedBox(width: 14),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -377,19 +391,19 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               fontFamily: 'serif',
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: theme.colorScheme.onSurface,
                               height: 1.2,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Text(
+                    Text(
                       '75%',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.goldLight,
+                        color: primaryAccent,
                       ),
                     ),
                   ],
@@ -402,36 +416,39 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   child: LinearProgressIndicator(
                     value: 0.75,
                     minHeight: 8,
-                    backgroundColor: AppTheme.surfaceColor,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE57E12)),
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
                   ),
                 ),
                 const SizedBox(height: 14),
 
-                const Text(
+                Text(
                   'Continue reading: "The Early Church Fathers" (Chapter 4 - Asceticism & Grace)',
                   style: TextStyle(
                     fontSize: 13,
-                    color: AppTheme.textSecondary,
+                    color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
                     height: 1.4,
                   ),
                 ),
                 const SizedBox(height: 14),
 
                 GestureDetector(
-                  onTap: () => widget.onNavigateTab(2), // Tab 2 = Roadmap
-                  child: const Row(
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    widget.onNavigateTab(2); // Tab 2 = Roadmap
+                  },
+                  child: Row(
                     children: [
                       Text(
                         'Open Spiritual Roadmap',
                         style: TextStyle(
                           fontSize: 13,
-                          color: AppTheme.goldLight,
+                          color: primaryAccent,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(width: 4),
-                      Icon(Icons.arrow_forward, color: AppTheme.goldLight, size: 16),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward, color: primaryAccent, size: 16),
                     ],
                   ),
                 ),
@@ -445,19 +462,22 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'FEASTS & GATHERINGS',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
-                  color: AppTheme.textTertiary,
+                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary,
                   letterSpacing: 1.5,
                 ),
               ),
               TextButton(
-                onPressed: () => widget.onNavigateTab(4), // Tab 4 = Profile/Programs
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  widget.onNavigateTab(4); // Tab 4 = Profile/Programs
+                },
                 style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                child: const Text('View All', style: TextStyle(color: AppTheme.goldLight, fontSize: 12)),
+                child: Text('View All', style: TextStyle(color: primaryAccent, fontSize: 12)),
               ),
             ],
           ),
@@ -468,9 +488,9 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.secondaryBg,
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderMuted),
+                border: Border.all(color: theme.dividerColor),
               ),
               child: Row(
                 children: [
@@ -478,11 +498,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: AppTheme.goldAccent.withOpacity(0.12),
+                      color: primaryAccent.withOpacity(0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.event_available, color: AppTheme.goldLight, size: 22),
+                    child: Center(
+                      child: Icon(Icons.event_available, color: primaryAccent, size: 22),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -492,30 +512,31 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       children: [
                         Text(
                           prog.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
                           '${prog.churchName} • ${prog.category}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: AppTheme.textSecondary,
+                            color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
                           ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.notifications_active_outlined, color: AppTheme.goldLight, size: 20),
+                    icon: Icon(Icons.notifications_active_outlined, color: primaryAccent, size: 20),
                     onPressed: () {
+                      HapticFeedback.selectionClick();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Reminder set for ${prog.title}'),
-                          backgroundColor: AppTheme.surfaceColor,
+                          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                         ),
                       );
                     },
@@ -538,40 +559,38 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
-    return InkWell(
+
+    return InteractiveFellowshipCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.25),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 6),
+      margin: EdgeInsets.zero,
+      color: theme.cardTheme.color ?? theme.colorScheme.surface,
+      borderColor: theme.dividerColor,
+      showWatermark: true,
+      watermarkSize: 55,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: iconColor.withOpacity(0.12),
+              shape: BoxShape.circle,
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: iconColor, size: 28),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-                height: 1.25,
-              ),
+            child: Icon(icon, color: iconColor, size: 24),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface,
+              height: 1.25,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

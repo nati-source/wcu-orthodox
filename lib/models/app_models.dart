@@ -783,133 +783,160 @@ class PrayerBookModel {
 // ============================================================================
 
 enum AppThemePalette {
-  midnightGold,       // Classic Midnight Liturgical Gold
-  axumiteBurgundy,    // Axumite Royal Monastic Burgundy
-  lalibelaSandstone,  // Lalibela Rock-Hewn Sandstone Amber
-  tewahedoForest,     // Tewahedo Midnight Forest Emerald
-  debreDamoAzure,     // Debre Damo Midnight Sky Azure
+  midnightFellowship, // Default Dark (Obsidian / Midnight Sacred)
+  parchmentIncense,   // Default Light (Aged Vellum & Liturgical Crimson)
+  axumiteEmerald,     // Modern Bright (Byzantine Forest Green & Amber Brass)
 }
 
 extension AppThemePaletteExt on AppThemePalette {
   String get displayName {
     switch (this) {
-      case AppThemePalette.midnightGold:
-        return 'Sacred Gold (ክቡር ወርቅ)';
-      case AppThemePalette.axumiteBurgundy:
-        return 'Liturgical Crimson (ቀይ ልብስ)';
-      case AppThemePalette.tewahedoForest:
-        return 'St. Mary Emerald (ማርያም አረንጓዴ)';
-      case AppThemePalette.debreDamoAzure:
-        return 'Royal Sapphire (ሰማያዊ ኪዳን)';
-      case AppThemePalette.lalibelaSandstone:
-        return 'Lalibela Sandstone Amber (ላሊበላ አምበር)';
+      case AppThemePalette.midnightFellowship:
+        return 'Midnight Fellowship';
+      case AppThemePalette.parchmentIncense:
+        return 'Parchment & Incense';
+      case AppThemePalette.axumiteEmerald:
+        return 'Axumite Emerald';
     }
   }
 
   String get amharicName {
     switch (this) {
-      case AppThemePalette.midnightGold:
-        return 'ወርቃማ ሥርዓተ ቤተክርስቲያን';
-      case AppThemePalette.axumiteBurgundy:
-        return 'አክሱማዊ ንጉሣዊ ቀይ ልብስ';
-      case AppThemePalette.tewahedoForest:
-        return 'ተዋሕዶ ልምላሜና ሰላም';
-      case AppThemePalette.debreDamoAzure:
-        return 'ደብረ ዳሞ ሰማያዊ ጸጋ';
-      case AppThemePalette.lalibelaSandstone:
-        return 'ላሊበላ ገዳማዊ ጽናት';
+      case AppThemePalette.midnightFellowship:
+        return 'የሌሊት ማኅበር (ነባሪ ጨለማ)';
+      case AppThemePalette.parchmentIncense:
+        return 'ብራና እና ዕጣን (ብርሃን)';
+      case AppThemePalette.axumiteEmerald:
+        return 'አክሱማዊ መረግድ (ዘመናዊ ብሩህ)';
     }
   }
 
-  Color get primaryAccent {
+  String get subtitle {
     switch (this) {
-      case AppThemePalette.midnightGold:
-        return const Color(0xFFF5A65E);
-      case AppThemePalette.axumiteBurgundy:
-        return const Color(0xFFF87171);
-      case AppThemePalette.tewahedoForest:
-        return const Color(0xFF34D399);
-      case AppThemePalette.debreDamoAzure:
-        return const Color(0xFF60A5FA);
-      case AppThemePalette.lalibelaSandstone:
-        return const Color(0xFFFBBF24);
+      case AppThemePalette.midnightFellowship:
+        return 'Midnight Sacred • Gold & Slate';
+      case AppThemePalette.parchmentIncense:
+        return 'Aged Vellum • Liturgical Crimson & Gold';
+      case AppThemePalette.axumiteEmerald:
+        return 'Modern Bright • Byzantine Forest & Amber';
     }
   }
 
-  Color get secondaryAccent {
+  bool get isDark {
     switch (this) {
-      case AppThemePalette.midnightGold:
-        return const Color(0xFFD48B38);
-      case AppThemePalette.axumiteBurgundy:
-        return const Color(0xFFEF4444);
-      case AppThemePalette.tewahedoForest:
-        return const Color(0xFF10B981);
-      case AppThemePalette.debreDamoAzure:
-        return const Color(0xFF3B82F6);
-      case AppThemePalette.lalibelaSandstone:
-        return const Color(0xFFF59E0B);
+      case AppThemePalette.midnightFellowship:
+        return true;
+      case AppThemePalette.parchmentIncense:
+      case AppThemePalette.axumiteEmerald:
+        return false;
     }
   }
 
   Color get scaffoldBg {
     switch (this) {
-      case AppThemePalette.midnightGold:
-        return const Color(0xFF0C1017);
-      case AppThemePalette.axumiteBurgundy:
-        return const Color(0xFF15070E);
-      case AppThemePalette.tewahedoForest:
-        return const Color(0xFF04120B);
-      case AppThemePalette.debreDamoAzure:
-        return const Color(0xFF050E1A);
-      case AppThemePalette.lalibelaSandstone:
-        return const Color(0xFF130E07);
-    }
-  }
-
-  Color get surfaceBg {
-    switch (this) {
-      case AppThemePalette.midnightGold:
-        return const Color(0xFF131923);
-      case AppThemePalette.axumiteBurgundy:
-        return const Color(0xFF220C18);
-      case AppThemePalette.tewahedoForest:
-        return const Color(0xFF0B1E13);
-      case AppThemePalette.debreDamoAzure:
-        return const Color(0xFF0B1728);
-      case AppThemePalette.lalibelaSandstone:
-        return const Color(0xFF1D150B);
+      case AppThemePalette.midnightFellowship:
+        return const Color(0xFF070F1E);
+      case AppThemePalette.parchmentIncense:
+        return const Color(0xFFFBF8F2);
+      case AppThemePalette.axumiteEmerald:
+        return const Color(0xFFF8FAFC);
     }
   }
 
   Color get cardBg {
     switch (this) {
-      case AppThemePalette.midnightGold:
-        return const Color(0xFF1B2332);
-      case AppThemePalette.axumiteBurgundy:
-        return const Color(0xFF301222);
-      case AppThemePalette.tewahedoForest:
-        return const Color(0xFF122C1C);
-      case AppThemePalette.debreDamoAzure:
-        return const Color(0xFF12223B);
-      case AppThemePalette.lalibelaSandstone:
-        return const Color(0xFF2B1F11);
+      case AppThemePalette.midnightFellowship:
+        return const Color(0xFF101C33);
+      case AppThemePalette.parchmentIncense:
+        return const Color(0xFFFFFFFF);
+      case AppThemePalette.axumiteEmerald:
+        return const Color(0xFFFFFFFF);
+    }
+  }
+
+  Color get tileBg {
+    switch (this) {
+      case AppThemePalette.midnightFellowship:
+        return const Color(0xFF1C2333);
+      case AppThemePalette.parchmentIncense:
+        return const Color(0xFFF5EFEB);
+      case AppThemePalette.axumiteEmerald:
+        return const Color(0xFFF1F5F9);
     }
   }
 
   Color get elevatedBg {
     switch (this) {
-      case AppThemePalette.midnightGold:
-        return const Color(0xFF242F42);
-      case AppThemePalette.axumiteBurgundy:
-        return const Color(0xFF40182E);
-      case AppThemePalette.tewahedoForest:
-        return const Color(0xFF1A3B27);
-      case AppThemePalette.debreDamoAzure:
-        return const Color(0xFF1A2F50);
-      case AppThemePalette.lalibelaSandstone:
-        return const Color(0xFF3B2A18);
+      case AppThemePalette.midnightFellowship:
+        return const Color(0xFF232E48);
+      case AppThemePalette.parchmentIncense:
+        return const Color(0xFFEDE4DB);
+      case AppThemePalette.axumiteEmerald:
+        return const Color(0xFFE2E8F0);
     }
   }
+
+  Color get primaryAccent {
+    switch (this) {
+      case AppThemePalette.midnightFellowship:
+        return const Color(0xFFF59E0B); // Radiant Amber Gold
+      case AppThemePalette.parchmentIncense:
+        return const Color(0xFF991B1B); // Liturgical Crimson
+      case AppThemePalette.axumiteEmerald:
+        return const Color(0xFF065F46); // Byzantine Forest Green
+    }
+  }
+
+  Color get secondaryAccent {
+    switch (this) {
+      case AppThemePalette.midnightFellowship:
+        return const Color(0xFF8B5CF6); // Royal Violet / Gold secondary
+      case AppThemePalette.parchmentIncense:
+        return const Color(0xFFD97706); // Warm Honey Gold
+      case AppThemePalette.axumiteEmerald:
+        return const Color(0xFFB45309); // Amber Brass
+    }
+  }
+
+  Color get textPrimary {
+    switch (this) {
+      case AppThemePalette.midnightFellowship:
+        return const Color(0xFFF9FAFB);
+      case AppThemePalette.parchmentIncense:
+        return const Color(0xFF1C1917);
+      case AppThemePalette.axumiteEmerald:
+        return const Color(0xFF0F172A);
+    }
+  }
+
+  Color get textSecondary {
+    switch (this) {
+      case AppThemePalette.midnightFellowship:
+        return const Color(0xFF9CA3AF);
+      case AppThemePalette.parchmentIncense:
+        return const Color(0xFF78716C);
+      case AppThemePalette.axumiteEmerald:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  Color get borderMuted {
+    switch (this) {
+      case AppThemePalette.midnightFellowship:
+        return const Color(0xFF1E293B);
+      case AppThemePalette.parchmentIncense:
+        return const Color(0xFFE7E5E4);
+      case AppThemePalette.axumiteEmerald:
+        return const Color(0xFFE2E8F0);
+    }
+  }
+
+  List<Color> get swatchColors => [
+    scaffoldBg,
+    cardBg,
+    primaryAccent,
+    secondaryAccent,
+  ];
 }
 
 // ============================================================================

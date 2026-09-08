@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/interactive_fellowship_card.dart';
 import 'student_ministry_screen.dart';
 import 'student_confessor_screen.dart';
 import 'student_pilgrimage_screen.dart';
@@ -25,7 +27,7 @@ class StudentProfileScreen extends StatelessWidget {
     final user = state.currentUser;
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
-    final secondaryAccent = theme.colorScheme.secondary;
+    final isDark = theme.brightness == Brightness.dark;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -39,7 +41,7 @@ class StudentProfileScreen extends StatelessWidget {
               gradient: LinearGradient(
                 colors: [
                   theme.colorScheme.surfaceContainerHighest,
-                  theme.colorScheme.surface,
+                  theme.cardTheme.color ?? theme.colorScheme.surface,
                   theme.scaffoldBackgroundColor,
                 ],
                 begin: Alignment.topLeft,
@@ -63,7 +65,7 @@ class StudentProfileScreen extends StatelessWidget {
                     // Profile Avatar
                     CircleAvatar(
                       radius: 36,
-                      backgroundColor: theme.colorScheme.surface,
+                      backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                       child: Container(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -83,11 +85,11 @@ class StudentProfileScreen extends StatelessWidget {
                         children: [
                           Text(
                             user.fullName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'serif',
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -127,17 +129,18 @@ class StudentProfileScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: theme.scaffoldBackgroundColor.withOpacity(0.6),
+                    color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: theme.dividerColor),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildIdField('BATCH', user.batchYear),
-                      Container(width: 1, height: 28, color: AppTheme.borderMuted),
-                      _buildIdField('DEPT', user.department.split(' ').first),
-                      Container(width: 1, height: 28, color: AppTheme.borderMuted),
-                      _buildIdField('YEAR', 'Year ${user.academicYear}'),
+                      _buildIdField(context, 'BATCH', user.batchYear),
+                      Container(width: 1, height: 28, color: theme.dividerColor),
+                      _buildIdField(context, 'DEPT', user.department.split(' ').first),
+                      Container(width: 1, height: 28, color: theme.dividerColor),
+                      _buildIdField(context, 'YEAR', 'Year ${user.academicYear}'),
                     ],
                   ),
                 ),
@@ -158,12 +161,12 @@ class StudentProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'SCAN TO VERIFY FELLOWSHIP MEMBERSHIP',
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.textTertiary,
+                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary,
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -189,6 +192,7 @@ class StudentProfileScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: _buildServiceTile(
+                  context: context,
                   icon: Icons.shield_outlined,
                   color: const Color(0xFFF5A65E),
                   title: 'My Confession',
@@ -199,6 +203,7 @@ class StudentProfileScreen extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _buildServiceTile(
+                  context: context,
                   icon: Icons.directions_bus_outlined,
                   color: const Color(0xFF10B981),
                   title: 'My Pilgrimages',
@@ -213,6 +218,7 @@ class StudentProfileScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: _buildServiceTile(
+                  context: context,
                   icon: Icons.school_outlined,
                   color: const Color(0xFF60A5FA),
                   title: 'My Mentorship',
@@ -223,6 +229,7 @@ class StudentProfileScreen extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _buildServiceTile(
+                  context: context,
                   icon: Icons.volunteer_activism_outlined,
                   color: const Color(0xFFF59E0B),
                   title: 'My Dues & Aid',
@@ -235,15 +242,32 @@ class StudentProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // 3. App Themes & Sacred Aesthetics Selection
-          Text(
-            'App Themes & Sacred Aesthetics (የመተግበሪያው ገጽታ)',
-            style: TextStyle(
-              fontFamily: 'serif',
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: primaryAccent,
-            ),
+          // 3. Appearance & Theme (የመተግበሪያው ገጽታ)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Appearance & Theme (የመተግበሪያው ገጽታ)',
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: primaryAccent,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: primaryAccent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: primaryAccent.withOpacity(0.3)),
+                ),
+                child: Text(
+                  '3 Presets',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryAccent),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
 
@@ -254,74 +278,164 @@ class StudentProfileScreen extends StatelessWidget {
                 final isSelected = state.currentThemePalette == palette;
                 return GestureDetector(
                   onTap: () {
+                    HapticFeedback.selectionClick();
                     state.setThemePalette(palette);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Row(
                           children: [
-                            const Icon(Icons.palette, color: AppTheme.goldLight, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text('Active Theme: ${palette.displayName} • ${palette.amharicName}')),
+                            Icon(Icons.palette, color: palette.primaryAccent, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Applied Theme: ${palette.displayName} (${palette.amharicName})',
+                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
                           ],
                         ),
                         duration: const Duration(seconds: 2),
-                        backgroundColor: AppTheme.surfaceElevated,
                       ),
                     );
                   },
-                  child: Container(
-                    width: 175,
-                    margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.all(14),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 220,
+                    margin: const EdgeInsets.only(right: 14),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: palette.scaffoldBg,
-                      borderRadius: BorderRadius.circular(18),
+                      color: palette.cardBg,
+                      borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isSelected ? palette.primaryAccent : AppTheme.borderMuted,
-                        width: isSelected ? 2.0 : 1.0,
+                        color: isSelected ? palette.primaryAccent : palette.borderMuted,
+                        width: isSelected ? 2.2 : 1.2,
                       ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
                                 color: palette.primaryAccent.withOpacity(0.35),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              )
+                                blurRadius: 12,
+                                offset: const Offset(0, 4),
+                              ),
                             ]
-                          : null,
+                          : [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(palette.isDark ? 0.2 : 0.05),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Header: Theme Mode Badge + Selection Icon
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Container(
-                              width: 24,
-                              height: 24,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: palette.primaryAccent,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 1.5),
+                                color: palette.scaffoldBg,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: palette.borderMuted),
+                              ),
+                              child: Text(
+                                palette.isDark ? 'DARK SACRED' : 'LIGHT SACRED',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: palette.primaryAccent,
+                                  letterSpacing: 0.8,
+                                ),
                               ),
                             ),
-                            if (isSelected)
-                              Icon(Icons.check_circle, color: palette.primaryAccent, size: 18),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 180),
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isSelected ? palette.primaryAccent : Colors.transparent,
+                                border: Border.all(
+                                  color: isSelected ? palette.primaryAccent : palette.borderMuted,
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: isSelected
+                                  ? Icon(
+                                      Icons.check,
+                                      size: 14,
+                                      color: palette.isDark ? Colors.black : Colors.white,
+                                    )
+                                  : null,
+                            ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
+
+                        // Title & Amharic Title
                         Text(
                           palette.displayName,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.white),
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            color: palette.textPrimary,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(
                           palette.amharicName,
-                          style: TextStyle(fontSize: 10, color: palette.primaryAccent),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: palette.primaryAccent,
+                            fontWeight: FontWeight.w600,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          palette.subtitle,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: palette.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Live Circular Color Swatches (Bg, Card, Primary, Secondary)
+                        Row(
+                          children: [
+                            for (int i = 0; i < palette.swatchColors.length; i++) ...[
+                              Container(
+                                width: 22,
+                                height: 22,
+                                decoration: BoxDecoration(
+                                  color: palette.swatchColors[i],
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: palette.isDark ? Colors.white24 : Colors.black12,
+                                    width: 1.5,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: palette.swatchColors[i].withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (i < palette.swatchColors.length - 1)
+                                const SizedBox(width: 6),
+                            ],
+                          ],
                         ),
                       ],
                     ),
@@ -334,13 +448,13 @@ class StudentProfileScreen extends StatelessWidget {
           const SizedBox(height: 24),
 
           // 4. Ministry & Service Status
-          const Text(
+          Text(
             'Active Ministry Service',
             style: TextStyle(
               fontFamily: 'serif',
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppTheme.goldLight,
+              color: primaryAccent,
             ),
           ),
           const SizedBox(height: 12),
@@ -348,19 +462,19 @@ class StudentProfileScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.goldAccent.withOpacity(0.15),
+                    color: primaryAccent.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(Icons.volunteer_activism, color: AppTheme.goldLight, size: 28),
+                  child: Icon(Icons.volunteer_activism, color: primaryAccent, size: 28),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -369,7 +483,7 @@ class StudentProfileScreen extends StatelessWidget {
                     children: [
                       Text(
                         'ID: ${user.id} • ${user.phoneNumber}',
-                        style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                       ),
                       const SizedBox(height: 6),
                       Row(
@@ -391,7 +505,7 @@ class StudentProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // 3. Attendance Rate & Ministry Status
+          // Attendance Rate & Ministry Status
           Row(
             children: [
               // Attendance Score
@@ -399,24 +513,24 @@ class StudentProfileScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.secondaryBg,
+                    color: theme.cardTheme.color ?? theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppTheme.borderMuted),
+                    border: Border.all(color: theme.dividerColor),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Attendance Rate',
-                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         '${user.attendancePercentage.toStringAsFixed(1)}%',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.goldLight,
+                          color: primaryAccent,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -439,24 +553,24 @@ class StudentProfileScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppTheme.secondaryBg,
+                    color: theme.cardTheme.color ?? theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppTheme.borderMuted),
+                    border: Border.all(color: theme.dividerColor),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Ministry Status',
-                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         user.ministryStatus,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: theme.colorScheme.onSurface,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -470,13 +584,13 @@ class StudentProfileScreen extends StatelessWidget {
                             ),
                           );
                         },
-                        child: const Row(
+                        child: Row(
                           children: [
                             Text(
                               'Serving Areas',
-                              style: TextStyle(fontSize: 11, color: AppTheme.goldLight, fontWeight: FontWeight.bold),
+                              style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.bold),
                             ),
-                            Icon(Icons.chevron_right, size: 14, color: AppTheme.goldLight),
+                            Icon(Icons.chevron_right, size: 14, color: primaryAccent),
                           ],
                         ),
                       ),
@@ -489,14 +603,14 @@ class StudentProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          // 4. Course Completion Badges
-          const Text(
+          // Course Completion Badges
+          Text(
             'Course Badges & Milestones',
             style: TextStyle(
               fontFamily: 'serif',
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppTheme.goldLight,
+              color: primaryAccent,
             ),
           ),
           const SizedBox(height: 12),
@@ -508,21 +622,21 @@ class StudentProfileScreen extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryBg,
+                  color: theme.cardTheme.color ?? theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppTheme.goldAccent.withOpacity(0.5)),
+                  border: Border.all(color: primaryAccent.withOpacity(0.5)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.workspace_premium, color: AppTheme.goldLight, size: 18),
+                    Icon(Icons.workspace_premium, color: primaryAccent, size: 18),
                     const SizedBox(width: 6),
                     Text(
                       badge,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -537,31 +651,31 @@ class StudentProfileScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 colors: [
-                  Color(0xFF382310),
-                  AppTheme.secondaryBg,
+                  primaryAccent.withOpacity(0.18),
+                  theme.cardTheme.color ?? theme.colorScheme.surface,
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.goldAccent.withOpacity(0.4)),
+              border: Border.all(color: primaryAccent.withOpacity(0.4)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.volunteer_activism, color: AppTheme.goldLight, size: 32),
+                Icon(Icons.volunteer_activism, color: primaryAccent, size: 32),
                 const SizedBox(width: 14),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Join a Fellowship Ministry',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
                         'Choir, Diaconia, Hospitality, Media...',
-                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                       ),
                     ],
                   ),
@@ -575,40 +689,44 @@ class StudentProfileScreen extends StatelessWidget {
                     );
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFD4690B),
+                    backgroundColor: primaryAccent,
+                    foregroundColor: isDark ? Colors.black : Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   ),
-                  child: const Text('Browse', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text('Browse', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
-
           const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildIdField(String label, String value) {
+  Widget _buildIdField(BuildContext context, String label, String value) {
+    final theme = Theme.of(context);
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+
     return Column(
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w800,
-            color: AppTheme.textTertiary,
+            color: textMuted.withOpacity(0.7),
             letterSpacing: 1.1,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: textCol,
           ),
         ),
       ],
@@ -616,21 +734,28 @@ class StudentProfileScreen extends StatelessWidget {
   }
 
   Widget _buildServiceTile({
+    required BuildContext context,
     required IconData icon,
     required Color color,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
   }) {
+    final theme = Theme.of(context);
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final borderCol = theme.dividerColor;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppTheme.secondaryBg,
+          color: cardBg,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.borderMuted),
+          border: Border.all(color: borderCol),
         ),
         child: Row(
           children: [
@@ -647,9 +772,9 @@ class StudentProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textCol)),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+                  Text(subtitle, style: TextStyle(fontSize: 10, color: textMuted)),
                 ],
               ),
             ),

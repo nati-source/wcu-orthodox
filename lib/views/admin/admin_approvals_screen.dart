@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
@@ -19,6 +20,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final pendingStudents = state.pendingApprovals;
     final allStudents = state.allStudents;
     final pendingTrips = state.allTripRegistrations
@@ -33,14 +36,22 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     return DefaultTabController(
       length: 6,
       child: Scaffold(
-        backgroundColor: AppTheme.primaryBg,
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          title: const Text('Approvals & Coordinator Hub'),
+          title: Text(
+            'Approvals & Coordinator Hub',
+            style: TextStyle(
+              fontFamily: 'serif',
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: primaryAccent,
+            ),
+          ),
           bottom: TabBar(
             isScrollable: true,
-            indicatorColor: AppTheme.goldAccent,
-            labelColor: AppTheme.goldLight,
-            unselectedLabelColor: AppTheme.textTertiary,
+            indicatorColor: primaryAccent,
+            labelColor: primaryAccent,
+            unselectedLabelColor: theme.textTheme.bodyMedium?.color ?? AppTheme.textTertiary,
             tabs: [
               Tab(text: 'Students (${pendingStudents.length})'),
               Tab(text: 'Priests & Schedules (${state.confessorFathers.length})'),
@@ -81,14 +92,20 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   // ----------------------------------------------------
   Widget _buildStudentRegistrationsTab(BuildContext context, List<UserModel> pending) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+
     if (pending.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.check_circle_outline, color: AppTheme.emerald, size: 48),
-            SizedBox(height: 12),
-            Text('No pending student verifications.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+            const Icon(Icons.check_circle_outline, color: AppTheme.emerald, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              'No pending student verifications.',
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 14),
+            ),
           ],
         ),
       );
@@ -103,9 +120,16 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppTheme.borderMuted),
+            border: Border.all(color: theme.dividerColor),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(theme.brightness == Brightness.dark ? 0.3 : 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,10 +138,10 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                 children: [
                   CircleAvatar(
                     radius: 22,
-                    backgroundColor: AppTheme.surfaceElevated,
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
                     child: Text(
-                      student.fullName[0],
-                      style: const TextStyle(color: AppTheme.goldLight, fontWeight: FontWeight.bold),
+                      student.fullName.isNotEmpty ? student.fullName[0] : 'S',
+                      style: TextStyle(color: primaryAccent, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -127,11 +151,15 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       children: [
                         Text(
                           student.fullName,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
                         ),
                         Text(
                           'B.N. ${student.baptismalName} • Year ${student.academicYear}',
-                          style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E)),
+                          style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -141,11 +169,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               const SizedBox(height: 10),
               Text(
                 'Department: ${student.department} • Batch ${student.batchYear}',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
               ),
               Text(
                 'Phone: ${student.phoneNumber}',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textTertiary),
+                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary),
               ),
               const SizedBox(height: 14),
               Row(
@@ -153,6 +181,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                 children: [
                   OutlinedButton(
                     onPressed: () {
+                      HapticFeedback.selectionClick();
                       state.rejectStudent(student.id);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Registration for ${student.fullName} rejected.')),
@@ -167,13 +196,20 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   const SizedBox(width: 10),
                   ElevatedButton(
                     onPressed: () {
+                      HapticFeedback.mediumImpact();
                       state.approveStudent(student.id);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('${student.fullName} verified & added to fellowship!'), backgroundColor: AppTheme.surfaceColor),
+                        SnackBar(
+                          content: Text('${student.fullName} verified & added to fellowship!'),
+                          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                        ),
                       );
                     },
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4690B)),
-                    child: const Text('Approve & Assign', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryAccent,
+                      foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+                    ),
+                    child: const Text('Approve & Assign', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ],
               ),
@@ -192,6 +228,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     FellowshipState state,
     List<VolunteerApplicationModel> apps,
   ) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final ministries = state.ministries;
     final currentDept = _selectedCoordinatorDeptId != null
         ? ministries.firstWhere((m) => m.id == _selectedCoordinatorDeptId, orElse: () => ministries.first)
@@ -204,20 +242,25 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         // 1. Department Perspective Selector Dropdown
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          decoration: const BoxDecoration(
-            color: Color(0xFF141C2A),
-            border: Border(bottom: BorderSide(color: AppTheme.borderMuted)),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceContainerHighest,
+            border: Border(bottom: BorderSide(color: theme.dividerColor)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.shield_outlined, color: Color(0xFFF5A65E), size: 16),
-                  SizedBox(width: 6),
+                  Icon(Icons.shield_outlined, color: primaryAccent, size: 16),
+                  const SizedBox(width: 6),
                   Text(
                     'COORDINATOR DELEGATION PERSPECTIVE',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFFF5A65E), letterSpacing: 1.2),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: primaryAccent,
+                      letterSpacing: 1.2,
+                    ),
                   ),
                 ],
               ),
@@ -225,21 +268,25 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated,
+                  color: theme.cardTheme.color ?? theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.goldAccent.withOpacity(0.4)),
+                  border: Border.all(color: primaryAccent.withOpacity(0.4)),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
                     value: _selectedCoordinatorDeptId,
                     isExpanded: true,
-                    dropdownColor: AppTheme.surfaceElevated,
+                    dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                     items: [
-                      const DropdownMenuItem<String?>(
+                      DropdownMenuItem<String?>(
                         value: null,
                         child: Text(
                           '🏛️ Executive View (All 10 Departments • ሁሉንም)',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
                         ),
                       ),
                       ...ministries.map((m) {
@@ -247,7 +294,10 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                           value: m.id,
                           child: Text(
                             '👤 ${m.titleAmharic} (${m.teamLead})',
-                            style: const TextStyle(fontSize: 12, color: Colors.white),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurface,
+                            ),
                           ),
                         );
                       }),
@@ -264,13 +314,13 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         if (currentDept != null)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: const Color(0xFF1B2433),
+            color: theme.colorScheme.surfaceContainer,
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 14,
-                  backgroundColor: const Color(0xFFF5A65E).withOpacity(0.2),
-                  child: const Icon(Icons.person, size: 16, color: Color(0xFFF5A65E)),
+                  backgroundColor: primaryAccent.withOpacity(0.2),
+                  child: Icon(Icons.person, size: 16, color: primaryAccent),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -278,7 +328,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                     'Coordinator: ${currentDept.teamLead} (${currentDept.coordinatorBaptismalName}) • ${currentDept.coordinatorPhone}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 11, color: Colors.white70),
+                    style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withOpacity(0.85)),
                   ),
                 ),
               ],
@@ -290,20 +340,25 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(14),
           ),
           child: Row(
             children: [
               Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() => _volunteerSubTab = 0),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _volunteerSubTab = 0);
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: _volunteerSubTab == 0 ? AppTheme.surfaceElevated : Colors.transparent,
+                      color: _volunteerSubTab == 0
+                          ? (theme.cardTheme.color ?? theme.colorScheme.surface)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
-                      border: _volunteerSubTab == 0 ? Border.all(color: AppTheme.goldAccent.withOpacity(0.5)) : null,
+                      border: _volunteerSubTab == 0 ? Border.all(color: primaryAccent.withOpacity(0.5)) : null,
                     ),
                     child: Center(
                       child: Text(
@@ -311,7 +366,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: _volunteerSubTab == 0 ? FontWeight.bold : FontWeight.normal,
-                          color: _volunteerSubTab == 0 ? AppTheme.goldLight : AppTheme.textSecondary,
+                          color: _volunteerSubTab == 0
+                              ? primaryAccent
+                              : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                         ),
                       ),
                     ),
@@ -320,13 +377,18 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               ),
               Expanded(
                 child: GestureDetector(
-                  onTap: () => setState(() => _volunteerSubTab = 1),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _volunteerSubTab = 1);
+                  },
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: _volunteerSubTab == 1 ? AppTheme.surfaceElevated : Colors.transparent,
+                      color: _volunteerSubTab == 1
+                          ? (theme.cardTheme.color ?? theme.colorScheme.surface)
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(10),
-                      border: _volunteerSubTab == 1 ? Border.all(color: AppTheme.goldAccent.withOpacity(0.5)) : null,
+                      border: _volunteerSubTab == 1 ? Border.all(color: primaryAccent.withOpacity(0.5)) : null,
                     ),
                     child: Center(
                       child: Text(
@@ -334,7 +396,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: _volunteerSubTab == 1 ? FontWeight.bold : FontWeight.normal,
-                          color: _volunteerSubTab == 1 ? AppTheme.goldLight : AppTheme.textSecondary,
+                          color: _volunteerSubTab == 1
+                              ? primaryAccent
+                              : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                         ),
                       ),
                     ),
@@ -360,14 +424,20 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     FellowshipState state,
     List<VolunteerApplicationModel> apps,
   ) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+
     if (apps.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox_outlined, color: AppTheme.textTertiary, size: 44),
-            SizedBox(height: 10),
-            Text('No volunteer applications in this queue.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+            Icon(Icons.inbox_outlined, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6) ?? AppTheme.textTertiary, size: 44),
+            const SizedBox(height: 10),
+            Text(
+              'No volunteer applications in this queue.',
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 13),
+            ),
           ],
         ),
       );
@@ -384,14 +454,14 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: app.status == ApplicationStatus.approved
                   ? AppTheme.emerald
                   : app.status == ApplicationStatus.rejected
                       ? AppTheme.crimson
-                      : const Color(0xFFF5A65E).withOpacity(0.6),
+                      : primaryAccent.withOpacity(0.6),
             ),
           ),
           child: Column(
@@ -407,12 +477,16 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       children: [
                         Text(
                           '${app.studentName} (${app.studentBaptismalName})',
-                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           '${app.studentDept} • Batch: ${app.studentYear}',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFFF5A65E)),
+                          style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -420,7 +494,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceElevated,
+                      color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -432,7 +506,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                             ? AppTheme.emerald
                             : app.status == ApplicationStatus.rejected
                                 ? AppTheme.crimson
-                                : const Color(0xFFF5A65E),
+                                : primaryAccent,
                       ),
                     ),
                   ),
@@ -444,17 +518,17 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF121A26),
+                  color: theme.colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.hub_outlined, color: AppTheme.goldLight, size: 14),
+                    Icon(Icons.hub_outlined, color: primaryAccent, size: 14),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         '${app.ministryAmharicTitle.isNotEmpty ? app.ministryAmharicTitle : app.ministryTitle} • ${app.preferredSubWing}',
-                        style: const TextStyle(fontSize: 11, color: Colors.white),
+                        style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -465,16 +539,20 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               // Reason
               Text(
                 'Calling: "${app.reason}"',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontStyle: FontStyle.italic),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
                 'Experience: ${app.experience}',
-                style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary),
               ),
               Text(
                 'Availability: ${app.availability}',
-                style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary),
               ),
 
               if (app.coordinatorNotes != null && app.coordinatorNotes!.isNotEmpty) ...[
@@ -486,33 +564,40 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               ],
 
               const SizedBox(height: 12),
-              const Divider(color: AppTheme.borderMuted),
+              Divider(color: theme.dividerColor),
               const SizedBox(height: 6),
 
               // Actions: Quick Contact (Call / SMS) + Coordinator Decision
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.phone_outlined, color: AppTheme.goldLight, size: 18),
+                    icon: Icon(Icons.phone_outlined, color: primaryAccent, size: 18),
                     tooltip: 'Call Applicant',
                     constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                     padding: EdgeInsets.zero,
-                    onPressed: () => state.launchCall(app.studentPhone),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      state.launchCall(app.studentPhone);
+                    },
                   ),
                   IconButton(
-                    icon: const Icon(Icons.sms_outlined, color: AppTheme.goldLight, size: 18),
+                    icon: Icon(Icons.sms_outlined, color: primaryAccent, size: 18),
                     tooltip: 'SMS Applicant',
                     constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
                     padding: EdgeInsets.zero,
-                    onPressed: () => state.launchSms(
-                      app.studentPhone,
-                      body: 'Selam ${app.studentName}, this is regarding your application for ${app.ministryTitle}.',
-                    ),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      state.launchSms(
+                        app.studentPhone,
+                        body: 'Selam ${app.studentName}, this is regarding your application for ${app.ministryTitle}.',
+                      );
+                    },
                   ),
                   const Spacer(),
                   if (isPending) ...[
                     OutlinedButton(
                       onPressed: () {
+                        HapticFeedback.selectionClick();
                         state.rejectVolunteerApplication(app.id, notes: 'Declined by coordinator');
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Application for ${app.studentName} declined.')),
@@ -529,12 +614,13 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                     ElevatedButton(
                       onPressed: () => _openApprovalDialog(context, state, app),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFF5A65E),
+                        backgroundColor: primaryAccent,
+                        foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       ),
                       child: const Text(
                         'Accept & Add to Roster',
-                        style: TextStyle(color: Colors.black, fontSize: 11, fontWeight: FontWeight.bold),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ],
@@ -552,14 +638,17 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     FellowshipState state,
     List<DepartmentMemberModel> members,
   ) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+
     if (members.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.groups_outlined, color: AppTheme.textTertiary, size: 44),
-            SizedBox(height: 10),
-            Text('No active servants listed for this department.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+            Icon(Icons.groups_outlined, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6) ?? AppTheme.textTertiary, size: 44),
+            const SizedBox(height: 10),
+            Text('No active servants listed for this department.', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 13)),
           ],
         ),
       );
@@ -574,18 +663,18 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.borderMuted),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppTheme.surfaceElevated,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 child: Text(
-                  mem.studentName[0],
-                  style: const TextStyle(color: AppTheme.goldLight, fontWeight: FontWeight.bold),
+                  mem.studentName.isNotEmpty ? mem.studentName[0] : 'S',
+                  style: TextStyle(color: primaryAccent, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(width: 12),
@@ -595,23 +684,26 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   children: [
                     Text(
                       mem.studentName,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                     ),
                     Text(
                       'B.N. ${mem.studentBaptismalName} • ${mem.studentDept} (${mem.studentYear})',
-                      style: const TextStyle(fontSize: 11, color: Color(0xFFF5A65E)),
+                      style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Role: ${mem.roleInDepartment} • Wing: ${mem.subWing}',
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                     ),
                   ],
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.phone_outlined, color: AppTheme.goldLight, size: 18),
-                onPressed: () => state.launchCall(mem.phoneNumber),
+                icon: Icon(Icons.phone_outlined, color: primaryAccent, size: 18),
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  state.launchCall(mem.phoneNumber);
+                },
               ),
             ],
           ),
@@ -625,6 +717,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     FellowshipState state,
     VolunteerApplicationModel app,
   ) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final noteController = TextEditingController(
       text: 'Welcome! You are approved for ${app.preferredSubWing}. Rehearsal briefing will follow.',
     );
@@ -633,14 +727,20 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppTheme.surfaceElevated,
+          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-          title: Text('Accept ${app.studentName}', style: const TextStyle(color: Color(0xFFF5A65E), fontFamily: 'serif')),
+          title: Text(
+            'Accept ${app.studentName}',
+            style: TextStyle(color: primaryAccent, fontFamily: 'serif', fontWeight: FontWeight.bold),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Assigning to ${app.ministryTitle} (${app.preferredSubWing}).', style: const TextStyle(fontSize: 12, color: Colors.white70)),
+              Text(
+                'Assigning to ${app.ministryTitle} (${app.preferredSubWing}).',
+                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.8)),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: noteController,
@@ -652,10 +752,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+              child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () {
+                HapticFeedback.mediumImpact();
                 state.approveVolunteerApplication(
                   app.id,
                   notes: noteController.text.trim(),
@@ -665,12 +766,15 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('${app.studentName} added to active department roster!'),
-                    backgroundColor: AppTheme.surfaceColor,
+                    backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                   ),
                 );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
-              child: const Text('Confirm & Onboard', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryAccent,
+                foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+              ),
+              child: const Text('Confirm & Onboard', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -683,14 +787,20 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   // ----------------------------------------------------
   Widget _buildTripPaymentsTab(BuildContext context, List<TripRegistrationModel> pending) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+
     if (pending.isEmpty) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.done_all, color: AppTheme.emerald, size: 48),
-            SizedBox(height: 12),
-            Text('All pilgrimage payments verified.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+            const Icon(Icons.done_all, color: AppTheme.emerald, size: 48),
+            const SizedBox(height: 12),
+            Text(
+              'All pilgrimage payments verified.',
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 14),
+            ),
           ],
         ),
       );
@@ -705,9 +815,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFF5A65E).withOpacity(0.5)),
+            border: Border.all(color: primaryAccent.withOpacity(0.5)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -715,36 +825,38 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    reg.tripTitle,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                  Expanded(
+                    child: Text(
+                      reg.tripTitle,
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                    ),
                   ),
                   Text(
                     '${reg.feeAmount.toInt()} ETB',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E)),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: primaryAccent),
                   ),
                 ],
               ),
               const SizedBox(height: 6),
               Text(
                 'Pilgrim: ${reg.studentName} (${reg.studentBaptismalName}) • ${reg.department}',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
               ),
               const SizedBox(height: 4),
               Text(
                 'Method: ${reg.paymentMethod.displayName}',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF93C5FD), fontWeight: FontWeight.w600),
+                style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceElevated,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   'Transaction Ref: ${reg.transactionReference}',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                 ),
               ),
               const SizedBox(height: 14),
@@ -753,6 +865,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                 children: [
                   OutlinedButton(
                     onPressed: () {
+                      HapticFeedback.selectionClick();
                       state.verifyTripPayment(reg.id, false);
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Payment marked as rejected')),
@@ -767,9 +880,13 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   const SizedBox(width: 10),
                   ElevatedButton(
                     onPressed: () {
+                      HapticFeedback.mediumImpact();
                       state.verifyTripPayment(reg.id, true);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Payment verified & Boarding pass issued to ${reg.studentName}'), backgroundColor: AppTheme.surfaceColor),
+                        SnackBar(
+                          content: Text('Payment verified & Boarding pass issued to ${reg.studentName}'),
+                          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
@@ -789,9 +906,12 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   // ----------------------------------------------------
   Widget _buildEmergencyAidTab(BuildContext context, List<EmergencyAidRequestModel> requests) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+
     if (requests.isEmpty) {
-      return const Center(
-        child: Text('No emergency aid applications on file.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+      return Center(
+        child: Text('No emergency aid applications on file.', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 14)),
       );
     }
 
@@ -806,7 +926,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: req.status.color.withOpacity(0.5)),
           ),
@@ -816,7 +936,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(req.category.displayName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text(req.category.displayName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -831,17 +951,17 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               const SizedBox(height: 6),
               Text(
                 'Student: ${req.studentName} (${req.studentBaptismalName}) • ${req.department} Yr ${req.academicYear}',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
               ),
               const SizedBox(height: 4),
               Text(
                 'Amount Requested: ${req.amountRequested.toInt()} ETB',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E)),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: primaryAccent),
               ),
               const SizedBox(height: 6),
               Text(
                 req.description,
-                style: const TextStyle(fontSize: 12, color: Colors.white70, height: 1.3),
+                style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.85), height: 1.3),
               ),
               if (isUnderReview) ...[
                 const SizedBox(height: 14),
@@ -850,6 +970,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   children: [
                     OutlinedButton(
                       onPressed: () {
+                        HapticFeedback.selectionClick();
                         state.updateAidRequestStatus(req.id, EmergencyAidStatus.declined, adminNote: 'Declined by review committee.');
                       },
                       style: OutlinedButton.styleFrom(
@@ -861,9 +982,13 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                     const SizedBox(width: 10),
                     ElevatedButton(
                       onPressed: () {
+                        HapticFeedback.mediumImpact();
                         state.updateAidRequestStatus(req.id, EmergencyAidStatus.disbursed, adminNote: 'Approved & Disbursed via Telebirr');
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Aid marked approved & disbursed to ${req.studentName}'), backgroundColor: AppTheme.surfaceColor),
+                          SnackBar(
+                            content: Text('Aid marked approved & disbursed to ${req.studentName}'),
+                            backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                          ),
                         );
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
@@ -884,6 +1009,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   // ----------------------------------------------------
   Widget _buildRoleAssignmentsTab(BuildContext context, List<UserModel> allStudents) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+
     return ListView.builder(
       padding: const EdgeInsets.all(18),
       itemCount: allStudents.length,
@@ -893,18 +1021,18 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppTheme.borderMuted),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppTheme.surfaceElevated,
+                backgroundColor: theme.colorScheme.surfaceContainerHighest,
                 child: Text(
-                  student.fullName[0],
-                  style: const TextStyle(color: AppTheme.goldLight, fontWeight: FontWeight.bold),
+                  student.fullName.isNotEmpty ? student.fullName[0] : 'S',
+                  style: TextStyle(color: primaryAccent, fontWeight: FontWeight.bold),
                 ),
               ),
               const SizedBox(width: 12),
@@ -914,11 +1042,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   children: [
                     Text(
                       student.fullName,
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface, fontSize: 14),
                     ),
                     Text(
                       student.department,
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                     ),
                   ],
                 ),
@@ -926,8 +1054,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               DropdownButtonHideUnderline(
                 child: DropdownButton<UserRole>(
                   value: student.role,
-                  dropdownColor: AppTheme.surfaceColor,
-                  icon: const Icon(Icons.arrow_drop_down, color: AppTheme.goldLight),
+                  dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                  icon: Icon(Icons.arrow_drop_down, color: primaryAccent),
                   items: UserRole.values.map((r) {
                     return DropdownMenuItem(
                       value: r,
@@ -939,6 +1067,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   }).toList(),
                   onChanged: (newRole) {
                     if (newRole != null) {
+                      HapticFeedback.selectionClick();
                       state.assignUserRole(student.id, newRole);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Updated ${student.fullName} role to ${newRole.displayName}')),
@@ -955,12 +1084,14 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   }
 
   // ----------------------------------------------------
-  // TAB 2: PRIESTS, VENUES & SCHEDULE MANAGEMENT
+  // TAB 6: PRIESTS, VENUES & SCHEDULE MANAGEMENT
   // ----------------------------------------------------
   Widget _buildPriestsAndSchedulesTab(BuildContext context, FellowshipState state) {
     final fathers = state.confessorFathers;
     final allAppts = state.confessionAppointments;
     final pendingAppts = allAppts.where((a) => a.status == ConfessionAppointmentStatus.pending).toList();
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
 
     return ListView(
       padding: const EdgeInsets.all(18),
@@ -971,10 +1102,10 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
             Expanded(
               child: ElevatedButton.icon(
                 onPressed: () => _openAddEditPriestDialog(context, null),
-                icon: const Icon(Icons.person_add_alt_1, size: 16, color: Colors.black),
-                label: const Text('Add Priest / Confessor', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+                icon: Icon(Icons.person_add_alt_1, size: 16, color: theme.brightness == Brightness.dark ? Colors.black : Colors.white),
+                label: Text('Add Priest / Confessor', style: TextStyle(color: theme.brightness == Brightness.dark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF5A65E),
+                  backgroundColor: primaryAccent,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -984,10 +1115,10 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () => _openBroadcastPriestScheduleDialog(context),
-                icon: const Icon(Icons.campaign_outlined, size: 16, color: Color(0xFFF5A65E)),
-                label: const Text('Broadcast Alert', style: TextStyle(color: Color(0xFFF5A65E), fontWeight: FontWeight.bold, fontSize: 12)),
+                icon: Icon(Icons.campaign_outlined, size: 16, color: primaryAccent),
+                label: Text('Broadcast Alert', style: TextStyle(color: primaryAccent, fontWeight: FontWeight.bold, fontSize: 12)),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFF5A65E)),
+                  side: BorderSide(color: primaryAccent),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -1002,19 +1133,19 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'ACTIVE CONFESSOR FATHERS & VENUES',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textTertiary, letterSpacing: 1.5),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: AppTheme.goldAccent.withOpacity(0.15),
+                color: primaryAccent.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 '${fathers.length} Active Clergy',
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.goldLight),
+                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent),
               ),
             ),
           ],
@@ -1025,12 +1156,15 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
-            child: const Center(
-              child: Text('No confessor fathers registered. Tap "Add Priest / Confessor" above.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+            child: Center(
+              child: Text(
+                'No confessor fathers registered. Tap "Add Priest / Confessor" above.',
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 12),
+              ),
             ),
           )
         else
@@ -1039,9 +1173,9 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
               margin: const EdgeInsets.only(bottom: 14),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.secondaryBg,
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppTheme.borderMuted),
+                border: Border.all(color: theme.dividerColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1051,8 +1185,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                     children: [
                       CircleAvatar(
                         radius: 22,
-                        backgroundColor: AppTheme.goldAccent.withOpacity(0.15),
-                        child: const Icon(Icons.person, color: AppTheme.goldLight, size: 24),
+                        backgroundColor: primaryAccent.withOpacity(0.15),
+                        child: Icon(Icons.person, color: primaryAccent, size: 24),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1061,17 +1195,17 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                           children: [
                             Text(
                               father.fullName,
-                              style: const TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                              style: TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                             ),
                             Text(
                               '${father.clericalTitle} • ${father.churchName}',
-                              style: const TextStyle(fontSize: 11, color: Color(0xFFF5A65E)),
+                              style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.edit_outlined, color: AppTheme.goldLight, size: 18),
+                        icon: Icon(Icons.edit_outlined, color: primaryAccent, size: 18),
                         onPressed: () => _openAddEditPriestDialog(context, father),
                         tooltip: 'Edit Schedule & Place',
                       ),
@@ -1083,18 +1217,18 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceElevated,
+                      color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppTheme.goldAccent.withOpacity(0.3)),
+                      border: Border.all(color: primaryAccent.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.place, color: Color(0xFFF5A65E), size: 14),
+                        Icon(Icons.place, color: primaryAccent, size: 14),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             'Venue: ${father.meetingVenue}',
-                            style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600),
+                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600),
                           ),
                         ),
                       ],
@@ -1110,19 +1244,19 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       ...father.availableDays.map((d) => Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppTheme.secondaryBg,
+                              color: theme.colorScheme.surfaceContainer,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: AppTheme.borderMuted),
+                              border: Border.all(color: theme.dividerColor),
                             ),
-                            child: Text(d, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+                            child: Text(d, style: TextStyle(fontSize: 10, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                           )),
                       ...father.availableTimeSlots.map((s) => Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppTheme.goldAccent.withOpacity(0.12),
+                              color: primaryAccent.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(s, style: const TextStyle(fontSize: 10, color: AppTheme.goldLight)),
+                            child: Text(s, style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.w600)),
                           )),
                     ],
                   ),
@@ -1137,20 +1271,20 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'STUDENT APPOINTMENTS & CONFIRMATIONS',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textTertiary, letterSpacing: 1.5),
             ),
             if (pendingAppts.isNotEmpty)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withOpacity(0.2),
+                  color: primaryAccent.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${pendingAppts.length} Pending',
-                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent),
                 ),
               ),
           ],
@@ -1161,23 +1295,35 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
-            child: const Center(
-              child: Text('No student confession requests booked yet.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+            child: Center(
+              child: Text(
+                'No student appointments booked yet.',
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 12),
+              ),
             ),
           )
         else
           ...allAppts.map((appt) {
+            final isPending = appt.status == ConfessionAppointmentStatus.pending;
+            final isConfirmed = appt.status == ConfessionAppointmentStatus.confirmed;
+
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.secondaryBg,
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: appt.status.color.withOpacity(0.5)),
+                border: Border.all(
+                  color: isConfirmed
+                      ? AppTheme.emerald
+                      : isPending
+                          ? primaryAccent
+                          : AppTheme.crimson,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1187,89 +1333,86 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          '${appt.studentName} (B.N. ${appt.studentBaptismalName})',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                          appt.studentName,
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: appt.status.color.withOpacity(0.2),
+                          color: (isConfirmed ? AppTheme.emerald : isPending ? primaryAccent : AppTheme.crimson).withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: appt.status.color.withOpacity(0.6)),
                         ),
                         child: Text(
                           appt.status.displayName,
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: appt.status.color),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isConfirmed ? AppTheme.emerald : isPending ? primaryAccent : AppTheme.crimson,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text('Father: ${appt.fatherName}', style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E))),
-                  Text('Topic: ${appt.topic}', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.schedule, size: 14, color: AppTheme.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${appt.scheduledDate.year}-${appt.scheduledDate.month}-${appt.scheduledDate.day} • ${appt.timeSlot}',
-                        style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-                      ),
-                    ],
+                  Text(
+                    'With: ${appt.fatherName}',
+                    style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.w600),
                   ),
+                  Text(
+                    'Slot: ${appt.scheduledDate.year}-${appt.scheduledDate.month}-${appt.scheduledDate.day} • ${appt.timeSlot}',
+                    style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                  ),
+                  Text(
+                    'Topic: ${appt.topic}',
+                    style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.85) ?? AppTheme.textTertiary),
+                  ),
+
                   if (appt.notes != null && appt.notes!.isNotEmpty) ...[
                     const SizedBox(height: 6),
-                    Text('Note/Venue: ${appt.notes}', style: const TextStyle(fontSize: 11, color: AppTheme.goldLight, fontStyle: FontStyle.italic)),
-                  ],
-                  const SizedBox(height: 12),
-
-                  // Actions
-                  if (appt.status == ConfessionAppointmentStatus.pending)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => _openAppointmentConfirmationDialog(context, appt),
-                            icon: const Icon(Icons.check, size: 14, color: Colors.black),
-                            label: const Text('Confirm & Set Venue', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF10B981),
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        OutlinedButton(
-                          onPressed: () {
-                            state.updateConfessionStatus(appt.id, ConfessionAppointmentStatus.cancelled);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Appointment declined')),
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFEF4444)),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          ),
-                          child: const Text('Decline', style: TextStyle(color: Color(0xFFEF4444), fontSize: 11)),
-                        ),
-                      ],
-                    )
-                  else if (appt.status == ConfessionAppointmentStatus.confirmed)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () {
-                          state.updateConfessionStatus(appt.id, ConfessionAppointmentStatus.completed);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Marked as Completed')),
-                          );
-                        },
-                        icon: const Icon(Icons.done_all, size: 14, color: Color(0xFF3B82F6)),
-                        label: const Text('Mark Completed', style: TextStyle(color: Color(0xFF3B82F6), fontSize: 11)),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Note: ${appt.notes}',
+                        style: const TextStyle(fontSize: 11, color: AppTheme.emerald, fontWeight: FontWeight.w600),
                       ),
                     ),
+                  ],
+
+                  if (isPending) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            state.cancelConfessionAppointment(appt.id);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.crimson,
+                            side: const BorderSide(color: AppTheme.crimson),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          ),
+                          child: const Text('Decline', style: TextStyle(fontSize: 11)),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () => _openAppointmentConfirmationDialog(context, appt),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryAccent,
+                            foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          ),
+                          child: const Text('Confirm & Set Venue', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             );
@@ -1279,21 +1422,23 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   }
 
   void _openAddEditPriestDialog(BuildContext context, ConfessorFatherModel? existing) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final state = widget.state;
     final isEditing = existing != null;
 
     final nameCtrl = TextEditingController(text: existing?.fullName ?? '');
-    final titleCtrl = TextEditingController(text: existing?.clericalTitle ?? 'መልአከ ሰላም ቀሲስ (Melake Selam Kesis)');
-    final churchCtrl = TextEditingController(text: existing?.churchName ?? 'St. Mary\'s Orthodox Church (Hosanna WCU)');
+    final titleCtrl = TextEditingController(text: existing?.clericalTitle ?? 'መልአከ ሰላም ቀሲስ');
+    final churchCtrl = TextEditingController(text: existing?.churchName ?? 'St. Mary\'s Cathedral');
     final venueCtrl = TextEditingController(text: existing?.meetingVenue ?? 'St. Mary\'s Sunday School Office (Room 2)');
-    final phoneCtrl = TextEditingController(text: existing?.phoneNumber ?? '+251911000000');
-    final bioCtrl = TextEditingController(text: existing?.bio ?? 'Campus confession father providing pastoral guidance and communion absolution.');
+    final phoneCtrl = TextEditingController(text: existing?.phoneNumber ?? '+251911002233');
+    final bioCtrl = TextEditingController(text: existing?.bio ?? 'Confessor, Youth Counselor & Liturgical Scholar');
+
+    final selectedDays = List<String>.from(existing?.availableDays ?? ['Saturday', 'Sunday']);
+    final selectedSlots = List<String>.from(existing?.availableTimeSlots ?? ['3:00 PM - 5:30 PM']);
 
     final allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    List<String> selectedDays = List<String>.from(existing?.availableDays ?? ['Wednesday', 'Saturday', 'Sunday']);
-
     final allSlots = ['9:00 AM - 11:30 AM', '2:00 PM - 4:30 PM', '3:00 PM - 5:30 PM', '5:00 PM - 7:00 PM'];
-    List<String> selectedSlots = List<String>.from(existing?.availableTimeSlots ?? ['9:00 AM - 11:30 AM', '3:00 PM - 5:30 PM']);
 
     showDialog(
       context: context,
@@ -1301,11 +1446,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppTheme.surfaceElevated,
+              backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               title: Text(
                 isEditing ? 'Edit Priest & Venue' : 'Add Confessor Father',
-                style: const TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E), fontWeight: FontWeight.bold),
+                style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -1337,7 +1482,10 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       decoration: const InputDecoration(labelText: 'Phone Number (Call / SMS)'),
                     ),
                     const SizedBox(height: 14),
-                    const Text('Available Days:', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Available Days:',
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 6,
@@ -1345,10 +1493,18 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       children: allDays.map((d) {
                         final isSel = selectedDays.contains(d);
                         return FilterChip(
-                          label: Text(d, style: TextStyle(fontSize: 10, color: isSel ? Colors.black : Colors.white)),
+                          label: Text(
+                            d,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isSel
+                                  ? (theme.brightness == Brightness.dark ? Colors.black : Colors.white)
+                                  : theme.colorScheme.onSurface,
+                            ),
+                          ),
                           selected: isSel,
-                          selectedColor: const Color(0xFFF5A65E),
-                          backgroundColor: AppTheme.secondaryBg,
+                          selectedColor: primaryAccent,
+                          backgroundColor: theme.colorScheme.surfaceContainerHighest,
                           onSelected: (val) {
                             setDialogState(() {
                               if (val) {
@@ -1362,7 +1518,10 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 14),
-                    const Text('Available Time Slots:', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
+                    Text(
+                      'Available Time Slots:',
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 6,
@@ -1370,10 +1529,18 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                       children: allSlots.map((s) {
                         final isSel = selectedSlots.contains(s);
                         return FilterChip(
-                          label: Text(s, style: TextStyle(fontSize: 10, color: isSel ? Colors.black : Colors.white)),
+                          label: Text(
+                            s,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: isSel
+                                  ? (theme.brightness == Brightness.dark ? Colors.black : Colors.white)
+                                  : theme.colorScheme.onSurface,
+                            ),
+                          ),
                           selected: isSel,
-                          selectedColor: const Color(0xFFF5A65E),
-                          backgroundColor: AppTheme.secondaryBg,
+                          selectedColor: primaryAccent,
+                          backgroundColor: theme.colorScheme.surfaceContainerHighest,
                           onSelected: (val) {
                             setDialogState(() {
                               if (val) {
@@ -1399,19 +1566,21 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                 if (isEditing)
                   TextButton(
                     onPressed: () {
+                      HapticFeedback.selectionClick();
                       state.deleteConfessorFather(existing.id);
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Priest profile removed')));
                     },
-                    child: const Text('Delete', style: TextStyle(color: Color(0xFFEF4444))),
+                    child: const Text('Delete', style: TextStyle(color: AppTheme.crimson)),
                   ),
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+                  child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                 ),
                 ElevatedButton(
                   onPressed: () {
                     if (nameCtrl.text.trim().isEmpty) return;
+                    HapticFeedback.mediumImpact();
 
                     final updated = ConfessorFatherModel(
                       id: existing?.id ?? 'fat-${DateTime.now().millisecondsSinceEpoch}',
@@ -1434,8 +1603,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                     }
                     Navigator.pop(ctx);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
-                  child: Text(isEditing ? 'Save Changes' : 'Add Priest', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryAccent,
+                    foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+                  ),
+                  child: Text(isEditing ? 'Save Changes' : 'Add Priest', style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -1446,6 +1618,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   }
 
   void _openAppointmentConfirmationDialog(BuildContext context, ConfessionAppointmentModel appt) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final state = widget.state;
     final noteCtrl = TextEditingController(text: 'Confirmed. Please meet at Sunday School Office Room 2 and prepare Psalm 50.');
 
@@ -1453,16 +1627,16 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppTheme.surfaceElevated,
+          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Confirm ${appt.studentName}\'s Visit', style: const TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E))),
+          title: Text('Confirm ${appt.studentName}\'s Visit', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Father: ${appt.fatherName}', style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold)),
-              Text('Topic: ${appt.topic}', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-              Text('Requested Date: ${appt.scheduledDate.year}-${appt.scheduledDate.month}-${appt.scheduledDate.day} (${appt.timeSlot})', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              Text('Father: ${appt.fatherName}', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+              Text('Topic: ${appt.topic}', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+              Text('Requested Date: ${appt.scheduledDate.year}-${appt.scheduledDate.month}-${appt.scheduledDate.day} (${appt.timeSlot})', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
               const SizedBox(height: 12),
               TextField(
                 controller: noteCtrl,
@@ -1477,10 +1651,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+              child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () {
+                HapticFeedback.mediumImpact();
                 state.confirmConfessionAppointment(appt.id, notes: noteCtrl.text.trim());
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -1488,7 +1663,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
-              child: const Text('Confirm Appointment', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              child: const Text('Confirm Appointment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -1497,6 +1672,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   }
 
   void _openBroadcastPriestScheduleDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final state = widget.state;
     final fatherCtrl = TextEditingController(text: 'Kesis Yohannes Teshome');
     final changeCtrl = TextEditingController(text: 'Counseling location moved to Campus Prayer Hall for Saturday.');
@@ -1505,13 +1682,16 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
       context: context,
       builder: (ctx) {
         return AlertDialog(
-          backgroundColor: AppTheme.surfaceElevated,
+          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Broadcast Clergy Notice', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E))),
+          title: Text('Broadcast Clergy Notice', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Send an instant broadcast notification to all students regarding schedule or venue updates.', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+              Text(
+                'Send an instant broadcast notification to all students regarding schedule or venue updates.',
+                style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: fatherCtrl,
@@ -1528,11 +1708,12 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+              child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
             ),
             ElevatedButton(
               onPressed: () {
                 if (changeCtrl.text.trim().isEmpty) return;
+                HapticFeedback.mediumImpact();
                 state.broadcastPriestScheduleAlert(
                   fatherName: fatherCtrl.text.trim(),
                   newVenueOrTime: changeCtrl.text.trim(),
@@ -1542,8 +1723,11 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                   const SnackBar(content: Text('Clergy schedule broadcast sent to all students!')),
                 );
               },
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
-              child: const Text('Broadcast Alert', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryAccent,
+                foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+              ),
+              child: const Text('Broadcast Alert', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -1551,4 +1735,3 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     );
   }
 }
-

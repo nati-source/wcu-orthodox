@@ -91,6 +91,8 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
 
   void _openNotificationsModal(BuildContext context, bool isAdmin) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final alert = state.latestEmergencyBroadcast;
     final pendingCount = state.pendingApprovals.length;
     final volunteerCount = state.volunteerApplications.where((a) => a.status == ApplicationStatus.pending).length;
@@ -98,7 +100,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppTheme.surfaceElevated,
+      backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -117,20 +119,20 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: AppTheme.goldAccent.withOpacity(0.15),
+                          color: primaryAccent.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.notifications_active, color: AppTheme.goldLight, size: 20),
+                        child: Icon(Icons.notifications_active, color: primaryAccent, size: 20),
                       ),
                       const SizedBox(width: 12),
-                      const Text(
+                      Text(
                         'Fellowship Alerts & Notices',
-                        style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                       ),
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: AppTheme.textSecondary, size: 20),
+                    icon: Icon(Icons.close, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, size: 20),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -140,7 +142,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppTheme.crimson.withOpacity(0.15),
+                    color: AppTheme.crimson.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: AppTheme.crimson.withOpacity(0.5)),
                   ),
@@ -152,9 +154,9 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(alert.title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(alert.title, style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 13)),
                             const SizedBox(height: 2),
-                            Text(alert.description, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+                            Text(alert.description, style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 11)),
                           ],
                         ),
                       ),
@@ -166,21 +168,21 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryBg,
+                  color: theme.colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppTheme.borderMuted),
+                  border: Border.all(color: theme.dividerColor),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.church_outlined, color: AppTheme.goldLight, size: 22),
+                    Icon(Icons.church_outlined, color: primaryAccent, size: 22),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Upcoming Sunday Divine Liturgy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text('Upcoming Sunday Divine Liturgy', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 13)),
                           const SizedBox(height: 2),
-                          Text('St. Mary\'s Orthodox Church • Liturgy starts at 6:00 AM (12:00 LT)', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
+                          Text('St. Mary\'s Orthodox Church • Liturgy starts at 6:00 AM (12:00 LT)', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 11)),
                         ],
                       ),
                     ),
@@ -192,7 +194,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppTheme.secondaryBg,
+                    color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: AppTheme.azure.withOpacity(0.4)),
                   ),
@@ -203,7 +205,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                       Expanded(
                         child: Text(
                           '$pendingCount student registrations & $volunteerCount department applications require admin review.',
-                          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 12),
                         ),
                       ),
                     ],
@@ -214,7 +216,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppTheme.secondaryBg,
+                    color: theme.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: AppTheme.emerald.withOpacity(0.4)),
                   ),
@@ -225,7 +227,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                       Expanded(
                         child: Text(
                           'You have active Confession Father counseling appointments. Check your Prep & Checklist tab.',
-                          style: const TextStyle(color: AppTheme.textPrimary, fontSize: 12),
+                          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 12),
                         ),
                       ),
                     ],
@@ -247,6 +249,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
 
     final theme = Theme.of(context);
     final isStudent = !isAdmin;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -284,10 +287,10 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
           ? FloatingActionButton.extended(
               onPressed: _openRegistrationModal,
               backgroundColor: theme.colorScheme.primary,
-              icon: const Icon(Icons.person_add_alt_1, color: Colors.black, size: 20),
-              label: const Text(
+              icon: Icon(Icons.person_add_alt_1, color: isDark ? Colors.black : Colors.white, size: 20),
+              label: Text(
                 'Registration Form',
-                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
               ),
             )
           : null,

@@ -19,12 +19,14 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Pilgrimage & Trips • የንግሥ ጉዞ'),
-        backgroundColor: AppTheme.primaryBg,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: Column(
@@ -34,14 +36,15 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: _buildNavTab(
+                    context: context,
                     title: 'Monastery Pilgrimages',
                     icon: Icons.directions_bus,
                     index: 0,
@@ -49,6 +52,7 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                 ),
                 Expanded(
                   child: _buildNavTab(
+                    context: context,
                     title: 'My Digital Passes (${state.myTripRegistrations.length})',
                     icon: Icons.qr_code,
                     index: 1,
@@ -60,36 +64,38 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
 
           Expanded(
             child: _activeTab == 0
-                ? _buildTripsList(state)
-                : _buildMyTicketsList(state),
+                ? _buildTripsList(context, state)
+                : _buildMyTicketsList(context, state),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNavTab({required String title, required IconData icon, required int index}) {
+  Widget _buildNavTab({required BuildContext context, required String title, required IconData icon, required int index}) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final isSelected = _activeTab == index;
     return GestureDetector(
       onTap: () => setState(() => _activeTab = index),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.surfaceElevated : Colors.transparent,
+          color: isSelected ? primaryAccent.withOpacity(0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: isSelected ? Border.all(color: AppTheme.goldAccent.withOpacity(0.5)) : null,
+          border: isSelected ? Border.all(color: primaryAccent.withOpacity(0.5)) : null,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: isSelected ? AppTheme.goldLight : AppTheme.textSecondary),
+            Icon(icon, size: 16, color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
             const SizedBox(width: 6),
             Text(
               title,
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
               ),
             ),
           ],
@@ -101,7 +107,11 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
   // ----------------------------------------------------
   // TAB 0: UPCOMING PILGRIMAGES LIST
   // ----------------------------------------------------
-  Widget _buildTripsList(FellowshipState state) {
+  Widget _buildTripsList(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     return ListView.builder(
       padding: const EdgeInsets.all(18),
       itemCount: state.pilgrimageTrips.length,
@@ -112,12 +122,12 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
         return Container(
           margin: const EdgeInsets.only(bottom: 20),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: AppTheme.borderMuted),
+            border: Border.all(color: theme.dividerColor),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.25),
+                color: Colors.black.withOpacity(isDark ? 0.25 : 0.06),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -132,8 +142,8 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF2B3648),
-                      trip.isFree ? const Color(0xFF0F3B2E) : const Color(0xFF382312),
+                      theme.colorScheme.surfaceContainerHighest,
+                      trip.isFree ? const Color(0xFF0F3B2E) : primaryAccent.withOpacity(0.18),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -146,12 +156,12 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.surfaceElevated,
+                        color: theme.cardTheme.color ?? theme.colorScheme.surface,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Icon(
                         trip.isFree ? Icons.eco : Icons.explore,
-                        color: trip.isFree ? const Color(0xFF10B981) : const Color(0xFFF5A65E),
+                        color: trip.isFree ? const Color(0xFF10B981) : primaryAccent,
                         size: 24,
                       ),
                     ),
@@ -162,17 +172,17 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                         children: [
                           Text(
                             trip.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'serif',
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             trip.destination,
-                            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                            style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                           ),
                         ],
                       ),
@@ -181,10 +191,10 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: trip.isFree ? const Color(0xFF10B981).withOpacity(0.2) : const Color(0xFFF5A65E).withOpacity(0.2),
+                        color: trip.isFree ? const Color(0xFF10B981).withOpacity(0.2) : primaryAccent.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: trip.isFree ? const Color(0xFF10B981) : const Color(0xFFF5A65E),
+                          color: trip.isFree ? const Color(0xFF10B981) : primaryAccent,
                         ),
                       ),
                       child: Text(
@@ -192,7 +202,7 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
-                          color: trip.isFree ? const Color(0xFF10B981) : const Color(0xFFF5A65E),
+                          color: trip.isFree ? const Color(0xFF10B981) : primaryAccent,
                         ),
                       ),
                     ),
@@ -206,36 +216,36 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildInfoRow(Icons.calendar_today, 'Departure', '${trip.departureDate.year}-${trip.departureDate.month}-${trip.departureDate.day}'),
-                    _buildInfoRow(Icons.place, 'Boarding Gate', trip.departurePoint),
-                    _buildInfoRow(Icons.event_seat, 'Seats Available', '${trip.availableSeats} of ${trip.totalSeats} seats remaining'),
-                    _buildInfoRow(Icons.support_agent, 'Coordinator', '${trip.coordinatorName} (${trip.coordinatorPhone})'),
+                    _buildInfoRow(context, Icons.calendar_today, 'Departure', '${trip.departureDate.year}-${trip.departureDate.month}-${trip.departureDate.day}'),
+                    _buildInfoRow(context, Icons.place, 'Boarding Gate', trip.departurePoint),
+                    _buildInfoRow(context, Icons.event_seat, 'Seats Available', '${trip.availableSeats} of ${trip.totalSeats} seats remaining'),
+                    _buildInfoRow(context, Icons.support_agent, 'Coordinator', '${trip.coordinatorName} (${trip.coordinatorPhone})'),
 
                     const SizedBox(height: 14),
-                    const Text('Itinerary Highlights:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+                    Text('Itinerary Highlights:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                     const SizedBox(height: 6),
                     ...trip.itinerary.take(2).map((it) => Padding(
                           padding: const EdgeInsets.only(bottom: 4),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('• ', style: TextStyle(color: Color(0xFFF5A65E))),
-                              Expanded(child: Text(it, style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary))),
+                              Text('• ', style: TextStyle(color: primaryAccent)),
+                              Expanded(child: Text(it, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface))),
                             ],
                           ),
                         )),
 
                     const SizedBox(height: 18),
-                    const Divider(color: AppTheme.borderMuted),
+                    Divider(color: theme.dividerColor),
                     const SizedBox(height: 12),
 
                     // Payment Accepted Pills (Telebirr & CBE)
                     if (!trip.isFree) ...[
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.payment, size: 14, color: Color(0xFF3B82F6)),
-                          SizedBox(width: 6),
-                          Text('Accepted Payment Methods: Telebirr & CBE', style: TextStyle(fontSize: 11, color: Color(0xFF93C5FD), fontWeight: FontWeight.w600)),
+                          Icon(Icons.payment, size: 14, color: primaryAccent),
+                          const SizedBox(width: 6),
+                          Text('Accepted Payment Methods: Telebirr & CBE', style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600)),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -250,20 +260,20 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                               icon: const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 18),
                               label: const Text('Registered • View Boarding Pass', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1E2838),
+                                backgroundColor: const Color(0xFF10B981),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                               ),
                             )
                           : ElevatedButton.icon(
                               onPressed: () => _openRegistrationModal(context, trip),
-                              icon: const Icon(Icons.confirmation_number_outlined, color: Colors.black, size: 18),
+                              icon: Icon(Icons.confirmation_number_outlined, color: isDark ? Colors.black : Colors.white, size: 18),
                               label: Text(
                                 trip.isFree ? 'Register for Free Trip' : 'Register & Pay via Telebirr / CBE',
-                                style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                                style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: trip.isFree ? const Color(0xFF10B981) : const Color(0xFFF5A65E),
+                                backgroundColor: trip.isFree ? const Color(0xFF10B981) : primaryAccent,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                                 padding: const EdgeInsets.symmetric(vertical: 12),
                               ),
@@ -279,18 +289,21 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String title, String value) {
+  Widget _buildInfoRow(BuildContext context, IconData icon, String title, String value) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: AppTheme.goldLight),
+          Icon(icon, size: 14, color: primaryAccent),
           const SizedBox(width: 8),
-          Text('$title: ', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+          Text('$title: ', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -302,7 +315,10 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
   // ----------------------------------------------------
   // TAB 1: MY DIGITAL PASSES & QR CODES
   // ----------------------------------------------------
-  Widget _buildMyTicketsList(FellowshipState state) {
+  Widget _buildMyTicketsList(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
     final tickets = state.myTripRegistrations;
 
     if (tickets.isEmpty) {
@@ -312,16 +328,19 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.confirmation_number_outlined, size: 60, color: AppTheme.textTertiary),
+              Icon(Icons.confirmation_number_outlined, size: 60, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.6) ?? AppTheme.textTertiary),
               const SizedBox(height: 16),
-              const Text('No Registered Pilgrimages', style: TextStyle(fontFamily: 'serif', fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('No Registered Pilgrimages', style: TextStyle(fontFamily: 'serif', fontSize: 18, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
               const SizedBox(height: 8),
-              const Text('Browse upcoming trips and book your seat with Telebirr or CBE payment.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              Text('Browse upcoming trips and book your seat with Telebirr or CBE payment.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
               const SizedBox(height: 18),
               ElevatedButton(
                 onPressed: () => setState(() => _activeTab = 0),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
-                child: const Text('Browse Trips', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryAccent,
+                  foregroundColor: isDark ? Colors.black : Colors.white,
+                ),
+                child: const Text('Browse Trips', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -338,16 +357,12 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
         return Container(
           margin: const EdgeInsets.only(bottom: 20),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF283446), Color(0xFF1B2332)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: AppTheme.goldAccent.withOpacity(0.5), width: 1.2),
+            border: Border.all(color: primaryAccent.withOpacity(0.5), width: 1.2),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withOpacity(isDark ? 0.35 : 0.08),
                 blurRadius: 16,
                 offset: const Offset(0, 6),
               ),
@@ -363,7 +378,7 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('WCU FELLOWSHIP PILGRIM PASS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Color(0xFFF5A65E), letterSpacing: 1.2)),
+                        Text('WCU FELLOWSHIP PILGRIM PASS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: primaryAccent, letterSpacing: 1.2)),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -382,11 +397,11 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                     Text(
                       ticket.tripTitle,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'serif',
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: theme.colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -396,7 +411,7 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
               // Dashed divider line
               Container(
                 height: 1,
-                color: AppTheme.borderMuted,
+                color: theme.dividerColor,
               ),
 
               // QR Code and Bus/Seat Matrix
@@ -426,11 +441,11 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                         children: [
                           Text(
                             ticket.studentName,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                           ),
                           Text(
                             'B.N. ${ticket.studentBaptismalName}',
-                            style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E)),
+                            style: TextStyle(fontSize: 12, color: primaryAccent),
                           ),
                           const SizedBox(height: 6),
                           Row(
@@ -443,7 +458,7 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                           const SizedBox(height: 6),
                           Text(
                             'Ref: ${ticket.transactionReference}',
-                            style: const TextStyle(fontSize: 10, color: AppTheme.textTertiary),
+                            style: TextStyle(fontSize: 10, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary),
                           ),
                         ],
                       ),
@@ -474,13 +489,17 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
   // REGISTRATION & PAYMENT MODAL (TELEBIRR / CBE)
   // ----------------------------------------------------
   void _openRegistrationModal(BuildContext context, PilgrimageTripModel trip) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     PaymentMethodType selectedMethod = trip.isFree ? PaymentMethodType.free : PaymentMethodType.telebirr;
     final refController = TextEditingController(text: trip.isFree ? 'FREE-PASS-WCU' : '');
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppTheme.surfaceElevated,
+      backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -504,15 +523,15 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                       children: [
                         Text(
                           trip.isFree ? 'Free Pilgrimage Registration' : 'Pilgrimage Registration & Payment',
-                          style: const TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E)),
+                          style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent),
                         ),
-                        IconButton(icon: const Icon(Icons.close, color: AppTheme.textSecondary), onPressed: () => Navigator.pop(ctx)),
+                        IconButton(icon: Icon(Icons.close, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary), onPressed: () => Navigator.pop(ctx)),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Text(
                       trip.title,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                     ),
                     const SizedBox(height: 16),
 
@@ -521,46 +540,46 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: AppTheme.secondaryBg,
+                          color: theme.colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppTheme.borderMuted),
+                          border: Border.all(color: theme.dividerColor),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text('Total Pilgrimage Fee:', style: TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+                            Text('Total Pilgrimage Fee:', style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                             Text(
                               '${trip.feeAmount.toInt()} ETB',
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFF5A65E)),
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryAccent),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      const Text('Select Payment Method:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+                      Text('Select Payment Method:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                       const SizedBox(height: 8),
 
                       // Telebirr Option
                       RadioListTile<PaymentMethodType>(
                         value: PaymentMethodType.telebirr,
                         groupValue: selectedMethod,
-                        activeColor: const Color(0xFFF5A65E),
+                        activeColor: primaryAccent,
                         contentPadding: EdgeInsets.zero,
                         onChanged: (val) => setModalState(() => selectedMethod = val!),
-                        title: const Text('Telebirr (ቴሌብር)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
-                        subtitle: Text('Send to: ${trip.telebirrNumber} (${trip.telebirrAccountName})', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                        title: Text('Telebirr (ቴሌብር)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                        subtitle: Text('Send to: ${trip.telebirrNumber} (${trip.telebirrAccountName})', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                       ),
 
                       // CBE Option
                       RadioListTile<PaymentMethodType>(
                         value: PaymentMethodType.cbeAccount,
                         groupValue: selectedMethod,
-                        activeColor: const Color(0xFFF5A65E),
+                        activeColor: primaryAccent,
                         contentPadding: EdgeInsets.zero,
                         onChanged: (val) => setModalState(() => selectedMethod = val!),
-                        title: const Text('CBE / Commercial Bank of Ethiopia (ሲቢኢ)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white)),
-                        subtitle: Text('Acct: ${trip.cbeAccountNumber} (${trip.cbeAccountName})', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                        title: Text('CBE / Commercial Bank of Ethiopia (ሲቢኢ)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                        subtitle: Text('Acct: ${trip.cbeAccountNumber} (${trip.cbeAccountName})', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                       ),
 
                       const SizedBox(height: 12),
@@ -573,9 +592,9 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                         ),
                       ),
                     ] else ...[
-                      const Text(
+                      Text(
                         'This trip is organized free of charge by the WCU Orthodox Student Fellowship. Your seat will be confirmed immediately.',
-                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
+                        style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, height: 1.4),
                       ),
                     ],
 
@@ -602,17 +621,18 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(trip.isFree ? 'Free seat confirmed! Digital pass generated.' : 'Registration submitted! Awaiting payment verification.'),
-                              backgroundColor: AppTheme.surfaceColor,
+                              backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                             ),
                           );
                           setState(() => _activeTab = 1);
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF5A65E),
+                          backgroundColor: primaryAccent,
+                          foregroundColor: isDark ? Colors.black : Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text('Confirm Registration', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
+                        child: const Text('Confirm Registration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
                     ),
                   ],

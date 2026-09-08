@@ -54,8 +54,8 @@ class OrthodoxHeader extends StatelessWidget {
                     children: [
                       Text(
                         state.latestEmergencyBroadcast!.title,
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: theme.colorScheme.onSurface,
                           fontWeight: FontWeight.bold,
                           fontSize: 13,
                         ),
@@ -63,8 +63,8 @@ class OrthodoxHeader extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         state.latestEmergencyBroadcast!.description,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
                           fontSize: 11,
                         ),
                         maxLines: 2,
@@ -74,7 +74,7 @@ class OrthodoxHeader extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: AppTheme.textTertiary, size: 18),
+                  icon: Icon(Icons.close, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textTertiary, size: 18),
                   onPressed: () => state.dismissEmergencyBanner(),
                   visualDensity: VisualDensity.compact,
                 ),
@@ -96,7 +96,7 @@ class OrthodoxHeader extends StatelessWidget {
                   gradient: RadialGradient(
                     colors: [
                       primaryColor.withOpacity(0.35),
-                      theme.colorScheme.surface,
+                      theme.cardTheme.color ?? theme.colorScheme.surface,
                     ],
                   ),
                   border: Border.all(color: primaryColor.withOpacity(0.6), width: 1.5),
@@ -133,9 +133,9 @@ class OrthodoxHeader extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         subtitle!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.textSecondary,
+                          color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -149,7 +149,7 @@ class OrthodoxHeader extends StatelessWidget {
                   icon: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
+                      color: theme.cardTheme.color ?? theme.colorScheme.surface,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: primaryColor.withOpacity(0.4)),
                     ),
@@ -165,11 +165,11 @@ class OrthodoxHeader extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
+                          color: theme.cardTheme.color ?? theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppTheme.borderMuted),
+                          border: Border.all(color: theme.dividerColor),
                         ),
-                        child: const Icon(Icons.notifications_none, color: AppTheme.textPrimary, size: 20),
+                        child: Icon(Icons.notifications_none, color: theme.colorScheme.onSurface, size: 20),
                       ),
                       Positioned(
                         right: 4,

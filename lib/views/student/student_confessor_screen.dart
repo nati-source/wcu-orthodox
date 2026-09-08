@@ -18,12 +18,14 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Father Confessor • የንስሐ አባት'),
-        backgroundColor: AppTheme.primaryBg,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
       ),
       body: Column(
@@ -33,46 +35,48 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
             margin: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Row(
               children: [
-                Expanded(child: _buildNavButton('Fathers & Booking', Icons.person_pin, 0)),
-                Expanded(child: _buildNavButton('My Prep & Checklist', Icons.checklist_rtl, 1)),
-                Expanded(child: _buildNavButton('Spiritual Q&A', Icons.help_outline, 2)),
+                Expanded(child: _buildNavButton(context, 'Fathers & Booking', Icons.person_pin, 0)),
+                Expanded(child: _buildNavButton(context, 'My Prep & Checklist', Icons.checklist_rtl, 1)),
+                Expanded(child: _buildNavButton(context, 'Spiritual Q&A', Icons.help_outline, 2)),
               ],
             ),
           ),
 
           Expanded(
             child: _activeTab == 0
-                ? _buildFathersTab(state)
+                ? _buildFathersTab(context, state)
                 : _activeTab == 1
-                    ? _buildAppointmentsAndChecklistTab(state)
-                    : _buildAnonymousQaTab(state),
+                    ? _buildAppointmentsAndChecklistTab(context, state)
+                    : _buildAnonymousQaTab(context, state),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildNavButton(String title, IconData icon, int index) {
+  Widget _buildNavButton(BuildContext context, String title, IconData icon, int index) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
     final isSelected = _activeTab == index;
     return GestureDetector(
       onTap: () => setState(() => _activeTab = index),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.surfaceElevated : Colors.transparent,
+          color: isSelected ? primaryAccent.withOpacity(0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          border: isSelected ? Border.all(color: AppTheme.goldAccent.withOpacity(0.5)) : null,
+          border: isSelected ? Border.all(color: primaryAccent.withOpacity(0.5)) : null,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: isSelected ? AppTheme.goldLight : AppTheme.textSecondary),
+            Icon(icon, size: 18, color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
             const SizedBox(height: 3),
             Text(
               title,
@@ -82,7 +86,7 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
               style: TextStyle(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? Colors.white : AppTheme.textSecondary,
+                color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
               ),
             ),
           ],
@@ -94,7 +98,11 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
   // ----------------------------------------------------
   // TAB 0: CONFESSOR FATHERS & BOOKING
   // ----------------------------------------------------
-  Widget _buildFathersTab(FellowshipState state) {
+  Widget _buildFathersTab(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
@@ -102,30 +110,33 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2B3446), Color(0xFF1B2332)],
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.surfaceContainerHighest,
+                theme.cardTheme.color ?? theme.colorScheme.surface,
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.goldAccent.withOpacity(0.3)),
+            border: Border.all(color: primaryAccent.withOpacity(0.3)),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.shield_outlined, color: AppTheme.goldLight, size: 30),
-              SizedBox(width: 14),
+              Icon(Icons.shield_outlined, color: primaryAccent, size: 30),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Spiritual Fatherhood (የንስሐ አባትነት)',
-                      style: TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                     ),
-                    SizedBox(height: 3),
+                    const SizedBox(height: 3),
                     Text(
                       'Schedule confidential 1-on-1 confession, spiritual counseling, and communion absolution with campus-assigned clergy.',
-                      style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.3),
+                      style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, height: 1.3),
                     ),
                   ],
                 ),
@@ -136,9 +147,9 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
 
         const SizedBox(height: 20),
 
-        const Text(
+        Text(
           'CAMPUS CONFESSOR FATHERS',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary, letterSpacing: 1.5),
         ),
         const SizedBox(height: 10),
 
@@ -147,9 +158,9 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,8 +170,8 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                   children: [
                     CircleAvatar(
                       radius: 26,
-                      backgroundColor: AppTheme.goldAccent.withOpacity(0.15),
-                      child: const Icon(Icons.person, color: AppTheme.goldLight, size: 30),
+                      backgroundColor: primaryAccent.withOpacity(0.15),
+                      child: Icon(Icons.person, color: primaryAccent, size: 30),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -169,32 +180,32 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                         children: [
                           Text(
                             father.fullName,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'serif',
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             father.clericalTitle,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E), fontWeight: FontWeight.w600),
+                            style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.w600),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             father.churchName,
-                            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                            style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                           ),
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Icon(Icons.location_on, color: Color(0xFFF5A65E), size: 13),
+                              Icon(Icons.location_on, color: primaryAccent, size: 13),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
                                   father.meetingVenue,
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFFF5A65E), fontWeight: FontWeight.w600),
+                                  style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -209,12 +220,12 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                 const SizedBox(height: 12),
                 Text(
                   father.bio,
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
+                  style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, height: 1.4),
                 ),
                 const SizedBox(height: 14),
 
                 // Availability Pills
-                const Text('AVAILABLE DAYS:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppTheme.textTertiary, letterSpacing: 1.0)),
+                Text('AVAILABLE DAYS:', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary, letterSpacing: 1.0)),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
@@ -223,17 +234,17 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                     ...father.availableDays.map((d) => Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppTheme.surfaceElevated,
+                            color: theme.colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.borderMuted),
+                            border: Border.all(color: theme.dividerColor),
                           ),
-                          child: Text(d, style: const TextStyle(fontSize: 10, color: AppTheme.textPrimary)),
+                          child: Text(d, style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface)),
                         )),
                   ],
                 ),
 
                 const SizedBox(height: 16),
-                const Divider(color: AppTheme.borderMuted),
+                Divider(color: theme.dividerColor),
                 const SizedBox(height: 10),
 
                 // Action Buttons
@@ -241,20 +252,20 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                   children: [
                     Container(
                       decoration: BoxDecoration(
-                        color: AppTheme.surfaceElevated,
+                        color: theme.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.phone_outlined, color: AppTheme.goldLight, size: 18),
+                            icon: Icon(Icons.phone_outlined, color: primaryAccent, size: 18),
                             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                             padding: const EdgeInsets.all(8),
                             onPressed: () => state.launchCall(father.phoneNumber),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.sms_outlined, color: AppTheme.goldLight, size: 18),
+                            icon: Icon(Icons.sms_outlined, color: primaryAccent, size: 18),
                             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                             padding: const EdgeInsets.all(8),
                             onPressed: () => state.launchSms(father.phoneNumber, body: 'Selam Abba, I am requesting a spiritual confession appointment.'),
@@ -266,15 +277,15 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => _openBookingDialog(context, father),
-                        icon: const Icon(Icons.calendar_month, size: 15, color: Colors.black),
-                        label: const Text(
+                        icon: Icon(Icons.calendar_month, size: 15, color: isDark ? Colors.black : Colors.white),
+                        label: Text(
                           'Book Appointment',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11),
+                          style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFF5A65E),
+                          backgroundColor: primaryAccent,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                         ),
@@ -293,15 +304,16 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
   // ----------------------------------------------------
   // TAB 1: MY APPOINTMENTS & COMMUNION PREPARATION
   // ----------------------------------------------------
-  Widget _buildAppointmentsAndChecklistTab(FellowshipState state) {
+  Widget _buildAppointmentsAndChecklistTab(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
     final myAppts = state.myConfessionAppointments;
 
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
-        const Text(
+        Text(
           'MY CONFESSION APPOINTMENTS',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary, letterSpacing: 1.5),
         ),
         const SizedBox(height: 10),
 
@@ -309,15 +321,15 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
                 'No appointments scheduled yet. Book with a spiritual father above.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
               ),
             ),
           )
@@ -327,7 +339,7 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.secondaryBg,
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: appt.status.color.withOpacity(0.5)),
               ),
@@ -342,7 +354,7 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                           appt.fatherName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -361,18 +373,18 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text('Topic: ${appt.topic}', style: const TextStyle(fontSize: 12, color: Color(0xFFF5A65E))),
+                  Text('Topic: ${appt.topic}', style: TextStyle(fontSize: 12, color: theme.colorScheme.primary)),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.schedule, size: 14, color: AppTheme.textSecondary),
+                      Icon(Icons.schedule, size: 14, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           '${appt.scheduledDate.year}-${appt.scheduledDate.month}-${appt.scheduledDate.day} • ${appt.timeSlot}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                          style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                         ),
                       ),
                     ],
@@ -382,10 +394,10 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppTheme.surfaceElevated,
+                        color: theme.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text('Father\'s note: ${appt.notes}', style: const TextStyle(fontSize: 11, color: AppTheme.textPrimary)),
+                      child: Text('Father\'s note: ${appt.notes}', style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface)),
                     ),
                   ],
                   if (appt.status == ConfessionAppointmentStatus.pending || appt.status == ConfessionAppointmentStatus.confirmed) ...[
@@ -396,7 +408,7 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                         onPressed: () {
                           state.cancelConfessionAppointment(appt.id);
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Appointment cancelled'), backgroundColor: AppTheme.surfaceColor),
+                            SnackBar(content: const Text('Appointment cancelled'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
                           );
                         },
                         child: const Text('Cancel Appointment', style: TextStyle(color: Color(0xFFEF4444), fontSize: 11)),
@@ -411,18 +423,18 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
         const SizedBox(height: 24),
 
         // Holy Communion Preparation Checklist
-        const Text(
+        Text(
           'HOLY COMMUNION PREPARATION CHECKLIST (ቅድመ ዝግጅት)',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary, letterSpacing: 1.5),
         ),
         const SizedBox(height: 10),
 
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.secondaryBg,
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppTheme.borderMuted),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Column(
             children: state.communionChecklist.map((item) {
@@ -437,13 +449,13 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
-                    color: item.isChecked ? Colors.white : AppTheme.textPrimary,
+                    color: item.isChecked ? const Color(0xFF10B981) : theme.colorScheme.onSurface,
                     decoration: item.isChecked ? TextDecoration.none : null,
                   ),
                 ),
                 subtitle: Text(
                   item.description,
-                  style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                  style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                 ),
               );
             }).toList(),
@@ -456,17 +468,21 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
   // ----------------------------------------------------
   // TAB 2: ANONYMOUS SPIRITUAL Q&A
   // ----------------------------------------------------
-  Widget _buildAnonymousQaTab(FellowshipState state) {
+  Widget _buildAnonymousQaTab(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     return ListView(
       padding: const EdgeInsets.all(18),
       children: [
         // Ask Anonymous Question Button
         ElevatedButton.icon(
           onPressed: () => _openAskQuestionDialog(context),
-          icon: const Icon(Icons.lock_outline, color: Colors.black, size: 18),
-          label: const Text('Ask Confidential / Anonymous Question', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13)),
+          icon: Icon(Icons.lock_outline, color: isDark ? Colors.black : Colors.white, size: 18),
+          label: Text('Ask Confidential / Anonymous Question', style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFF5A65E),
+            backgroundColor: primaryAccent,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             padding: const EdgeInsets.symmetric(vertical: 14),
           ),
@@ -474,9 +490,9 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
 
         const SizedBox(height: 20),
 
-        const Text(
+        Text(
           'ANSWERED THEOLOGICAL & MORAL QUESTIONS',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textTertiary, letterSpacing: 1.5),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary, letterSpacing: 1.5),
         ),
         const SizedBox(height: 10),
 
@@ -485,9 +501,9 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
             margin: const EdgeInsets.only(bottom: 14),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.secondaryBg,
+              color: theme.cardTheme.color ?? theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: AppTheme.borderMuted),
+              border: Border.all(color: theme.dividerColor),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -495,41 +511,41 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppTheme.goldAccent.withOpacity(0.15),
+                    color: primaryAccent.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     q.category,
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.goldLight),
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Q: ${q.questionText}',
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white, height: 1.3),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface, height: 1.3),
                 ),
                 const SizedBox(height: 12),
                 if (q.isAnswered && q.answerText != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF182333),
+                      color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3)),
+                      border: Border.all(color: primaryAccent.withOpacity(0.3)),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.verified, color: Color(0xFF60A5FA), size: 14),
+                            Icon(Icons.verified, color: primaryAccent, size: 14),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
                                 'Answered by ${q.answeredBy ?? "Campus Clergy"}',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF93C5FD)),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryAccent),
                               ),
                             ),
                           ],
@@ -537,13 +553,13 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                         const SizedBox(height: 6),
                         Text(
                           q.answerText!,
-                          style: const TextStyle(fontSize: 12, color: Color(0xFFE2E8F0), height: 1.4),
+                          style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface, height: 1.4),
                         ),
                       ],
                     ),
                   ),
                 ] else ...[
-                  const Text('Pending answer from Confession Fathers committee...', style: TextStyle(fontSize: 11, color: AppTheme.textTertiary)),
+                  Text('Pending answer from Confession Fathers committee...', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary)),
                 ],
               ],
             ),
@@ -554,6 +570,10 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
   }
 
   void _openBookingDialog(BuildContext context, ConfessorFatherModel father) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     String selectedSlot = father.availableTimeSlots.first;
     String selectedTopic = 'General Confession (ምሥጢረ ንስሐ)';
     DateTime selectedDate = DateTime.now().add(const Duration(days: 2));
@@ -565,9 +585,9 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppTheme.surfaceElevated,
+              backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: Text('Book with ${father.fullName}', style: const TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E))),
+              title: Text('Book with ${father.fullName}', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -576,44 +596,44 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.secondaryBg,
+                        color: theme.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppTheme.goldAccent.withOpacity(0.3)),
+                        border: Border.all(color: primaryAccent.withOpacity(0.3)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.location_on, color: Color(0xFFF5A65E), size: 16),
+                          Icon(Icons.location_on, color: primaryAccent, size: 16),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Meeting Place:\n${father.meetingVenue}',
-                              style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.w600, height: 1.3),
+                              style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600, height: 1.3),
                             ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Select Topic:', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                    Text('Select Topic:', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                     const SizedBox(height: 4),
                     DropdownButtonFormField<String>(
                       value: selectedTopic,
-                      dropdownColor: AppTheme.surfaceElevated,
+                      dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                       items: [
                         'General Confession (ምሥጢረ ንስሐ)',
                         'Communion Preparation (የቁርባን ዝግጅት)',
                         'Spiritual Counseling (የመንፈሳዊ ሕይወት ምክር)',
                         'Campus Moral Challenges (የግቢ ኑሮ ፈተናዎች)',
-                      ].map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 12)))).toList(),
+                      ].map((t) => DropdownMenuItem(value: t, child: Text(t, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface)))).toList(),
                       onChanged: (val) => setDialogState(() => selectedTopic = val!),
                     ),
                     const SizedBox(height: 12),
-                    const Text('Select Time Slot:', style: TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+                    Text('Select Time Slot:', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                     const SizedBox(height: 4),
                     DropdownButtonFormField<String>(
                       value: selectedSlot,
-                      dropdownColor: AppTheme.surfaceElevated,
-                      items: father.availableTimeSlots.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 12)))).toList(),
+                      dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                      items: father.availableTimeSlots.map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface)))).toList(),
                       onChanged: (val) => setDialogState(() => selectedSlot = val!),
                     ),
                     const SizedBox(height: 12),
@@ -630,7 +650,7 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+                  child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -643,12 +663,12 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                     );
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Appointment request sent to Confession Father'), backgroundColor: AppTheme.surfaceColor),
+                      SnackBar(content: const Text('Appointment request sent to Confession Father'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
                     );
                     setState(() => _activeTab = 1);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
-                  child: const Text('Confirm Booking', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: primaryAccent),
+                  child: Text('Confirm Booking', style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -659,6 +679,10 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
   }
 
   void _openAskQuestionDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final isDark = theme.brightness == Brightness.dark;
+
     final qController = TextEditingController();
     String category = 'Campus Life & Morals';
 
@@ -668,22 +692,22 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppTheme.surfaceElevated,
+              backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              title: const Text('Ask Confidential Question', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: Color(0xFFF5A65E))),
+              title: Text('Ask Confidential Question', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
+                  Text(
                     'Your identity and name are never revealed. The question will be reviewed by the fellowship clergy committee.',
-                    style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                    style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: category,
-                    dropdownColor: AppTheme.surfaceElevated,
+                    dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                     items: ['Campus Life & Morals', 'Fasting & Prayer Rules', 'Theology & Dogma', 'Sacraments & Canon']
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 12))))
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface))))
                         .toList(),
                     onChanged: (val) => setDialogState(() => category = val!),
                   ),
@@ -701,7 +725,7 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+                  child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -712,11 +736,11 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                     );
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Confidential question submitted'), backgroundColor: AppTheme.surfaceColor),
+                      SnackBar(content: const Text('Confidential question submitted'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
                     );
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF5A65E)),
-                  child: const Text('Submit', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(backgroundColor: primaryAccent),
+                  child: Text('Submit', style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );

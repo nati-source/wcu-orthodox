@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
@@ -50,66 +51,52 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     });
 
     if (success) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: AppTheme.surfaceColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
-            children: [
-              Icon(Icons.check_circle, color: AppTheme.emerald, size: 28),
-              SizedBox(width: 10),
-              Text(
-                'Check-In Successful',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Student: ${widget.state.currentUser.fullName} (${widget.state.currentUser.baptismalName})',
-                style: const TextStyle(color: AppTheme.goldLight, fontWeight: FontWeight.bold, fontSize: 14),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Course: ${widget.state.activeSession.courseName}',
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Method: Dynamic QR & Rolling PIN Validation',
-                style: TextStyle(color: AppTheme.textTertiary, fontSize: 12),
-              ),
-            ],
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.goldAccent),
-              child: const Text('Done', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      );
+      HapticFeedback.mediumImpact();
+      _showSuccessRippleDialog();
     }
+  }
+
+  void _showSuccessRippleDialog() {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Attendance Success',
+      barrierColor: Colors.black.withOpacity(0.7),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (ctx, anim1, anim2) {
+        return _QrSuccessRippleModal(
+          student: widget.state.currentUser,
+          session: widget.state.activeSession,
+          onDismiss: () {
+            Navigator.of(ctx).pop();
+            Navigator.of(context).pop();
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     final activeSession = widget.state.activeSession;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Live Attendance Check-In'),
+        title: Text('Live Attendance Check-In', style: TextStyle(color: textCol)),
+        backgroundColor: cardBg,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.goldLight),
+          icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -122,9 +109,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.secondaryBg,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderMuted),
+                border: Border.all(color: borderCol),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,10 +121,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                     children: [
                       Text(
                         activeSession.courseCode,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.goldLight,
+                          color: primaryAccent,
                         ),
                       ),
                       Container(
@@ -157,12 +144,12 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                   const SizedBox(height: 4),
                   Text(
                     activeSession.courseName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textCol),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     activeSession.faculty,
-                    style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    style: TextStyle(fontSize: 12, color: textMuted),
                   ),
                 ],
               ),
@@ -176,12 +163,12 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                 width: 260,
                 height: 260,
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: isDark ? Colors.black : const Color(0xFF1A2230),
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppTheme.goldAccent.withOpacity(0.8), width: 2),
+                  border: Border.all(color: primaryAccent.withOpacity(0.8), width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.goldAccent.withOpacity(0.25),
+                      color: primaryAccent.withOpacity(0.25),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -205,7 +192,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                               const SizedBox(height: 12),
                               const Text(
                                 'Align with Session QR',
-                                style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                                style: TextStyle(color: Colors.white70, fontSize: 12),
                               ),
                             ],
                           ),
@@ -224,10 +211,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                           child: Container(
                             height: 2.5,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF5A65E),
+                              color: primaryAccent,
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFF5A65E).withOpacity(0.9),
+                                  color: primaryAccent.withOpacity(0.9),
                                   blurRadius: 10,
                                   spreadRadius: 2,
                                 ),
@@ -256,10 +243,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
             ),
 
             const SizedBox(height: 12),
-            const Center(
+            Center(
               child: Text(
                 'Tap scanner viewport to scan dynamic QR code',
-                style: TextStyle(color: AppTheme.textTertiary, fontSize: 11),
+                style: TextStyle(color: textMuted.withOpacity(0.8), fontSize: 11),
               ),
             ),
 
@@ -268,7 +255,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
             // OR: Enter Rolling 4-Digit PIN Code
             Row(
               children: [
-                Expanded(child: Divider(color: AppTheme.borderMuted)),
+                Expanded(child: Divider(color: borderCol)),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
@@ -276,12 +263,12 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
-                      color: AppTheme.textTertiary,
+                      color: textMuted.withOpacity(0.7),
                       letterSpacing: 1.2,
                     ),
                   ),
                 ),
-                Expanded(child: Divider(color: AppTheme.borderMuted)),
+                Expanded(child: Divider(color: borderCol)),
               ],
             ),
 
@@ -295,17 +282,23 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.center,
                     maxLength: 4,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 8,
-                      color: Color(0xFFF5A65E),
+                      color: primaryAccent,
                     ),
                     decoration: InputDecoration(
                       hintText: 'PIN',
                       counterText: '',
-                      hintStyle: const TextStyle(letterSpacing: 2, color: AppTheme.textTertiary, fontSize: 16),
-                      prefixIcon: const Icon(Icons.pin, color: AppTheme.goldAccent),
+                      hintStyle: TextStyle(letterSpacing: 2, color: textMuted.withOpacity(0.5), fontSize: 16),
+                      prefixIcon: Icon(Icons.pin, color: primaryAccent),
+                      filled: true,
+                      fillColor: cardBg,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: borderCol),
+                      ),
                     ),
                   ),
                 ),
@@ -319,13 +312,17 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.goldAccent,
+                      backgroundColor: primaryAccent,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Verify',
-                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 15),
+                      style: TextStyle(
+                        color: isDark ? Colors.black : Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
                     ),
                   ),
                 ),
@@ -355,6 +352,284 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
 
             const SizedBox(height: 24),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _QrSuccessRippleModal extends StatefulWidget {
+  final UserModel student;
+  final AttendanceSessionModel session;
+  final VoidCallback onDismiss;
+
+  const _QrSuccessRippleModal({
+    required this.student,
+    required this.session,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_QrSuccessRippleModal> createState() => _QrSuccessRippleModalState();
+}
+
+class _QrSuccessRippleModalState extends State<_QrSuccessRippleModal>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _rippleController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _rippleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _rippleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..forward();
+
+    _scaleAnimation = Tween<double>(begin: 0.2, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _rippleController,
+        curve: const Interval(0.0, 0.5, curve: Curves.elasticOut),
+      ),
+    );
+
+    _rippleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _rippleController,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _rippleController,
+        curve: const Interval(0.0, 0.35, curve: Curves.easeIn),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _rippleController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: cardBg,
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: primaryAccent.withOpacity(0.5), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: primaryAccent.withOpacity(0.25),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ripple + Expanding Checkmark Container
+                SizedBox(
+                  height: 120,
+                  width: 120,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Expanding Golden Ring Ripples
+                      AnimatedBuilder(
+                        animation: _rippleAnimation,
+                        builder: (context, child) {
+                          final ringProgress = _rippleAnimation.value;
+                          return Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                width: 70 + (ringProgress * 48),
+                                height: 70 + (ringProgress * 48),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: primaryAccent.withOpacity((1.0 - ringProgress).clamp(0.0, 1.0) * 0.8),
+                                    width: 3 * (1.0 - ringProgress * 0.5),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: 60 + (ringProgress * 28),
+                                height: 60 + (ringProgress * 28),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: primaryAccent.withOpacity((1.0 - ringProgress).clamp(0.0, 1.0) * 0.5),
+                                    width: 2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+
+                      // Central Checkmark Circle
+                      ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: Container(
+                          width: 68,
+                          height: 68,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.emerald,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.emerald.withOpacity(0.4),
+                                blurRadius: 14,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.check_rounded,
+                            color: Colors.white,
+                            size: 42,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Success Title
+                Text(
+                  'Check-In Verified!',
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: primaryAccent,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'የተማሪው የጥሪ ማረጋገጫ ተጠናቋል',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: primaryAccent.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                // Details Card
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: elevatedBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: theme.dividerColor),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Student', style: TextStyle(fontSize: 12, color: textMuted)),
+                          Text(
+                            widget.student.fullName,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: textCol,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Baptismal Name', style: TextStyle(fontSize: 12, color: textMuted)),
+                          Text(
+                            widget.student.baptismalName,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: primaryAccent,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Course', style: TextStyle(fontSize: 12, color: textMuted)),
+                          Flexible(
+                            child: Text(
+                              widget.session.courseName,
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: textCol,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                // Done Button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: widget.onDismiss,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryAccent,
+                      foregroundColor: isDark ? Colors.black : Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: Text(
+                      'Done & Return',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: isDark ? Colors.black : Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

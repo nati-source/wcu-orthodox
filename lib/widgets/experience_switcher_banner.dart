@@ -10,8 +10,11 @@ class ExperienceSwitcherBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
+
     return Container(
-      color: const Color(0xFF070A0F),
+      color: theme.scaffoldBackgroundColor,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SafeArea(
         bottom: false,
@@ -42,7 +45,7 @@ class ExperienceSwitcherBanner extends StatelessWidget {
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 1.2,
-                      color: AppTheme.textTertiary,
+                      color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary,
                     ),
                   ),
                   Text(
@@ -59,16 +62,16 @@ class ExperienceSwitcherBanner extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceElevated,
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.borderMuted),
+                border: Border.all(color: theme.dividerColor),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<UserRole>(
                   value: state.activeRole,
                   isDense: true,
-                  dropdownColor: AppTheme.surfaceColor,
-                  icon: const Icon(Icons.swap_horiz, color: AppTheme.goldLight, size: 18),
+                  dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                  icon: Icon(Icons.swap_horiz, color: primaryColor, size: 18),
                   items: UserRole.values.map((role) {
                     return DropdownMenuItem<UserRole>(
                       value: role,
@@ -76,7 +79,7 @@ class ExperienceSwitcherBanner extends StatelessWidget {
                         role.displayName,
                         style: TextStyle(
                           fontSize: 12,
-                          color: role == state.activeRole ? AppTheme.goldLight : Colors.white,
+                          color: role == state.activeRole ? primaryColor : theme.colorScheme.onSurface,
                           fontWeight: role == state.activeRole ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),

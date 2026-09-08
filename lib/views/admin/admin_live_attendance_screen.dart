@@ -12,44 +12,59 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     final session = state.activeSession;
     final countdown = state.pinCountdownSeconds;
 
     return Scaffold(
-      backgroundColor: AppTheme.primaryBg,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text('Live Attendance', style: TextStyle(color: textCol, fontFamily: 'serif', fontWeight: FontWeight.bold)),
+        backgroundColor: cardBg,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Screen Header matching mangment2 - Copy.png
-              const Text(
-                'Live Attendance',
-                style: TextStyle(
-                  fontFamily: 'serif',
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFFF7CA88),
-                ),
-              ),
-              const SizedBox(height: 2),
+              // Screen Header Subtitle
               Text(
-                session.courseCode,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textSecondary,
+                'Course Code: ${session.courseCode} • ${session.courseName}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: textMuted,
                 ),
               ),
               const SizedBox(height: 16),
 
-              // Present vs Total Enrolled Top Stats Bar matching mangment2 - Copy.png
+              // Present vs Total Enrolled Top Stats Bar
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryBg,
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.borderMuted),
+                  border: Border.all(color: borderCol),
+                  boxShadow: [
+                    BoxShadow(
+                      color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -57,46 +72,46 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'PRESENT',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            color: AppTheme.textTertiary,
+                            color: textMuted.withOpacity(0.7),
                             letterSpacing: 1.2,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${session.scans.length}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFFF5A65E),
+                            color: primaryAccent,
                           ),
                         ),
                       ],
                     ),
-                    Container(width: 1, height: 40, color: AppTheme.borderMuted),
+                    Container(width: 1, height: 40, color: borderCol),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        const Text(
+                        Text(
                           'TOTAL ENROLLED',
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
-                            color: AppTheme.textTertiary,
+                            color: textMuted.withOpacity(0.7),
                             letterSpacing: 1.2,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${session.totalEnrolled}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: textCol,
                           ),
                         ),
                       ],
@@ -107,16 +122,16 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // SCAN TO CHECK IN Card with Dynamic QR & Rolling PIN matching mangment2 - Copy.png
+              // SCAN TO CHECK IN Card with Dynamic QR & Rolling PIN
               Container(
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryBg,
+                  color: cardBg,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: AppTheme.borderMuted),
+                  border: Border.all(color: borderCol),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.4),
+                      color: isDark ? Colors.black.withOpacity(0.4) : Colors.black.withOpacity(0.06),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
@@ -124,12 +139,12 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'SCAN TO CHECK IN',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFFF5A65E),
+                        color: primaryAccent,
                         letterSpacing: 2.0,
                       ),
                     ),
@@ -143,7 +158,7 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.goldAccent.withOpacity(0.3),
+                            color: primaryAccent.withOpacity(0.3),
                             blurRadius: 12,
                           ),
                         ],
@@ -157,12 +172,12 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                     ),
 
                     const SizedBox(height: 18),
-                    const Text(
+                    Text(
                       'PIN Code',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
-                        color: AppTheme.textTertiary,
+                        color: textMuted.withOpacity(0.7),
                         letterSpacing: 1.5,
                       ),
                     ),
@@ -171,11 +186,11 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                     // Large 4-Digit Rolling PIN (e.g. 8421)
                     Text(
                       session.rollingPin,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'serif',
                         fontSize: 44,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFFF5A65E),
+                        color: primaryAccent,
                         letterSpacing: 8.0,
                       ),
                     ),
@@ -188,16 +203,16 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: countdown / 30.0,
                         minHeight: 4,
-                        backgroundColor: AppTheme.surfaceElevated,
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE57E12)),
+                        backgroundColor: elevatedBg,
+                        valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       'Refreshes in ${countdown}s',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppTheme.textTertiary,
+                        color: textMuted,
                       ),
                     ),
                   ],
@@ -206,23 +221,23 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
 
               const SizedBox(height: 24),
 
-              // Recent Scans Feed matching mangment2 - Copy.png
+              // Recent Scans Feed
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Recent Scans',
                     style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: textCol,
                     ),
                   ),
                   TextButton(
                     onPressed: () {},
                     style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                    child: const Text('View All', style: TextStyle(color: AppTheme.goldLight, fontSize: 12)),
+                    child: Text('View All', style: TextStyle(color: primaryAccent, fontSize: 12)),
                   ),
                 ],
               ),
@@ -240,22 +255,22 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
-                    color: AppTheme.secondaryBg,
+                    color: cardBg,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppTheme.borderMuted),
+                    border: Border.all(color: borderCol),
                   ),
                   child: Row(
                     children: [
                       // Avatar with initials
                       CircleAvatar(
                         radius: 20,
-                        backgroundColor: const Color(0xFF2E261E),
+                        backgroundColor: elevatedBg,
                         child: Text(
                           initials,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFFF7CA88),
+                            color: primaryAccent,
                           ),
                         ),
                       ),
@@ -268,16 +283,16 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                           children: [
                             Text(
                               scan.studentName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.white,
+                                color: textCol,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               timeFormatted,
-                              style: const TextStyle(fontSize: 11, color: AppTheme.textTertiary),
+                              style: TextStyle(fontSize: 11, color: textMuted),
                             ),
                           ],
                         ),
@@ -287,9 +302,9 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF222B3A),
+                          color: elevatedBg,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.borderMuted),
+                          border: Border.all(color: borderCol),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -298,16 +313,16 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                               scan.method == AttendanceCheckInMethod.qr
                                   ? Icons.qr_code
                                   : Icons.pin,
-                              color: AppTheme.goldLight,
+                              color: primaryAccent,
                               size: 14,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               scan.method == AttendanceCheckInMethod.qr ? 'QR' : 'PIN',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: AppTheme.goldLight,
+                                color: primaryAccent,
                               ),
                             ),
                           ],

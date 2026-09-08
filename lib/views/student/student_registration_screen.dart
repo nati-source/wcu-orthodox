@@ -71,12 +71,18 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   void _showWelcomeDialog() {
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: theme.colorScheme.surface,
+        backgroundColor: cardBg,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
           side: BorderSide(color: primaryAccent.withOpacity(0.5), width: 1.5),
@@ -102,7 +108,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                   ),
                 ],
               ),
-              child: const Icon(Icons.church, color: Colors.black, size: 36),
+              child: Icon(Icons.church, color: isDark ? Colors.black : Colors.white, size: 36),
             ),
             const SizedBox(height: 18),
 
@@ -118,12 +124,12 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Welcome to WCU Fellowship',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white,
+                color: textCol,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -133,9 +139,9 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: theme.scaffoldBackgroundColor,
+                color: elevatedBg,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderMuted),
+                border: Border.all(color: borderCol),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,7 +153,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                       Expanded(
                         child: Text(
                           _fullNameController.text.trim(),
-                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13),
+                          style: TextStyle(fontWeight: FontWeight.bold, color: textCol, fontSize: 13),
                         ),
                       ),
                     ],
@@ -168,12 +174,12 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(Icons.school_outlined, color: AppTheme.textSecondary, size: 16),
+                      Icon(Icons.school_outlined, color: textMuted, size: 16),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '$_selectedDepartment • Year $_selectedAcademicYear',
-                          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                          style: TextStyle(color: textMuted, fontSize: 12),
                         ),
                       ),
                     ],
@@ -183,10 +189,10 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
             ),
             const SizedBox(height: 16),
 
-            const Text(
+            Text(
               'Your registration is now active! Tap below to enter your fellowship portal.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
+              style: TextStyle(fontSize: 12, color: textMuted, height: 1.4),
             ),
             const SizedBox(height: 20),
 
@@ -196,29 +202,29 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  // 1. Close dialog
                   Navigator.of(ctx).pop();
-                  // 2. Pop registration screen to return to home scaffold
                   if (mounted && Navigator.of(context).canPop()) {
                     Navigator.of(context).pop();
                   }
-                  // 3. Trigger Home tab selection
                   widget.onRegistered();
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryAccent,
-                  foregroundColor: Colors.black,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
                       'ወደ ዋናው ገጽ ግባ / Go to Home',
-                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+                      style: TextStyle(
+                        color: isDark ? Colors.black : Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, color: Colors.black, size: 18),
+                    const SizedBox(width: 8),
+                    Icon(Icons.arrow_forward, color: isDark ? Colors.black : Colors.white, size: 18),
                   ],
                 ),
               ),
@@ -233,13 +239,20 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Fellowship Registration'),
+        title: Text('Fellowship Registration', style: TextStyle(color: textCol)),
+        backgroundColor: cardBg,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: primaryAccent),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -255,12 +268,12 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 Container(
                   padding: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
+                    color: cardBg,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: primaryAccent.withOpacity(0.3)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.4),
+                        color: isDark ? Colors.black.withOpacity(0.4) : Colors.black.withOpacity(0.06),
                         blurRadius: 16,
                         offset: const Offset(0, 4),
                       ),
@@ -279,24 +292,24 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                         child: Icon(Icons.church_outlined, color: primaryAccent, size: 28),
                       ),
                       const SizedBox(height: 14),
-                      const Text(
+                      Text(
                         'Welcome to WCU Fellowship',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontFamily: 'serif',
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: textCol,
                           letterSpacing: 0.4,
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Join our spiritual and academic community. We blend the ancient reverence of Orthodox Christianity with university life at Wachamo University.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
-                          color: AppTheme.textSecondary,
+                          color: textMuted,
                           height: 1.45,
                         ),
                       ),
@@ -319,14 +332,21 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 const SizedBox(height: 14),
 
                 // Full Name Input
-                const Text('Full Name', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text('Full Name', style: TextStyle(color: textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _fullNameController,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: textCol, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Enter your full name',
+                    hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
                     prefixIcon: Icon(Icons.person_outline, color: primaryAccent, size: 20),
+                    filled: true,
+                    fillColor: cardBg,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: borderCol),
+                    ),
                   ),
                   validator: (val) => val == null || val.isEmpty ? 'Please enter full name' : null,
                 ),
@@ -334,14 +354,21 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 const SizedBox(height: 14),
 
                 // Baptismal Name Input (Christian Name)
-                const Text('Baptismal Name (የክርስትና ስም)', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text('Baptismal Name (የክርስትና ስም)', style: TextStyle(color: textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _baptismalNameController,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: textCol, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'Christian Name (e.g. Haile Meskel, Walata Maryam)',
+                    hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
                     prefixIcon: Icon(Icons.star_border, color: primaryAccent, size: 20),
+                    filled: true,
+                    fillColor: cardBg,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: borderCol),
+                    ),
                   ),
                   validator: (val) => val == null || val.isEmpty ? 'Please enter baptismal name' : null,
                 ),
@@ -349,15 +376,22 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 const SizedBox(height: 14),
 
                 // Phone Number Input
-                const Text('Phone Number', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text('Phone Number', style: TextStyle(color: textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _phoneController,
                   keyboardType: TextInputType.phone,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: textCol, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: '+251 900 000 000',
+                    hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
                     prefixIcon: Icon(Icons.phone_outlined, color: primaryAccent, size: 20),
+                    filled: true,
+                    fillColor: cardBg,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: borderCol),
+                    ),
                   ),
                   validator: (val) => val == null || val.isEmpty ? 'Please enter phone number' : null,
                 ),
@@ -377,7 +411,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 const SizedBox(height: 14),
 
                 // Academic Year (Year 1 to 8 grid/pills)
-                const Text('Academic Year', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text('Academic Year', style: TextStyle(color: textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 10,
@@ -391,10 +425,10 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isSelected ? primaryAccent : theme.colorScheme.surface,
+                          color: isSelected ? primaryAccent : cardBg,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isSelected ? primaryAccent : AppTheme.borderMuted,
+                            color: isSelected ? primaryAccent : borderCol,
                             width: isSelected ? 1.5 : 1,
                           ),
                           boxShadow: isSelected
@@ -410,7 +444,9 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                         child: Text(
                           'Year $year',
                           style: TextStyle(
-                            color: isSelected ? Colors.black : Colors.white,
+                            color: isSelected
+                                ? (isDark ? Colors.black : Colors.white)
+                                : textCol.withOpacity(0.8),
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                             fontSize: 13,
                           ),
@@ -423,29 +459,36 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 const SizedBox(height: 16),
 
                 // Batch Year
-                const Text('Batch Year', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text('Batch Year', style: TextStyle(color: textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _batchYearController,
                   keyboardType: TextInputType.number,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  style: TextStyle(color: textCol, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: 'e.g. 2024',
+                    hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
                     prefixIcon: Icon(Icons.calendar_today_outlined, color: primaryAccent, size: 20),
+                    filled: true,
+                    fillColor: cardBg,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: borderCol),
+                    ),
                   ),
                 ),
 
                 const SizedBox(height: 16),
 
                 // Searchable Department Selector
-                const Text('Department (Search & Select from 60 Departments)', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text('Department (Search & Select from 60 Departments)', style: TextStyle(color: textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
                 GestureDetector(
                   onTap: _openDepartmentSearchDialog,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
+                      color: cardBg,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: primaryAccent.withOpacity(0.6), width: 1.2),
                     ),
@@ -456,8 +499,8 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                         Expanded(
                           child: Text(
                             _selectedDepartment,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: textCol,
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
                             ),
@@ -492,11 +535,10 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                     onPressed: _submitRegistration,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryAccent,
-                      foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 4,
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
@@ -504,12 +546,12 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            color: isDark ? Colors.black : Colors.white,
                             letterSpacing: 0.5,
                           ),
                         ),
-                        SizedBox(width: 8),
-                        Icon(Icons.arrow_forward, color: Colors.black, size: 20),
+                        const SizedBox(width: 8),
+                        Icon(Icons.arrow_forward, color: isDark ? Colors.black : Colors.white, size: 20),
                       ],
                     ),
                   ),
@@ -619,6 +661,13 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
     final filtered = _getFilteredDepartments();
     final keyboardPadding = MediaQuery.of(context).viewInsets.bottom;
 
@@ -628,12 +677,12 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
       ),
       margin: EdgeInsets.only(bottom: keyboardPadding),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: cardBg,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         border: Border.all(color: primaryAccent.withOpacity(0.4), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.5),
+            color: isDark ? Colors.black.withOpacity(0.5) : Colors.black.withOpacity(0.1),
             blurRadius: 20,
             offset: const Offset(0, -4),
           ),
@@ -648,7 +697,7 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
             width: 44,
             height: 4,
             decoration: BoxDecoration(
-              color: AppTheme.borderMuted,
+              color: borderCol,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -664,13 +713,13 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
                   children: [
                     Icon(Icons.school, color: primaryAccent, size: 24),
                     const SizedBox(width: 10),
-                    const Text(
+                    Text(
                       'WCU Departments',
                       style: TextStyle(
                         fontFamily: 'serif',
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: textCol,
                       ),
                     ),
                   ],
@@ -697,14 +746,15 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
             child: TextField(
               controller: _searchController,
               autofocus: false,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: textCol, fontSize: 14),
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Search department (e.g. Software, Medicine)...',
+                hintStyle: TextStyle(color: textMuted.withOpacity(0.7), fontSize: 13),
                 prefixIcon: Icon(Icons.search, color: primaryAccent, size: 20),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear, size: 18, color: AppTheme.textSecondary),
+                        icon: Icon(Icons.clear, size: 18, color: textMuted),
                         onPressed: () {
                           _searchController.clear();
                           setState(() {});
@@ -712,11 +762,11 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
                       )
                     : null,
                 filled: true,
-                fillColor: theme.scaffoldBackgroundColor,
+                fillColor: elevatedBg,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: primaryAccent.withOpacity(0.4)),
+                  borderSide: BorderSide(color: borderCol),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -744,17 +794,19 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
                     labelStyle: TextStyle(
                       fontSize: 11,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? Colors.black : Colors.white70,
+                      color: isSelected
+                          ? (isDark ? Colors.black : Colors.white)
+                          : textCol.withOpacity(0.8),
                     ),
                     selected: isSelected,
                     selectedColor: primaryAccent,
-                    backgroundColor: theme.scaffoldBackgroundColor,
-                    checkmarkColor: Colors.black,
+                    backgroundColor: elevatedBg,
+                    checkmarkColor: isDark ? Colors.black : Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: BorderSide(
-                        color: isSelected ? primaryAccent : AppTheme.borderMuted,
+                        color: isSelected ? primaryAccent : borderCol,
                       ),
                     ),
                     onSelected: (val) {
@@ -776,11 +828,11 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.search_off, size: 44, color: AppTheme.textTertiary),
+                        Icon(Icons.search_off, size: 44, color: textMuted.withOpacity(0.6)),
                         const SizedBox(height: 10),
                         Text(
                           'No department matching "${_searchController.text}"',
-                          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                          style: TextStyle(color: textMuted, fontSize: 13),
                         ),
                       ],
                     ),
@@ -797,12 +849,12 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
                         decoration: BoxDecoration(
                           color: isSelected
                               ? primaryAccent.withOpacity(0.15)
-                              : theme.scaffoldBackgroundColor,
+                              : elevatedBg,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isSelected
                                 ? primaryAccent
-                                : AppTheme.borderMuted.withOpacity(0.5),
+                                : borderCol,
                             width: isSelected ? 1.5 : 1,
                           ),
                         ),
@@ -811,7 +863,7 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
                           dense: true,
                           leading: Icon(
                             isSelected ? Icons.check_circle : Icons.circle_outlined,
-                            color: isSelected ? primaryAccent : AppTheme.textTertiary,
+                            color: isSelected ? primaryAccent : textMuted.withOpacity(0.5),
                             size: 18,
                           ),
                           title: Text(
@@ -819,7 +871,7 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                              color: isSelected ? primaryAccent : Colors.white,
+                              color: isSelected ? primaryAccent : textCol,
                             ),
                           ),
                           onTap: () {
