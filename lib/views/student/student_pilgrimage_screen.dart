@@ -28,6 +28,20 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
         title: const Text('Pilgrimage & Trips • የንግሥ ጉዞ'),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
+        actions: [
+          if (state.canManagePilgrimages) ...[
+            IconButton(
+              icon: const Icon(Icons.qr_code_scanner, color: Color(0xFF10B981)),
+              tooltip: 'Bus Manifest & QR Boarding Scanner',
+              onPressed: () => _showBusManifestAndScannerModal(context, state),
+            ),
+            IconButton(
+              icon: Icon(Icons.add_circle_outline, color: primaryAccent),
+              tooltip: 'Add New Pilgrimage Trip',
+              onPressed: () => _showAddTripDialog(context, state),
+            ),
+          ],
+        ],
       ),
       body: Column(
         children: [
@@ -251,33 +265,48 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                       const SizedBox(height: 14),
                     ],
 
-                    // Action Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: isRegistered
-                          ? ElevatedButton.icon(
-                              onPressed: () => setState(() => _activeTab = 1),
-                              icon: const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 18),
-                              label: const Text('Registered • View Boarding Pass', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF10B981),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            )
-                          : ElevatedButton.icon(
-                              onPressed: () => _openRegistrationModal(context, trip),
-                              icon: Icon(Icons.confirmation_number_outlined, color: isDark ? Colors.black : Colors.white, size: 18),
-                              label: Text(
-                                trip.isFree ? 'Register for Free Trip' : 'Register & Pay via Telebirr / CBE',
-                                style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: trip.isFree ? const Color(0xFF10B981) : primaryAccent,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                              ),
-                            ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: isRegistered
+                              ? ElevatedButton.icon(
+                                  onPressed: () => setState(() => _activeTab = 1),
+                                  icon: const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 18),
+                                  label: const Text('Registered • View Boarding Pass', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF10B981),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                )
+                              : ElevatedButton.icon(
+                                  onPressed: () => _openRegistrationModal(context, trip),
+                                  icon: Icon(Icons.confirmation_number_outlined, color: isDark ? Colors.black : Colors.white, size: 18),
+                                  label: Text(
+                                    trip.isFree ? 'Register for Free Trip' : 'Register & Pay via Telebirr / CBE',
+                                    style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: trip.isFree ? const Color(0xFF10B981) : primaryAccent,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                  ),
+                                ),
+                        ),
+                        if (state.canManagePilgrimages) ...[
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: AppTheme.crimson, size: 20),
+                            tooltip: 'Delete / Archive Trip',
+                            onPressed: () {
+                              state.removePilgrimageTrip(trip.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Trip "${trip.title}" deleted.')),
+                              );
+                            },
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
@@ -634,6 +663,282 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                         ),
                         child: const Text('Confirm Registration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAddTripDialog(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final titleCtrl = TextEditingController();
+    final destCtrl = TextEditingController();
+    final feeCtrl = TextEditingController(text: '350');
+    final departPointCtrl = TextEditingController(text: 'WCU Main Campus Gate');
+    final seatsCtrl = TextEditingController(text: '90');
+    bool isFree = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text('🚌 Add Pilgrimage Trip', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Trip Title (e.g. ጉዞ ወደ ደብረ ሊባኖስ)')),
+                    const SizedBox(height: 8),
+                    TextField(controller: destCtrl, decoration: const InputDecoration(labelText: 'Monastery Destination (መዳረሻ ገዳም)')),
+                    const SizedBox(height: 8),
+                    TextField(controller: departPointCtrl, decoration: const InputDecoration(labelText: 'Departure Location (መነሻ ቦታ)')),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      title: const Text('Free Trip (ነፃ ጉዞ)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      value: isFree,
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: const Color(0xFF10B981),
+                      onChanged: (val) => setDialogState(() => isFree = val),
+                    ),
+                    if (!isFree) ...[
+                      TextField(controller: feeCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Trip Fee in ETB (የጉዞ ዋጋ)')),
+                      const SizedBox(height: 8),
+                    ],
+                    TextField(controller: seatsCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Total Available Seats (ጠቅላላ ወንበር)')),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () {
+                    if (titleCtrl.text.trim().isEmpty || destCtrl.text.trim().isEmpty) return;
+                    final totalSeats = int.tryParse(seatsCtrl.text.trim()) ?? 90;
+                    final feeAmt = isFree ? 0.0 : (double.tryParse(feeCtrl.text.trim()) ?? 350.0);
+
+                    final newTrip = PilgrimageTripModel(
+                      id: 'trip-${DateTime.now().millisecondsSinceEpoch}',
+                      title: titleCtrl.text.trim(),
+                      destination: destCtrl.text.trim(),
+                      departureDate: DateTime.now().add(const Duration(days: 14)),
+                      returnDate: DateTime.now().add(const Duration(days: 15)),
+                      departurePoint: departPointCtrl.text.trim(),
+                      isFree: isFree,
+                      feeAmount: feeAmt,
+                      telebirrNumber: '+251911223344',
+                      telebirrAccountName: 'WCU Orthodox Fellowship',
+                      cbeAccountNumber: '1000123456789',
+                      cbeAccountName: 'WCU Orthodox Student Fellowship',
+                      totalSeats: totalSeats,
+                      bookedSeats: 0,
+                      itinerary: ['5:30 AM - Departure from WCU Gate', '10:00 AM - Arrival & Liturgy', '3:00 PM - Spiritual Teaching & Return'],
+                      packingList: ['White Netsela/Gabi', 'Mezmur Book', 'Fasting Food & Water'],
+                      coordinatorName: state.currentUser.fullName,
+                      coordinatorPhone: state.currentUser.phoneNumber,
+                    );
+
+                    state.addPilgrimageTrip(newTrip);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Trip "${newTrip.title}" created successfully!')),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: primaryAccent, foregroundColor: Colors.white),
+                  child: const Text('Create Trip', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showBusManifestAndScannerModal(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final scanCodeCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final allRegs = state.allTripRegistrations;
+            final boardedCount = allRegs.where((r) => r.isBoarded).length;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                top: 20,
+                left: 18,
+                right: 18,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.75,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.directions_bus, color: Color(0xFF10B981), size: 22),
+                            const SizedBox(width: 8),
+                            Text('Bus Boarding & QR Ticket Control', style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent)),
+                          ],
+                        ),
+                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Batch & Programs Coordinator Bus Passenger Letter Control. Scan or enter QR ticket code.',
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Quick Boarding Code Input
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: scanCodeCtrl,
+                            decoration: InputDecoration(
+                              labelText: 'Scan or Enter QR Ticket Code',
+                              hintText: 'e.g. PILGRIM-TRIP-USR01',
+                              prefixIcon: const Icon(Icons.qr_code),
+                              isDense: true,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            if (scanCodeCtrl.text.trim().isEmpty) return;
+                            final code = scanCodeCtrl.text.trim();
+                            final success = state.scanBusBoardingTicket(code);
+                            if (success) {
+                              scanCodeCtrl.clear();
+                              setModalState(() {});
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('✅ Ticket verified! Passenger boarded.'), backgroundColor: Color(0xFF10B981)),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('❌ Ticket code not found.'), backgroundColor: AppTheme.crimson),
+                              );
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14)),
+                          child: const Text('Board', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Passenger Stats Banner
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Passenger Manifest (${allRegs.length} total)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text('Boarded: $boardedCount / ${allRegs.length}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Passenger List
+                    Expanded(
+                      child: allRegs.isEmpty
+                          ? const Center(child: Text('No registered passengers found.'))
+                          : ListView.builder(
+                              itemCount: allRegs.length,
+                              itemBuilder: (c, idx) {
+                                final reg = allRegs[idx];
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: reg.isBoarded ? const Color(0xFF10B981) : theme.dividerColor),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: reg.isBoarded ? const Color(0xFF10B981).withOpacity(0.2) : theme.colorScheme.surfaceContainerHighest,
+                                        child: Icon(
+                                          reg.isBoarded ? Icons.check_circle : Icons.person_outline,
+                                          size: 18,
+                                          color: reg.isBoarded ? const Color(0xFF10B981) : primaryAccent,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '${reg.studentName} (${reg.studentBaptismalName})',
+                                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                                            ),
+                                            Text(
+                                              'Bus #${reg.busNumber} • Seat #${reg.seatNumber} • ${reg.department}',
+                                              style: TextStyle(fontSize: 10, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                                            ),
+                                            Text(
+                                              'Ticket: ${reg.qrTicketCode}',
+                                              style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.bold),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          reg.isBoarded ? Icons.check_box : Icons.check_box_outline_blank,
+                                          color: reg.isBoarded ? const Color(0xFF10B981) : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                                        ),
+                                        tooltip: 'Toggle Boarded Status',
+                                        onPressed: () {
+                                          state.togglePassengerBoarded(reg.id);
+                                          setModalState(() {});
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                     ),
                   ],
                 ),

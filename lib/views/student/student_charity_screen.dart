@@ -27,6 +27,20 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
         title: const Text('Mutual Aid & Charity • መረዳጃና ምጽዋት'),
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
+        actions: [
+          if (state.canManageCharityAndAid) ...[
+            IconButton(
+              icon: const Icon(Icons.volunteer_activism, color: Color(0xFF10B981)),
+              tooltip: 'Emergency Aid Requests Review',
+              onPressed: () => _showAidReviewModal(context, state),
+            ),
+            IconButton(
+              icon: Icon(Icons.add_circle_outline, color: primaryAccent),
+              tooltip: 'Add Charity Campaign',
+              onPressed: () => _showAddCampaignDialog(context, state),
+            ),
+          ],
+        ],
       ),
       body: Column(
         children: [
@@ -222,15 +236,34 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                 ),
 
                 const SizedBox(height: 14),
-                ElevatedButton(
-                  onPressed: () => _openDonateModal(context, camp),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryAccent,
-                    foregroundColor: isDark ? Colors.black : Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    minimumSize: const Size(double.infinity, 40),
-                  ),
-                  child: const Text('Donate via Telebirr / CBE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => _openDonateModal(context, camp),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryAccent,
+                          foregroundColor: isDark ? Colors.black : Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          minimumSize: const Size(double.infinity, 40),
+                        ),
+                        child: const Text('Donate via Telebirr / CBE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      ),
+                    ),
+                    if (state.canManageCharityAndAid) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppTheme.crimson, size: 20),
+                        tooltip: 'Delete Campaign',
+                        onPressed: () {
+                          state.removeCharityCampaign(camp.id);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Campaign "${camp.title}" removed.')),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
@@ -674,6 +707,247 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                   child: Text('Submit Application', style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAddCampaignDialog(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final titleCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final targetCtrl = TextEditingController(text: '10000');
+    String category = 'Student Mutual Aid';
+    bool isEmergency = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Text('🤝 Add Aid Campaign', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: 'Campaign Title (የዘመቻው ርዕስ)')),
+                    const SizedBox(height: 8),
+                    TextField(controller: descCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'Description (ዝርዝር ዓላማ)')),
+                    const SizedBox(height: 8),
+                    TextField(controller: targetCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Target Amount ETB (የገንዘብ ግብ)')),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: category,
+                      dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                      decoration: const InputDecoration(labelText: 'Category'),
+                      items: const [
+                        DropdownMenuItem(value: 'Student Mutual Aid', child: Text('Student Mutual Aid (የተማሪዎች ድጋፍ)')),
+                        DropdownMenuItem(value: 'Orphanage Outreach', child: Text('Orphanage Outreach (የሕፃናት ማሳደጊያ)')),
+                        DropdownMenuItem(value: 'Hospital Welfare', child: Text('Hospital Welfare (የሕሙማን ድጋፍ)')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setDialogState(() => category = val);
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      title: const Text('Emergency Campaign (አስቸኳይ)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      value: isEmergency,
+                      contentPadding: EdgeInsets.zero,
+                      activeColor: AppTheme.crimson,
+                      onChanged: (val) => setDialogState(() => isEmergency = val),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: () {
+                    if (titleCtrl.text.trim().isEmpty || descCtrl.text.trim().isEmpty) return;
+                    final targetAmt = double.tryParse(targetCtrl.text.trim()) ?? 10000.0;
+
+                    final newCamp = CharityCampaignModel(
+                      id: 'camp-${DateTime.now().millisecondsSinceEpoch}',
+                      title: titleCtrl.text.trim(),
+                      description: descCtrl.text.trim(),
+                      targetAmount: targetAmt,
+                      raisedAmount: 0.0,
+                      donorsCount: 0,
+                      deadline: DateTime.now().add(const Duration(days: 30)),
+                      isEmergency: isEmergency,
+                      category: category,
+                    );
+
+                    state.addCharityCampaign(newCamp);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Campaign "${newCamp.title}" created successfully!')),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: primaryAccent, foregroundColor: Colors.white),
+                  child: const Text('Create Campaign', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showAidReviewModal(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final requests = state.emergencyAidRequests;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                top: 20,
+                left: 18,
+                right: 18,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.75,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.volunteer_activism, color: Color(0xFF10B981), size: 22),
+                            const SizedBox(width: 8),
+                            Text('Emergency Student Aid Reviews', style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent)),
+                          ],
+                        ),
+                        IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Vocational & Charity Coordinator Aid Review Desk. Evaluate and disburse aid to verified applicants.',
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Expanded(
+                      child: requests.isEmpty
+                          ? const Center(child: Text('No emergency aid requests submitted.'))
+                          : ListView.builder(
+                              itemCount: requests.length,
+                              itemBuilder: (c, idx) {
+                                final req = requests[idx];
+                                final isPending = req.status == EmergencyAidStatus.underReview;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: req.status == EmergencyAidStatus.approved
+                                          ? AppTheme.emerald
+                                          : req.status == EmergencyAidStatus.declined
+                                              ? AppTheme.crimson
+                                              : primaryAccent,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            '${req.studentName} (${req.studentBaptismalName})',
+                                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              req.status.displayName,
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: req.status == EmergencyAidStatus.approved
+                                                    ? AppTheme.emerald
+                                                    : req.status == EmergencyAidStatus.declined
+                                                        ? AppTheme.crimson
+                                                        : primaryAccent,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Requested: ${req.amountRequested.toStringAsFixed(0)} ETB • Category: ${req.category.displayName}',
+                                        style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
+                                      ),
+                                      Text(
+                                        'Need: "${req.description}"',
+                                        style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                                      ),
+                                      if (req.adminNote != null) ...[
+                                        const SizedBox(height: 4),
+                                        Text('Coordinator Note: ${req.adminNote}', style: const TextStyle(fontSize: 10, color: AppTheme.emerald)),
+                                      ],
+                                      if (isPending) ...[
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: [
+                                            TextButton(
+                                              onPressed: () {
+                                                state.verifyEmergencyAid(req.id, EmergencyAidStatus.declined, adminNote: 'Referred to general dining hall.');
+                                                setModalState(() {});
+                                              },
+                                              child: const Text('Decline', style: TextStyle(color: AppTheme.crimson, fontSize: 11)),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            ElevatedButton(
+                                              onPressed: () {
+                                                state.verifyEmergencyAid(req.id, EmergencyAidStatus.approved, adminNote: 'Approved & disbursed from Mutual Aid Fund.');
+                                                setModalState(() {});
+                                              },
+                                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
+                                              child: const Text('Approve & Disburse', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
             );
           },
         );

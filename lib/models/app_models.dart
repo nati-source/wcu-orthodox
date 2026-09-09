@@ -35,6 +35,160 @@ extension UserRoleExtension on UserRole {
   }
 }
 
+// ============================================================================
+// 10 EOTC FELLOWSHIP DEPARTMENTS & RBAC CONSTANTS
+// ============================================================================
+
+class FellowshipDepartmentConstants {
+  static const String deptEducation = 'dept-apostolic'; // DEPT_EDUCATION (ትምህርትና ሐዋርያዊ አገልግሎት)
+  static const String deptMemberCare = 'dept-membercare'; // DEPT_MEMBER_CARE (አባላት እንክብካቤ፤ ምክክርና አቅም ማጎልበቻ)
+  static const String deptChoirArts = 'dept-music'; // DEPT_CHOIR_ARTS (መዝሙርና ስነ ጥበባት)
+  static const String deptDevelopment = 'dept-development'; // DEPT_DEVELOPMENT (ልማትና ገቢ አሰባሰብ)
+  static const String deptFinanceProperty = 'dept-accounting'; // DEPT_FINANCE_PROPERTY (ሒሳብና ንብረት)
+  static const String deptBatchPrograms = 'dept-programs'; // DEPT_BATCH_PROGRAMS (ባችና መርሐ ግብራት ማስተባበሪያ)
+  static const String deptCharity = 'dept-charity'; // DEPT_CHARITY (ሙያና በጎ አድራጎት)
+  static const String deptSpecialNeeds = 'dept-language'; // DEPT_SPECIAL_NEEDS (ቋንቋና ልዩ ልዩ ፍላጎት)
+  static const String deptPlanning = 'dept-planning'; // DEPT_PLANNING (እቅድና ክትትል)
+  static const String deptAudit = 'dept-audit'; // DEPT_AUDIT (ኦዲትና ኢንስፔክሽን)
+
+  static const List<String> allDepartmentIds = [
+    deptEducation,
+    deptMemberCare,
+    deptChoirArts,
+    deptDevelopment,
+    deptFinanceProperty,
+    deptBatchPrograms,
+    deptCharity,
+    deptSpecialNeeds,
+    deptPlanning,
+    deptAudit,
+  ];
+
+  static const Map<String, String> amharicNames = {
+    deptEducation: 'ትምህርትና ሐዋርያዊ አገልግሎት',
+    deptMemberCare: 'አባላት እንክብካቤ፤ ምክክርና አቅም ማጎልበቻ',
+    deptChoirArts: 'መዝሙርና ስነ ጥበባት',
+    deptDevelopment: 'ልማትና ገቢ አሰባሰብ',
+    deptFinanceProperty: 'ሒሳብና ንብረት',
+    deptBatchPrograms: 'ባችና መርሐ ግብራት ማስተባበሪያ',
+    deptCharity: 'ሙያና በጎ አድራጎት',
+    deptSpecialNeeds: 'ቋንቋና ልዩ ልዩ ፍላጎት',
+    deptPlanning: 'እቅድና ክትትል',
+    deptAudit: 'ኦዲትና ኢንስፔክሽን',
+  };
+
+  static const Map<String, String> englishNames = {
+    deptEducation: 'Education & Apostolic Ministry',
+    deptMemberCare: 'Member Care, Counseling & Capacity',
+    deptChoirArts: 'Music, Hymnography & Sacred Arts',
+    deptDevelopment: 'Development & Fundraising',
+    deptFinanceProperty: 'Accounting & Property Management',
+    deptBatchPrograms: 'Batch & Programs Coordination',
+    deptCharity: 'Vocational & Charitable Activities',
+    deptSpecialNeeds: 'Language & Special Needs',
+    deptPlanning: 'Planning & Monitoring',
+    deptAudit: 'Audit & Inspection',
+  };
+
+  static String normalize(String deptIdOrKey) {
+    switch (deptIdOrKey.toUpperCase()) {
+      case 'DEPT_EDUCATION':
+        return deptEducation;
+      case 'DEPT_MEMBER_CARE':
+        return deptMemberCare;
+      case 'DEPT_CHOIR_ARTS':
+        return deptChoirArts;
+      case 'DEPT_DEVELOPMENT':
+        return deptDevelopment;
+      case 'DEPT_FINANCE_PROPERTY':
+        return deptFinanceProperty;
+      case 'DEPT_BATCH_PROGRAMS':
+        return deptBatchPrograms;
+      case 'DEPT_CHARITY':
+        return deptCharity;
+      case 'DEPT_SPECIAL_NEEDS':
+        return deptSpecialNeeds;
+      case 'DEPT_PLANNING':
+        return deptPlanning;
+      case 'DEPT_AUDIT':
+        return deptAudit;
+      default:
+        return deptIdOrKey;
+    }
+  }
+
+  static String normalizeDepartmentId(String deptIdOrKey) => normalize(deptIdOrKey);
+
+  static String getNameAmharic(String deptIdOrKey) {
+    final normalized = normalize(deptIdOrKey);
+    return amharicNames[normalized] ?? amharicNames[deptIdOrKey] ?? deptIdOrKey;
+  }
+
+  static String getNameEn(String deptIdOrKey) {
+    final normalized = normalize(deptIdOrKey);
+    return englishNames[normalized] ?? englishNames[deptIdOrKey] ?? deptIdOrKey;
+  }
+}
+
+class CoordinatorProfileModel {
+  final String departmentId; // e.g. 'dept-music'
+  final String departmentTitle;
+  final String departmentTitleAmharic;
+  final String departmentNameEn;
+  final String departmentNameAmharic;
+  final String coordinatorTitle;
+  final DateTime? appointedDate;
+  final bool canApproveApplicants;
+  final bool canManageRoster;
+  final bool canPublishAnnouncements;
+  final bool isReadOnlyAudit; // true for DEPT_AUDIT (ኦዲትና ኢንስፔክሽን)
+
+  const CoordinatorProfileModel({
+    required this.departmentId,
+    String? departmentTitle,
+    String? departmentTitleAmharic,
+    String? departmentNameEn,
+    String? departmentNameAmharic,
+    this.coordinatorTitle = 'Department Coordinator',
+    this.appointedDate,
+    this.canApproveApplicants = true,
+    this.canManageRoster = true,
+    this.canPublishAnnouncements = true,
+    this.isReadOnlyAudit = false,
+  })  : departmentTitle = departmentTitle ?? departmentNameEn ?? '',
+        departmentTitleAmharic = departmentTitleAmharic ?? departmentNameAmharic ?? '',
+        departmentNameEn = departmentNameEn ?? departmentTitle ?? '',
+        departmentNameAmharic = departmentNameAmharic ?? departmentTitleAmharic ?? '';
+
+  CoordinatorProfileModel copyWith({
+    String? departmentId,
+    String? departmentTitle,
+    String? departmentTitleAmharic,
+    String? departmentNameEn,
+    String? departmentNameAmharic,
+    String? coordinatorTitle,
+    DateTime? appointedDate,
+    bool? canApproveApplicants,
+    bool? canManageRoster,
+    bool? canPublishAnnouncements,
+    bool? isReadOnlyAudit,
+  }) {
+    return CoordinatorProfileModel(
+      departmentId: departmentId ?? this.departmentId,
+      departmentTitle: departmentTitle ?? this.departmentTitle,
+      departmentTitleAmharic: departmentTitleAmharic ?? this.departmentTitleAmharic,
+      departmentNameEn: departmentNameEn ?? this.departmentNameEn,
+      departmentNameAmharic: departmentNameAmharic ?? this.departmentNameAmharic,
+      coordinatorTitle: coordinatorTitle ?? this.coordinatorTitle,
+      appointedDate: appointedDate ?? this.appointedDate,
+      canApproveApplicants: canApproveApplicants ?? this.canApproveApplicants,
+      canManageRoster: canManageRoster ?? this.canManageRoster,
+      canPublishAnnouncements: canPublishAnnouncements ?? this.canPublishAnnouncements,
+      isReadOnlyAudit: isReadOnlyAudit ?? this.isReadOnlyAudit,
+    );
+  }
+}
+
 class UserModel {
   final String id;
   final String fullName;
@@ -50,6 +204,7 @@ class UserModel {
   final String? assignedFamilyId;
   final String? avatarUrl;
   final double attendancePercentage; // e.g. 88.0
+  final CoordinatorProfileModel? coordinatorProfile;
 
   UserModel({
     required this.id,
@@ -66,6 +221,7 @@ class UserModel {
     this.assignedFamilyId,
     this.avatarUrl,
     this.attendancePercentage = 85.0,
+    this.coordinatorProfile,
   });
 
   UserModel copyWith({
@@ -83,6 +239,7 @@ class UserModel {
     String? assignedFamilyId,
     String? avatarUrl,
     double? attendancePercentage,
+    CoordinatorProfileModel? coordinatorProfile,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -99,6 +256,7 @@ class UserModel {
       assignedFamilyId: assignedFamilyId ?? this.assignedFamilyId,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       attendancePercentage: attendancePercentage ?? this.attendancePercentage,
+      coordinatorProfile: coordinatorProfile ?? this.coordinatorProfile,
     );
   }
 }
@@ -562,6 +720,40 @@ class MinistryModel {
   String get description => descriptionEn;
 }
 
+enum ChoirWingType {
+  mezmur,
+  fineArts,
+}
+
+extension ChoirWingTypeExtension on ChoirWingType {
+  String get displayName {
+    switch (this) {
+      case ChoirWingType.mezmur:
+        return 'መዝሙር ክፍል (Yaredic Hymnography & Choir)';
+      case ChoirWingType.fineArts:
+        return 'ስነ ጥበባት ክፍል (Sacred Drama, Poetry & Literature)';
+    }
+  }
+
+  String get shortName {
+    switch (this) {
+      case ChoirWingType.mezmur:
+        return 'መዝሙር (Choir)';
+      case ChoirWingType.fineArts:
+        return 'ስነ ጥበባት (Fine Arts)';
+    }
+  }
+
+  String get coordinatorName {
+    switch (this) {
+      case ChoirWingType.mezmur:
+        return 'Dawit Fikadu';
+      case ChoirWingType.fineArts:
+        return 'Martha Tedla';
+    }
+  }
+}
+
 enum ApplicationStatus { pending, approved, rejected }
 
 class VolunteerApplicationModel {
@@ -576,6 +768,8 @@ class VolunteerApplicationModel {
   final String ministryTitle;
   final String ministryAmharicTitle;
   final String preferredSubWing;
+  final ChoirWingType? choirWing;
+  final List<String> languagesKnown;
   final String reason;
   final String experience;
   final String availability;
@@ -597,6 +791,8 @@ class VolunteerApplicationModel {
     required this.ministryTitle,
     this.ministryAmharicTitle = '',
     this.preferredSubWing = 'General',
+    this.choirWing,
+    this.languagesKnown = const [],
     required this.reason,
     required this.experience,
     required this.availability,
@@ -619,6 +815,8 @@ class VolunteerApplicationModel {
     String? ministryTitle,
     String? ministryAmharicTitle,
     String? preferredSubWing,
+    ChoirWingType? choirWing,
+    List<String>? languagesKnown,
     String? reason,
     String? experience,
     String? availability,
@@ -640,6 +838,8 @@ class VolunteerApplicationModel {
       ministryTitle: ministryTitle ?? this.ministryTitle,
       ministryAmharicTitle: ministryAmharicTitle ?? this.ministryAmharicTitle,
       preferredSubWing: preferredSubWing ?? this.preferredSubWing,
+      choirWing: choirWing ?? this.choirWing,
+      languagesKnown: languagesKnown ?? this.languagesKnown,
       reason: reason ?? this.reason,
       experience: experience ?? this.experience,
       availability: availability ?? this.availability,
@@ -662,6 +862,7 @@ class DepartmentMemberModel {
   final String studentYear;
   final String phoneNumber;
   final String subWing;
+  final ChoirWingType? choirWing;
   final String roleInDepartment;
   final DateTime joinedDate;
 
@@ -675,9 +876,100 @@ class DepartmentMemberModel {
     required this.studentYear,
     required this.phoneNumber,
     required this.subWing,
+    this.choirWing,
     required this.roleInDepartment,
     required this.joinedDate,
   });
+}
+
+class DepartmentBroadcastMessageModel {
+  final String id;
+  final String departmentId;
+  final String title;
+  final String body;
+  final String senderName;
+  final String senderRole;
+  final DateTime sentAt;
+  final String urgency; // 'normal', 'urgent', 'meeting'
+  final String? meetingLocation;
+  final DateTime? meetingTime;
+
+  const DepartmentBroadcastMessageModel({
+    required this.id,
+    required this.departmentId,
+    required this.title,
+    required this.body,
+    required this.senderName,
+    required this.senderRole,
+    required this.sentAt,
+    this.urgency = 'normal',
+    this.meetingLocation,
+    this.meetingTime,
+  });
+
+  bool get isSpecialTeacherNotice => title.contains('ልዩ የትምህርትና ስብከት') || title.contains('መምህር');
+}
+
+enum ProposalStatus { pending, approved, rejected }
+
+class FundraisingProposalModel {
+  final String id;
+  final String title;
+  final String objective;
+  final double targetAmount;
+  final String proposedStrategy;
+  final String targetAudience;
+  final String submittedByName;
+  final String submittedByDept;
+  final DateTime submittedAt;
+  final ProposalStatus status;
+  final String? adminReviewNotes;
+  final DateTime? reviewedAt;
+
+  const FundraisingProposalModel({
+    required this.id,
+    required this.title,
+    required this.objective,
+    required this.targetAmount,
+    required this.proposedStrategy,
+    required this.targetAudience,
+    required this.submittedByName,
+    this.submittedByDept = FellowshipDepartmentConstants.deptDevelopment,
+    required this.submittedAt,
+    this.status = ProposalStatus.pending,
+    this.adminReviewNotes,
+    this.reviewedAt,
+  });
+
+  FundraisingProposalModel copyWith({
+    String? id,
+    String? title,
+    String? objective,
+    double? targetAmount,
+    String? proposedStrategy,
+    String? targetAudience,
+    String? submittedByName,
+    String? submittedByDept,
+    DateTime? submittedAt,
+    ProposalStatus? status,
+    String? adminReviewNotes,
+    DateTime? reviewedAt,
+  }) {
+    return FundraisingProposalModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      objective: objective ?? this.objective,
+      targetAmount: targetAmount ?? this.targetAmount,
+      proposedStrategy: proposedStrategy ?? this.proposedStrategy,
+      targetAudience: targetAudience ?? this.targetAudience,
+      submittedByName: submittedByName ?? this.submittedByName,
+      submittedByDept: submittedByDept ?? this.submittedByDept,
+      submittedAt: submittedAt ?? this.submittedAt,
+      status: status ?? this.status,
+      adminReviewNotes: adminReviewNotes ?? this.adminReviewNotes,
+      reviewedAt: reviewedAt ?? this.reviewedAt,
+    );
+  }
 }
 
 // ============================================================================
@@ -1393,6 +1685,8 @@ class TripRegistrationModel {
   final String transactionReference;
   final TripPaymentStatus paymentStatus;
   final String qrTicketCode;
+  final bool isBoarded;
+  final DateTime? boardedAt;
   final DateTime registeredAt;
 
   TripRegistrationModel({
@@ -1413,6 +1707,8 @@ class TripRegistrationModel {
     required this.transactionReference,
     this.paymentStatus = TripPaymentStatus.pendingVerification,
     required this.qrTicketCode,
+    this.isBoarded = false,
+    this.boardedAt,
     required this.registeredAt,
   });
 
@@ -1434,6 +1730,8 @@ class TripRegistrationModel {
     String? transactionReference,
     TripPaymentStatus? paymentStatus,
     String? qrTicketCode,
+    bool? isBoarded,
+    DateTime? boardedAt,
     DateTime? registeredAt,
   }) {
     return TripRegistrationModel(
@@ -1454,6 +1752,8 @@ class TripRegistrationModel {
       transactionReference: transactionReference ?? this.transactionReference,
       paymentStatus: paymentStatus ?? this.paymentStatus,
       qrTicketCode: qrTicketCode ?? this.qrTicketCode,
+      isBoarded: isBoarded ?? this.isBoarded,
+      boardedAt: boardedAt ?? this.boardedAt,
       registeredAt: registeredAt ?? this.registeredAt,
     );
   }

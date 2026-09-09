@@ -235,15 +235,20 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 const SizedBox(height: 18),
 
                 // Liturgy Countdown Numbers (e.g. 02:15:45)
-                Text(
-                  countdownStr,
-                  style: TextStyle(
-                    fontFamily: 'serif',
-                    fontSize: 42,
-                    fontWeight: FontWeight.w800,
-                    color: primaryAccent,
-                    letterSpacing: 2.0,
-                  ),
+                ValueListenableBuilder<Duration>(
+                  valueListenable: state.liturgyCountdownNotifier,
+                  builder: (context, duration, _) {
+                    return Text(
+                      _formatDuration(duration),
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 42,
+                        fontWeight: FontWeight.w800,
+                        color: primaryAccent,
+                        letterSpacing: 2.0,
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(height: 2),
                 Text(

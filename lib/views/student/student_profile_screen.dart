@@ -10,6 +10,8 @@ import 'student_confessor_screen.dart';
 import 'student_pilgrimage_screen.dart';
 import 'student_charity_screen.dart';
 import 'student_mentorship_screen.dart';
+import '../admin/admin_approvals_screen.dart';
+import '../coordinator/coordinator_hub_screen.dart';
 
 class StudentProfileScreen extends StatelessWidget {
   final FellowshipState state;
@@ -174,7 +176,71 @@ class StudentProfileScreen extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+
+          // Scoped Department Coordinator Access Portal
+          if (state.activeRole == UserRole.volunteerCoordinator || user.coordinatorProfile != null) ...[
+            InteractiveFellowshipCard(
+              onTap: () => _navigateTo(context, CoordinatorHubScreen(state: state)),
+              borderColor: primaryAccent.withOpacity(0.6),
+              gradient: LinearGradient(
+                colors: [
+                  primaryAccent.withOpacity(0.18),
+                  theme.cardTheme.color ?? theme.colorScheme.surface,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: primaryAccent.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.admin_panel_settings, color: primaryAccent, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Coordinator Hub • ${user.coordinatorProfile?.departmentNameAmharic ?? 'Department Portal'}',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${user.coordinatorProfile?.departmentNameEn ?? ''} (${user.coordinatorProfile?.isReadOnlyAudit == true ? 'Audit Mode' : 'Scoped Access'})',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: primaryAccent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Manage applicant queues, screening, and active servant rosters.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: primaryAccent),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+          ],
 
           // 2. Personal Fellowship Services Matrix
           Text(

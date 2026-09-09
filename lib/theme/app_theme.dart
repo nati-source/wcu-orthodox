@@ -11,10 +11,12 @@ class AppTheme {
   static const Color surfaceGlass = Color(0xCC101C33);
 
   // Accents: Liturgical Radiant Gold, Warm Honey Gold, Monastic Amber
+  static const Color gold = Color(0xFFF59E0B);
   static const Color goldAccent = Color(0xFFD97706);
   static const Color goldLight = Color(0xFFF59E0B);
   static const Color goldDeep = Color(0xFFB45309);
   static const Color amberGlow = Color(0xFFF59E0B);
+  static const Color amberGold = Color(0xFFF59E0B);
   static const Color goldMuted = Color(0xFF5A4426);
 
   // Status & Liturgical Accents

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
 
-class StudentRoadmapScreen extends StatelessWidget {
+class StudentRoadmapScreen extends StatefulWidget {
   final FellowshipState state;
   final VoidCallback onOpenScanner;
 
@@ -14,7 +15,351 @@ class StudentRoadmapScreen extends StatelessWidget {
   });
 
   @override
+  State<StudentRoadmapScreen> createState() => _StudentRoadmapScreenState();
+}
+
+class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
+  String? _selectedSpiritualChildId;
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
+    final isSpiritualParent = state.activeRole == UserRole.spiritualParent;
+
+    if (isSpiritualParent) {
+      return _buildSpiritualParentRoadmapView(context, state);
+    }
+
+    return _buildStandardStudentRoadmapView(context, state);
+  }
+
+  // ----------------------------------------------------
+  // SPIRITUAL PARENT: SCOPED ROADMAP VIEW
+  // ----------------------------------------------------
+  Widget _buildSpiritualParentRoadmapView(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final currentFamily = state.currentStudentFamily;
+    final children = state.spiritualChildren;
+
+    // Default to the first spiritual child if none explicitly selected
+    if (_selectedSpiritualChildId == null && children.isNotEmpty) {
+      _selectedSpiritualChildId = children.first.id;
+    }
+
+    final selectedChild = children.firstWhere(
+      (c) => c.id == _selectedSpiritualChildId,
+      orElse: () => children.isNotEmpty
+          ? children.first
+          : UserModel(
+              id: 'none',
+              fullName: 'No assigned child',
+              baptismalName: '-',
+              phoneNumber: '-',
+              batchYear: '-',
+              department: '-',
+              academicYear: 1,
+            ),
+    );
+
+    final roadmaps = state.getRoadmapsForStudent(selectedChild.id);
+    final isAuthorized = state.canAccessStudentRoadmap(selectedChild.id);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 90),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Spiritual Parent Oversight Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  primaryAccent.withOpacity(0.18),
+                  theme.cardTheme.color ?? theme.colorScheme.surface,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: primaryAccent.withOpacity(0.5)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: primaryAccent.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(Icons.family_restroom, color: primaryAccent, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            currentFamily?.name ?? 'Orthodox Family Network',
+                            style: TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textCol,
+                            ),
+                          ),
+                          Text(
+                            'Spiritual Parent Curriculum Oversight',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: primaryAccent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Access is scoped strictly to spiritual children assigned to your family. Monitor weekly patristics study, attendance progress, and course phases.',
+                  style: TextStyle(fontSize: 12, color: textMuted, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // 2. Spiritual Children Scroller / Selector
+          Text(
+            'ASSIGNED SPIRITUAL CHILDREN (${children.length})',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: primaryAccent,
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          if (children.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Center(
+                child: Text('No spiritual children assigned yet in this family.', style: TextStyle(color: textMuted, fontSize: 13)),
+              ),
+            )
+          else
+            SizedBox(
+              height: 74,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: children.length,
+                itemBuilder: (ctx, index) {
+                  final child = children[index];
+                  final isSelected = child.id == _selectedSpiritualChildId;
+
+                  return GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _selectedSpiritualChildId = child.id);
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      margin: const EdgeInsets.only(right: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? primaryAccent.withOpacity(0.15)
+                            : (theme.cardTheme.color ?? theme.colorScheme.surface),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected ? primaryAccent : theme.dividerColor,
+                          width: isSelected ? 1.8 : 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: isSelected
+                                ? primaryAccent
+                                : theme.colorScheme.surfaceContainerHighest,
+                            child: Text(
+                              child.fullName.isNotEmpty ? child.fullName[0] : 'S',
+                              style: TextStyle(
+                                color: isSelected
+                                    ? (theme.brightness == Brightness.dark ? Colors.black : Colors.white)
+                                    : primaryAccent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                child.fullName,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: isSelected ? primaryAccent : textCol,
+                                ),
+                              ),
+                              Text(
+                                'B.N. ${child.baptismalName} • Yr ${child.academicYear}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          const SizedBox(height: 20),
+
+          // 3. Child Profile & Attendance Card
+          if (children.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${selectedChild.fullName} • ${selectedChild.department}',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textCol),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Batch ${selectedChild.batchYear} • ${selectedChild.ministryStatus}',
+                          style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: selectedChild.attendancePercentage >= 75
+                          ? AppTheme.emerald.withOpacity(0.15)
+                          : AppTheme.crimson.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: selectedChild.attendancePercentage >= 75
+                            ? AppTheme.emerald.withOpacity(0.4)
+                            : AppTheme.crimson.withOpacity(0.4),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          '${selectedChild.attendancePercentage.toInt()}%',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: selectedChild.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                          ),
+                        ),
+                        Text(
+                          'Attendance',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: selectedChild.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+
+          // 4. Scoped Roadmap Timeline
+          if (!isAuthorized)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.crimson.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.crimson.withOpacity(0.4)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.lock_outline, color: AppTheme.crimson, size: 22),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Access Denied: You can only view roadmaps of spiritual children assigned to your family.',
+                      style: TextStyle(color: AppTheme.crimson, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else ...[
+            Text(
+              'CURRICULUM ROADMAP PROGRESS',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: primaryAccent,
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            ...List.generate(roadmaps.length, (index) {
+              final phase = roadmaps[index];
+              final isLast = index == roadmaps.length - 1;
+              return _buildTimelineItem(
+                context: context,
+                phase: phase,
+                isLast: isLast,
+              );
+            }),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ----------------------------------------------------
+  // STANDARD STUDENT ROADMAP VIEW
+  // ----------------------------------------------------
+  Widget _buildStandardStudentRoadmapView(BuildContext context, FellowshipState state) {
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
     final textCol = theme.colorScheme.onSurface;
@@ -84,7 +429,7 @@ class StudentRoadmapScreen extends StatelessWidget {
               ],
             ),
             child: ElevatedButton.icon(
-              onPressed: onOpenScanner,
+              onPressed: widget.onOpenScanner,
               icon: Icon(
                 Icons.qr_code_scanner,
                 color: isDark ? Colors.black : Colors.white,
@@ -451,7 +796,7 @@ class StudentRoadmapScreen extends StatelessWidget {
                                     color: lesson.isDownloaded ? AppTheme.emerald : primaryAccent,
                                   ),
                                   onPressed: () {
-                                    state.toggleLessonDownload(phase.id, lesson.id);
+                                    widget.state.toggleLessonDownload(phase.id, lesson.id);
                                     Navigator.pop(ctx);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(

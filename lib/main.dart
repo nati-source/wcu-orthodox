@@ -16,6 +16,7 @@ import 'views/admin/admin_family_matching_screen.dart';
 import 'views/admin/admin_live_attendance_screen.dart';
 import 'views/admin/admin_approvals_screen.dart';
 import 'views/admin/admin_media_curriculum_screen.dart';
+import 'views/coordinator/coordinator_hub_screen.dart';
 
 void main() {
   runApp(const WcuOrthodoxApp());
@@ -65,6 +66,7 @@ class MainFellowshipScaffold extends StatefulWidget {
 class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
   int _studentTabIndex = 0;
   int _adminTabIndex = 0;
+  int _coordinatorTabIndex = 0;
 
   void _openQrScanner() {
     Navigator.of(context).push(
@@ -246,9 +248,10 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
   Widget build(BuildContext context) {
     final state = widget.state;
     final isAdmin = state.activeRole == UserRole.admin;
+    final isCoordinator = state.activeRole == UserRole.volunteerCoordinator;
 
     final theme = Theme.of(context);
-    final isStudent = !isAdmin;
+    final isStudent = !isAdmin && !isCoordinator;
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
@@ -256,16 +259,22 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
       body: SafeArea(
         child: Column(
           children: [
-            // Top Experience Switcher Bar (For testing both Student & Admin workflows)
+            // Top Experience Switcher Bar (For testing both Student, Coordinator & Admin workflows)
             ExperienceSwitcherBanner(state: state),
 
             // Authentic Orthodox Header Bar
             OrthodoxHeader(
               state: state,
-              title: isAdmin ? 'WCU Management' : 'Wachamo University Fellowship',
+              title: isAdmin
+                  ? 'WCU Management'
+                  : isCoordinator
+                      ? 'Coordinator Portal'
+                      : 'Wachamo University Fellowship',
               subtitle: isAdmin
                   ? 'Admin Portal • ${state.activeRole.displayName}'
-                  : 'Welcome, ${state.currentUser.fullName.split(' ').first}',
+                  : isCoordinator
+                      ? '${state.currentUser.coordinatorProfile?.departmentNameAmharic ?? "Department Coordinator"}'
+                      : 'Welcome, ${state.currentUser.fullName.split(' ').first}',
               showQrIcon: true,
               onQrTap: _openQrScanner,
               onNotificationTap: () => _openNotificationsModal(context, isAdmin),
@@ -275,14 +284,18 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
             Expanded(
               child: isAdmin
                   ? _buildAdminBody()
-                  : _buildStudentBody(),
+                  : isCoordinator
+                      ? _buildCoordinatorBody()
+                      : _buildStudentBody(),
             ),
           ],
         ),
       ),
       bottomNavigationBar: isAdmin
           ? _buildAdminBottomNav()
-          : _buildStudentBottomNav(),
+          : isCoordinator
+              ? _buildCoordinatorBottomNav()
+              : _buildStudentBottomNav(),
       floatingActionButton: isStudent && _studentTabIndex == 0
           ? FloatingActionButton.extended(
               onPressed: _openRegistrationModal,
@@ -438,6 +451,66 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
             icon: const Icon(Icons.library_add_outlined),
             activeIcon: Icon(Icons.library_add, color: theme.colorScheme.primary),
             label: 'Publish',
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ----------------------------------------------------
+  // COORDINATOR EXPERIENCE NAVIGATION & SCREENS
+  // ----------------------------------------------------
+  Widget _buildCoordinatorBody() {
+    switch (_coordinatorTabIndex) {
+      case 0:
+        return CoordinatorHubScreen(state: widget.state);
+      case 1:
+        return StudentRoadmapScreen(
+          state: widget.state,
+          onOpenScanner: _openQrScanner,
+        );
+      case 2:
+        return StudentLibraryScreen(state: widget.state);
+      case 3:
+        return StudentProfileScreen(state: widget.state);
+      default:
+        return CoordinatorHubScreen(state: widget.state);
+    }
+  }
+
+  Widget _buildCoordinatorBottomNav() {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        border: Border(top: BorderSide(color: theme.colorScheme.primary.withOpacity(0.2), width: 1)),
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _coordinatorTabIndex.clamp(0, 3),
+        backgroundColor: theme.scaffoldBackgroundColor,
+        selectedItemColor: theme.colorScheme.primary,
+        unselectedItemColor: AppTheme.slateMuted,
+        onTap: (index) => setState(() => _coordinatorTabIndex = index),
+        items: [
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.hub_outlined),
+            activeIcon: Icon(Icons.hub, color: theme.colorScheme.primary),
+            label: 'Coord Hub',
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.timeline_outlined),
+            activeIcon: Icon(Icons.timeline, color: theme.colorScheme.primary),
+            label: 'Roadmap',
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.menu_book_outlined),
+            activeIcon: Icon(Icons.menu_book, color: theme.colorScheme.primary),
+            label: 'Library',
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.account_circle_outlined),
+            activeIcon: Icon(Icons.account_circle, color: theme.colorScheme.primary),
+            label: 'Profile',
           ),
         ],
       ),

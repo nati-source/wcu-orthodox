@@ -54,8 +54,25 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     final state = widget.state;
+    final isChoirMinistry = ministry.id == FellowshipDepartmentConstants.deptChoirArts || ministry.id == 'dept-music';
+    final isSpecialNeedsMinistry = ministry.id == FellowshipDepartmentConstants.deptSpecialNeeds || ministry.id == 'dept-language';
+
     String selectedSubWing = ministry.subWings.isNotEmpty ? ministry.subWings.first : 'General Serving';
     String selectedYear = '2nd Year';
+    ChoirWingType selectedChoirWing = ChoirWingType.mezmur;
+    final List<String> selectedLanguages = ['Amharic (አማርኛ)'];
+    const availableLanguages = [
+      'Amharic (አማርኛ)',
+      'Afan Oromo (Afaan Oromoo)',
+      'Tigrinya (ትግርኛ)',
+      'English (እንግሊዝኛ)',
+      'Sign Language (የምልክት ቋንቋ)',
+      'Hadiyya (ሃዲይሳ)',
+      'Wolaytta (ወላይትኛ)',
+      'Sidama (ሲዳሙ-አፎ)',
+      'Geez (ግዕዝ)',
+    ];
+
     final reasonController = TextEditingController();
     final experienceController = TextEditingController();
     final availabilityController = TextEditingController(text: 'Weekends & weekday evenings');
@@ -127,7 +144,9 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Reviewed by ${ministry.teamLead} (${ministry.coordinatorRole})',
+                              isChoirMinistry
+                                  ? 'Dual Wings: Dawit Fikadu (Mezmur) • Martha Tedla (Fine Arts)'
+                                  : 'Reviewed by ${ministry.teamLead} (${ministry.coordinatorRole})',
                               style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
                             ),
                           ),
@@ -135,6 +154,146 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+
+                    // 1. Dual Choir Wing Selection (Exclusive to Choir & Fine Arts)
+                    if (isChoirMinistry) ...[
+                      Text(
+                        'Select Choir & Fine Arts Wing (የአገልግሎት ዘርፍ ምረጥ)',
+                        style: TextStyle(color: textCol, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => setModalState(() => selectedChoirWing = ChoirWingType.mezmur),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: selectedChoirWing == ChoirWingType.mezmur
+                                      ? primaryAccent.withOpacity(0.18)
+                                      : elevatedBg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: selectedChoirWing == ChoirWingType.mezmur
+                                        ? primaryAccent
+                                        : borderCol,
+                                    width: selectedChoirWing == ChoirWingType.mezmur ? 2 : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.music_note,
+                                      color: selectedChoirWing == ChoirWingType.mezmur ? primaryAccent : textMuted,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'መዝሙር (Mezmur)',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: selectedChoirWing == ChoirWingType.mezmur ? primaryAccent : textCol,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Lead: Dawit F.',
+                                      style: TextStyle(fontSize: 9, color: textMuted),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => setModalState(() => selectedChoirWing = ChoirWingType.fineArts),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: selectedChoirWing == ChoirWingType.fineArts
+                                      ? primaryAccent.withOpacity(0.18)
+                                      : elevatedBg,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: selectedChoirWing == ChoirWingType.fineArts
+                                        ? primaryAccent
+                                        : borderCol,
+                                    width: selectedChoirWing == ChoirWingType.fineArts ? 2 : 1,
+                                  ),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      Icons.palette_outlined,
+                                      color: selectedChoirWing == ChoirWingType.fineArts ? primaryAccent : textMuted,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'ስነ ጥበባት (Fine Arts)',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: selectedChoirWing == ChoirWingType.fineArts ? primaryAccent : textCol,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Lead: Martha T.',
+                                      style: TextStyle(fontSize: 9, color: textMuted),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+
+                    // 2. Languages Known Checklist (Exclusive to Language & Special Needs)
+                    if (isSpecialNeedsMinistry) ...[
+                      Text(
+                        'Languages & Communication Skills (የሚያውቋቸው ቋንቋዎች) *',
+                        style: TextStyle(color: textCol, fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Select all languages you can teach, interpret, or communicate in:',
+                        style: TextStyle(fontSize: 11, color: textMuted),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: availableLanguages.map((lang) {
+                          final isSelected = selectedLanguages.contains(lang);
+                          return FilterChip(
+                            label: Text(lang, style: TextStyle(fontSize: 11, color: isSelected ? (isDark ? Colors.black : Colors.white) : textCol)),
+                            selected: isSelected,
+                            selectedColor: primaryAccent,
+                            backgroundColor: elevatedBg,
+                            checkmarkColor: isDark ? Colors.black : Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            onSelected: (bool selected) {
+                              setModalState(() {
+                                if (selected) {
+                                  selectedLanguages.add(lang);
+                                } else {
+                                  selectedLanguages.remove(lang);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
 
                     // Preferred Sub-wing Dropdown
                     Text('Select Specific Sub-wing (የአገልግሎት ዘርፍ)',
@@ -262,6 +421,12 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                           );
                           return;
                         }
+                        if (isSpecialNeedsMinistry && selectedLanguages.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please select at least one language for this department')),
+                          );
+                          return;
+                        }
                         state.submitMinistryApplication(
                           ministryId: ministry.id,
                           reason: reasonController.text.trim(),
@@ -271,11 +436,16 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                           availability: availabilityController.text.trim(),
                           studentYear: selectedYear,
                           preferredSubWing: selectedSubWing,
+                          choirWing: isChoirMinistry ? selectedChoirWing : null,
+                          languagesKnown: isSpecialNeedsMinistry ? selectedLanguages : const [],
                         );
                         Navigator.pop(ctx);
+                        final targetLead = isChoirMinistry
+                            ? (selectedChoirWing == ChoirWingType.mezmur ? 'Dawit Fikadu' : 'Martha Tedla')
+                            : ministry.teamLead;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Application routed directly to ${ministry.teamLead} (${ministry.titleAmharic})!'),
+                            content: Text('Application routed directly to $targetLead (${ministry.titleAmharic})!'),
                             backgroundColor: cardBg,
                           ),
                         );
@@ -404,6 +574,9 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                 ],
               ),
             ),
+
+            // Broadcast Notice Feed for Members & Students
+            _buildBroadcastsFeed(context),
 
             const SizedBox(height: 16),
 
@@ -832,16 +1005,29 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Lead: ${min.teamLead} (${min.coordinatorBaptismalName})',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textCol),
-                    ),
-                    Text(
-                      '${min.activeCount} servants • ${min.openSlots} open slots',
-                      style: TextStyle(fontSize: 10, color: textMuted),
-                    ),
+                    if (min.id == FellowshipDepartmentConstants.deptChoirArts || min.id == 'dept-music') ...[
+                      Text(
+                        'Co-Leads: Dawit F. (Mezmur) • Martha T. (Fine Arts)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textCol),
+                      ),
+                      Text(
+                        'Dual Wings • ${min.activeCount} servants',
+                        style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.w600),
+                      ),
+                    ] else ...[
+                      Text(
+                        'Lead: ${min.teamLead} (${min.coordinatorBaptismalName})',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textCol),
+                      ),
+                      Text(
+                        '${min.activeCount} servants • ${min.openSlots} open slots',
+                        style: TextStyle(fontSize: 10, color: textMuted),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -882,6 +1068,139 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBroadcastsFeed(BuildContext context) {
+    final broadcasts = widget.state.departmentBroadcasts;
+    if (broadcasts.isEmpty) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: primaryAccent.withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.campaign, color: primaryAccent, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Department Broadcasts & Notices',
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: textCol,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: primaryAccent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${broadcasts.length} Active',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...broadcasts.take(3).map((b) {
+            final isTeacherNotice = b.isSpecialTeacherNotice;
+            final isUrgent = b.urgency == 'urgent';
+            final badgeColor = isTeacherNotice
+                ? AppTheme.gold
+                : isUrgent
+                    ? AppTheme.crimson
+                    : primaryAccent;
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: elevatedBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: badgeColor.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: badgeColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          isTeacherNotice
+                              ? '🎓 GUEST TEACHER'
+                              : isUrgent
+                                  ? '🚨 URGENT'
+                                  : '📢 NOTICE',
+                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: badgeColor),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          b.title,
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textCol),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    b.body,
+                    style: TextStyle(fontSize: 11, color: textMuted),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (b.meetingLocation != null || b.meetingTime != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.place, size: 11, color: primaryAccent),
+                        const SizedBox(width: 3),
+                        Text(
+                          b.meetingLocation ?? 'Campus Fellowship Hall',
+                          style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 4),
+                  Text(
+                    'From: ${b.senderName} (${b.senderRole})',
+                    style: TextStyle(fontSize: 9, color: textMuted.withOpacity(0.7)),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );

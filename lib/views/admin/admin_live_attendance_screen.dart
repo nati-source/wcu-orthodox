@@ -198,22 +198,31 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                     const SizedBox(height: 12),
 
                     // Countdown Refresh Progress Bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: countdown / 30.0,
-                        minHeight: 4,
-                        backgroundColor: elevatedBg,
-                        valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Refreshes in ${countdown}s',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: textMuted,
-                      ),
+                    ValueListenableBuilder<int>(
+                      valueListenable: state.pinCountdownNotifier,
+                      builder: (context, pinCount, _) {
+                        return Column(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: LinearProgressIndicator(
+                                value: pinCount / 30.0,
+                                minHeight: 4,
+                                backgroundColor: elevatedBg,
+                                valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Refreshes in ${pinCount}s',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: textMuted,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),

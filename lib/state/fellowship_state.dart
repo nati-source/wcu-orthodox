@@ -13,6 +13,92 @@ class FellowshipState extends ChangeNotifier {
   UserRole _activeRole = UserRole.student;
   UserRole get activeRole => _activeRole;
 
+  // ----------------------------------------------------
+  // ROLE CAPABILITIES & PERMISSION CHECKERS (SCOPED RBAC)
+  // ----------------------------------------------------
+  bool get isAdmin => _activeRole == UserRole.admin;
+  bool get canManageApprovals => _activeRole == UserRole.admin || _activeRole == UserRole.volunteerCoordinator;
+  bool get canManageFamilies => _activeRole == UserRole.admin || _activeRole == UserRole.spiritualParent;
+  bool get canVerifyFinances => _activeRole == UserRole.admin;
+
+  /// General student registration acceptance is strictly ADMIN only.
+  bool get canApproveGeneralStudents => isAdmin;
+
+  /// Priest / Confessor scheduling is strictly ADMIN / Clergy Liaison only.
+  bool get canSchedulePriests => isAdmin;
+
+  /// Assigning or promoting roles is strictly ADMIN only.
+  bool get canAssignRoles => isAdmin;
+
+  /// Emergency student aid review is strictly ADMIN or 'አባላት እንክብካቤ፤ ምክክርና አቅም ማጎልበቻ' (deptMemberCare).
+  bool get canManageEmergencyAid =>
+      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptMemberCare);
+
+  /// Pilgrimage trip payment verification is strictly ADMIN or 'ባችና መርሐ ግብራት' (deptBatchPrograms).
+  bool get canManagePilgrimages =>
+      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptBatchPrograms);
+
+  bool get canManageCharityAndAid =>
+      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptCharity);
+
+  bool get canManageFamilyMatching =>
+      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptMemberCare);
+
+  bool get canPublishSpecialTeacherNotice =>
+      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptEducation);
+
+  bool get canSubmitFundraisingProposal =>
+      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptDevelopment);
+
+  /// Scoped RBAC: Checks if current user can view applications & roster of a department.
+  /// - Global Admins: Read access to all departments.
+  /// - Audit Coordinators (DEPT_AUDIT): Read-only inspection access to all departments.
+  /// - Volunteer Coordinators: Confined strictly to their assigned department.
+  /// - Normal Students: Denied.
+  bool canAccessDepartmentRead(String? targetDeptId) {
+    if (isAdmin) return true;
+    if (_activeRole == UserRole.volunteerCoordinator) {
+      if (_currentUser.coordinatorProfile?.isReadOnlyAudit == true) return true;
+      if (targetDeptId == null || targetDeptId.isEmpty) return true;
+      final myDept = _currentUser.coordinatorProfile?.departmentId;
+      return myDept == targetDeptId;
+    }
+    return false;
+  }
+
+  /// Scoped RBAC: Checks if current user can write/mutate (Approve/Reject) in a department.
+  /// - Global Admins: Write access to all departments.
+  /// - Audit Coordinators: Strictly BLOCKED (Read-Only Inspection).
+  /// - Volunteer Coordinators: Allowed ONLY for their assigned department if canApproveApplicants is true.
+  /// - Normal Students: Denied.
+  bool canAccessDepartmentWrite(String? targetDeptId) {
+    if (isAdmin) return true;
+    if (_currentUser.coordinatorProfile?.isReadOnlyAudit == true) return false;
+    if (_activeRole == UserRole.volunteerCoordinator) {
+      final myDept = _currentUser.coordinatorProfile?.departmentId;
+      final canApprove = _currentUser.coordinatorProfile?.canApproveApplicants ?? false;
+      return canApprove && myDept == targetDeptId;
+    }
+    return false;
+  }
+
+  /// Scoped RBAC: Checks if current user can view a student's spiritual roadmap progress.
+  /// - Global Admins & Self: Full access.
+  /// - Spiritual Parents: Access confined ONLY to spiritual children within their assigned family.
+  /// - Others: Denied access to other students' roadmaps.
+  bool canAccessStudentRoadmap(String targetStudentId) {
+    if (isAdmin) return true;
+    if (_currentUser.id == targetStudentId) return true;
+    if (_activeRole == UserRole.spiritualParent) {
+      final myFamily = currentStudentFamily;
+      if (myFamily != null && myFamily.memberIds.contains(targetStudentId)) {
+        return true;
+      }
+      return false;
+    }
+    return false;
+  }
+
   AppThemePalette _currentThemePalette = AppThemePalette.midnightFellowship;
   AppThemePalette get currentThemePalette => _currentThemePalette;
 
@@ -56,9 +142,54 @@ class FellowshipState extends ChangeNotifier {
 
   UserModel get currentUser => _currentUser;
 
-  void switchRole(UserRole newRole) {
+  void switchRole(UserRole newRole, {String? coordinatorDeptId}) {
     _activeRole = newRole;
-    _currentUser = _currentUser.copyWith(role: newRole);
+    CoordinatorProfileModel? coordProfile = _currentUser.coordinatorProfile;
+
+    if (newRole == UserRole.volunteerCoordinator) {
+      final targetDept = coordinatorDeptId ?? coordProfile?.departmentId ?? FellowshipDepartmentConstants.deptChoirArts;
+      final isAudit = targetDept == FellowshipDepartmentConstants.deptAudit;
+      coordProfile = CoordinatorProfileModel(
+        departmentId: targetDept,
+        departmentNameAmharic: FellowshipDepartmentConstants.getNameAmharic(targetDept),
+        departmentNameEn: FellowshipDepartmentConstants.getNameEn(targetDept),
+        coordinatorTitle: isAudit ? 'Audit & Inspection Inspector' : 'Department Coordinator',
+        appointedDate: DateTime(2024, 9, 1),
+        canApproveApplicants: !isAudit,
+        canManageRoster: !isAudit,
+        canPublishAnnouncements: true,
+        isReadOnlyAudit: isAudit,
+      );
+      _selectedCoordinatorDepartmentId = targetDept;
+    }
+
+    _currentUser = _currentUser.copyWith(
+      role: newRole,
+      coordinatorProfile: coordProfile,
+      assignedFamilyId: newRole == UserRole.spiritualParent ? 'fam-st-george' : _currentUser.assignedFamilyId,
+    );
+    notifyListeners();
+  }
+
+  void switchCoordinatorDepartment(String departmentId) {
+    final isAudit = departmentId == FellowshipDepartmentConstants.deptAudit;
+    final profile = CoordinatorProfileModel(
+      departmentId: departmentId,
+      departmentNameAmharic: FellowshipDepartmentConstants.getNameAmharic(departmentId),
+      departmentNameEn: FellowshipDepartmentConstants.getNameEn(departmentId),
+      coordinatorTitle: isAudit ? 'Audit & Inspection Inspector' : 'Department Coordinator',
+      appointedDate: DateTime(2024, 9, 1),
+      canApproveApplicants: !isAudit,
+      canManageRoster: !isAudit,
+      canPublishAnnouncements: true,
+      isReadOnlyAudit: isAudit,
+    );
+    _currentUser = _currentUser.copyWith(
+      role: UserRole.volunteerCoordinator,
+      coordinatorProfile: profile,
+    );
+    _activeRole = UserRole.volunteerCoordinator;
+    _selectedCoordinatorDepartmentId = departmentId;
     notifyListeners();
   }
 
@@ -105,14 +236,29 @@ class FellowshipState extends ChangeNotifier {
   }
 
   void approveStudent(String studentId, {UserRole role = UserRole.student}) {
+    if (!canApproveGeneralStudents) return;
     final index = _pendingApprovals.indexWhere((u) => u.id == studentId);
     if (index != -1) {
+      final targetFamilyId = _families.isNotEmpty ? _families.first.id : null;
       final student = _pendingApprovals.removeAt(index).copyWith(
         isApproved: true,
         role: role,
-        assignedFamilyId: _families.isNotEmpty ? _families.first.id : null,
+        assignedFamilyId: targetFamilyId,
       );
       _allStudents.add(student);
+
+      // Synchronize family roster by inserting student id into target family
+      if (targetFamilyId != null) {
+        final fIdx = _families.indexWhere((f) => f.id == targetFamilyId);
+        if (fIdx != -1) {
+          final f = _families[fIdx];
+          if (!f.memberIds.contains(student.id)) {
+            final updatedMembers = List<String>.from(f.memberIds)..add(student.id);
+            _families[fIdx] = f.copyWith(memberIds: updatedMembers);
+          }
+        }
+      }
+
       if (_currentUser.id == studentId) {
         _currentUser = student;
       }
@@ -121,11 +267,13 @@ class FellowshipState extends ChangeNotifier {
   }
 
   void rejectStudent(String studentId) {
+    if (!canApproveGeneralStudents) return;
     _pendingApprovals.removeWhere((u) => u.id == studentId);
     notifyListeners();
   }
 
   void assignUserRole(String studentId, UserRole role) {
+    if (!isAdmin) return;
     final index = _allStudents.indexWhere((u) => u.id == studentId);
     if (index != -1) {
       _allStudents[index] = _allStudents[index].copyWith(role: role);
@@ -163,13 +311,25 @@ class FellowshipState extends ChangeNotifier {
     return _allStudents.where((s) => fam.memberIds.contains(s.id) && s.id != _currentUser.id).toList();
   }
 
+  /// Returns the spiritual children assigned to this spiritual parent's family
+  List<UserModel> get spiritualChildren {
+    final fam = currentStudentFamily;
+    if (fam == null) return [];
+    final children = _allStudents.where((s) => fam.memberIds.contains(s.id) && s.id != _currentUser.id).toList();
+    if (children.isNotEmpty) return children;
+    // If current family member list is small, return non-current students within the family
+    return _allStudents.where((s) => s.assignedFamilyId == fam.id && s.id != _currentUser.id).toList();
+  }
+
   void setFamilyPublished(bool published) {
+    if (!canManageFamilies) return;
     _isFamilyPublished = published;
     _families = _families.map((f) => f.copyWith(isPublished: published)).toList();
     notifyListeners();
   }
 
   Future<void> runSmartMatching() async {
+    if (!canManageFamilies) return;
     _isMatchingRunning = true;
     notifyListeners();
 
@@ -185,11 +345,25 @@ class FellowshipState extends ChangeNotifier {
     unassigned.sort((a, b) => a.department.compareTo(b.department));
 
     int familyIndex = 0;
+    final Map<String, String> studentFamilyMap = {};
     for (final student in unassigned) {
       if (updatedFamilies.isEmpty) break;
       final targetFamily = updatedFamilies[familyIndex % updatedFamilies.length];
       targetFamily.memberIds.add(student.id);
+      studentFamilyMap[student.id] = targetFamily.id;
       familyIndex++;
+    }
+
+    // Atomically synchronize assignedFamilyId on all students and currentUser
+    _allStudents = _allStudents.map((s) {
+      if (studentFamilyMap.containsKey(s.id)) {
+        return s.copyWith(assignedFamilyId: studentFamilyMap[s.id]);
+      }
+      return s;
+    }).toList();
+
+    if (studentFamilyMap.containsKey(_currentUser.id)) {
+      _currentUser = _currentUser.copyWith(assignedFamilyId: studentFamilyMap[_currentUser.id]);
     }
 
     _families = updatedFamilies;
@@ -203,6 +377,7 @@ class FellowshipState extends ChangeNotifier {
     required String studentBId,
     required String familyBId,
   }) {
+    if (!canManageFamilies) return;
     final famAIndex = _families.indexWhere((f) => f.id == familyAId);
     final famBIndex = _families.indexWhere((f) => f.id == familyBId);
 
@@ -241,6 +416,7 @@ class FellowshipState extends ChangeNotifier {
   }
 
   void publishAndBroadcastFamilies() {
+    if (!canManageFamilies) return;
     _isFamilyPublished = true;
     _families = _families.map((f) => f.copyWith(isPublished: true)).toList();
     _broadcastEmergency(
@@ -256,10 +432,10 @@ class FellowshipState extends ChangeNotifier {
   // ----------------------------------------------------
   late AttendanceSessionModel _activeSession;
   Timer? _pinTimer;
-  int _pinCountdownSeconds = 30;
+  final ValueNotifier<int> pinCountdownNotifier = ValueNotifier<int>(30);
 
   AttendanceSessionModel get activeSession => _activeSession;
-  int get pinCountdownSeconds => _pinCountdownSeconds;
+  int get pinCountdownSeconds => pinCountdownNotifier.value;
 
   // Analytics Metrics
   int get totalRegisteredStudents => _allStudents.length + 300;
@@ -271,13 +447,13 @@ class FellowshipState extends ChangeNotifier {
 
   void _startPinRotation() {
     _pinTimer?.cancel();
-    _pinCountdownSeconds = 30;
+    pinCountdownNotifier.value = 30;
     _pinTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_pinCountdownSeconds > 1) {
-        _pinCountdownSeconds--;
-        notifyListeners();
+      if (pinCountdownNotifier.value > 1) {
+        pinCountdownNotifier.value = pinCountdownNotifier.value - 1;
+        // Scoped update: Does not trigger full-app rebuilds
       } else {
-        _pinCountdownSeconds = 30;
+        pinCountdownNotifier.value = 30;
         _rotateSessionCode();
       }
     });
@@ -356,6 +532,12 @@ class FellowshipState extends ChangeNotifier {
   void addRoadmapPhase(RoadmapPhaseModel newPhase) {
     _roadmaps.add(newPhase);
     notifyListeners();
+  }
+
+  /// Scoped RBAC: Retrieves course roadmaps for a given student ID if authorized.
+  List<RoadmapPhaseModel> getRoadmapsForStudent(String studentId) {
+    if (!canAccessStudentRoadmap(studentId)) return [];
+    return List.unmodifiable(_roadmaps);
   }
 
   // ----------------------------------------------------
@@ -457,19 +639,21 @@ class FellowshipState extends ChangeNotifier {
   // ----------------------------------------------------
   List<ChurchProgramModel> _programs = [];
   Timer? _countdownTimer;
-  Duration _liturgyCountdown = const Duration(hours: 2, minutes: 15, seconds: 45);
+  final ValueNotifier<Duration> liturgyCountdownNotifier =
+      ValueNotifier<Duration>(const Duration(hours: 2, minutes: 15, seconds: 45));
   ChurchProgramModel? _latestEmergencyBroadcast;
 
   List<ChurchProgramModel> get programs => List.unmodifiable(_programs);
-  Duration get liturgyCountdown => _liturgyCountdown;
+  Duration get liturgyCountdown => liturgyCountdownNotifier.value;
   ChurchProgramModel? get latestEmergencyBroadcast => _latestEmergencyBroadcast;
 
   void _startCountdownTicker() {
     _countdownTimer?.cancel();
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_liturgyCountdown.inSeconds > 0) {
-        _liturgyCountdown = _liturgyCountdown - const Duration(seconds: 1);
-        notifyListeners();
+      if (liturgyCountdownNotifier.value.inSeconds > 0) {
+        liturgyCountdownNotifier.value =
+            liturgyCountdownNotifier.value - const Duration(seconds: 1);
+        // Scoped update: Does not trigger full-app rebuilds
       }
     });
   }
@@ -504,6 +688,7 @@ class FellowshipState extends ChangeNotifier {
     required String description,
     required String churchName,
   }) {
+    if (!isAdmin) return;
     _broadcastEmergency(title: title, description: description, category: 'Schedule Change');
   }
 
@@ -513,11 +698,15 @@ class FellowshipState extends ChangeNotifier {
   List<MinistryModel> _ministries = [];
   List<VolunteerApplicationModel> _volunteerApplications = [];
   List<DepartmentMemberModel> _departmentMembers = [];
+  List<DepartmentBroadcastMessageModel> _departmentBroadcasts = [];
+  List<FundraisingProposalModel> _fundraisingProposals = [];
   String? _selectedCoordinatorDepartmentId;
 
   List<MinistryModel> get ministries => List.unmodifiable(_ministries);
   List<VolunteerApplicationModel> get volunteerApplications => List.unmodifiable(_volunteerApplications);
   List<DepartmentMemberModel> get departmentMembers => List.unmodifiable(_departmentMembers);
+  List<DepartmentBroadcastMessageModel> get departmentBroadcasts => List.unmodifiable(_departmentBroadcasts);
+  List<FundraisingProposalModel> get fundraisingProposals => List.unmodifiable(_fundraisingProposals);
   String? get selectedCoordinatorDepartmentId => _selectedCoordinatorDepartmentId;
 
   void setSelectedCoordinatorDepartment(String? deptId) {
@@ -525,14 +714,148 @@ class FellowshipState extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<VolunteerApplicationModel> getApplicationsForDepartment(String? deptId) {
+  List<DepartmentBroadcastMessageModel> getBroadcastsForDepartment(String? deptId) {
     if (deptId == null || deptId.isEmpty) {
-      return List.unmodifiable(_volunteerApplications);
+      return List.unmodifiable(_departmentBroadcasts);
     }
-    return _volunteerApplications.where((a) => a.ministryId == deptId).toList();
+    return _departmentBroadcasts.where((b) => b.departmentId == deptId).toList();
+  }
+
+  void sendDepartmentBroadcast({
+    required String departmentId,
+    required String title,
+    required String body,
+    String urgency = 'normal',
+    String? meetingLocation,
+    DateTime? meetingTime,
+  }) {
+    if (!canAccessDepartmentWrite(departmentId) && !isAdmin) return;
+
+    final senderName = _currentUser.fullName;
+    final senderRole = _currentUser.coordinatorProfile?.coordinatorTitle ?? (_currentUser.role == UserRole.admin ? 'Global Admin' : 'Coordinator');
+
+    final broadcast = DepartmentBroadcastMessageModel(
+      id: 'dmsg-${DateTime.now().millisecondsSinceEpoch}',
+      departmentId: departmentId,
+      title: title,
+      body: body,
+      senderName: senderName,
+      senderRole: senderRole,
+      sentAt: DateTime.now(),
+      urgency: urgency,
+      meetingLocation: meetingLocation,
+      meetingTime: meetingTime,
+    );
+
+    _departmentBroadcasts.insert(0, broadcast);
+
+    // Also trigger an emergency/banner notification so students in that department see it
+    final deptName = FellowshipDepartmentConstants.getNameAmharic(departmentId);
+    _broadcastEmergency(
+      title: '[$deptName] $title',
+      description: body,
+      category: urgency == 'meeting' ? 'Meeting Notice' : (urgency == 'urgent' ? 'Urgent Alert' : 'Department Announcement'),
+    );
+
+    notifyListeners();
+  }
+
+  void publishSpecialGuestTeacherNotice({
+    required String teacherName,
+    required String teacherTitle,
+    required String topic,
+    required String venue,
+    required DateTime dateAndTime,
+    String? description,
+  }) {
+    if (!canPublishSpecialTeacherNotice) return;
+
+    final formattedDate = "${dateAndTime.day}/${dateAndTime.month}/${dateAndTime.year} at ${dateAndTime.hour}:${dateAndTime.minute.toString().padLeft(2, '0')}";
+    final bodyText = 'መምህር/መምህርት: $teacherTitle $teacherName\nርዕስ: $topic\nቦታ: $venue\nጊዜ: $formattedDate\n${description ?? ''}';
+
+    sendDepartmentBroadcast(
+      departmentId: FellowshipDepartmentConstants.deptEducation,
+      title: '🌟 ልዩ የትምህርትና ስብከት መርሐ ግብር - $teacherTitle $teacherName',
+      body: bodyText,
+      urgency: 'meeting',
+      meetingLocation: venue,
+      meetingTime: dateAndTime,
+    );
+  }
+
+  void submitFundraisingProposal({
+    required String title,
+    required String objective,
+    required double targetAmount,
+    required String proposedStrategy,
+    required String targetAudience,
+  }) {
+    if (!canSubmitFundraisingProposal) return;
+    final proposal = FundraisingProposalModel(
+      id: 'prop-${DateTime.now().millisecondsSinceEpoch}',
+      title: title,
+      objective: objective,
+      targetAmount: targetAmount,
+      proposedStrategy: proposedStrategy,
+      targetAudience: targetAudience,
+      submittedByName: _currentUser.fullName,
+      submittedByDept: FellowshipDepartmentConstants.deptDevelopment,
+      submittedAt: DateTime.now(),
+      status: ProposalStatus.pending,
+    );
+    _fundraisingProposals.insert(0, proposal);
+    notifyListeners();
+  }
+
+  void reviewFundraisingProposal({
+    required String proposalId,
+    required ProposalStatus status,
+    String? adminNotes,
+  }) {
+    if (!isAdmin) return;
+    final idx = _fundraisingProposals.indexWhere((p) => p.id == proposalId);
+    if (idx != -1) {
+      _fundraisingProposals[idx] = _fundraisingProposals[idx].copyWith(
+        status: status,
+        adminReviewNotes: adminNotes,
+        reviewedAt: DateTime.now(),
+      );
+      notifyListeners();
+    }
+  }
+
+  List<VolunteerApplicationModel> getApplicationsForDepartment(String? deptId) {
+    if (isAdmin || _currentUser.coordinatorProfile?.isReadOnlyAudit == true) {
+      if (deptId == null || deptId.isEmpty) {
+        return List.unmodifiable(_volunteerApplications);
+      }
+      return _volunteerApplications.where((a) => a.ministryId == deptId).toList();
+    }
+    if (_activeRole == UserRole.volunteerCoordinator) {
+      final myDept = _currentUser.coordinatorProfile?.departmentId;
+      if (deptId != null && deptId.isNotEmpty && deptId != myDept) {
+        return []; // Scoped isolation: Denied access to other departments
+      }
+      return _volunteerApplications.where((a) => a.ministryId == myDept).toList();
+    }
+    // Normal students only see their own applications
+    return _volunteerApplications.where((a) => a.studentId == _currentUser.id).toList();
   }
 
   List<DepartmentMemberModel> getMembersForDepartment(String? deptId) {
+    if (isAdmin || _currentUser.coordinatorProfile?.isReadOnlyAudit == true) {
+      if (deptId == null || deptId.isEmpty) {
+        return List.unmodifiable(_departmentMembers);
+      }
+      return _departmentMembers.where((m) => m.departmentId == deptId).toList();
+    }
+    if (_activeRole == UserRole.volunteerCoordinator) {
+      final myDept = _currentUser.coordinatorProfile?.departmentId;
+      if (deptId != null && deptId.isNotEmpty && deptId != myDept) {
+        return []; // Scoped isolation
+      }
+      return _departmentMembers.where((m) => m.departmentId == myDept).toList();
+    }
     if (deptId == null || deptId.isEmpty) {
       return List.unmodifiable(_departmentMembers);
     }
@@ -546,6 +869,8 @@ class FellowshipState extends ChangeNotifier {
     required String availability,
     String studentYear = '2nd Year',
     String preferredSubWing = 'General',
+    ChoirWingType? choirWing,
+    List<String> languagesKnown = const [],
   }) {
     final min = _ministries.firstWhere(
       (m) => m.id == ministryId,
@@ -563,6 +888,8 @@ class FellowshipState extends ChangeNotifier {
       ministryTitle: min.titleEn,
       ministryAmharicTitle: min.titleAmharic,
       preferredSubWing: preferredSubWing,
+      choirWing: choirWing,
+      languagesKnown: languagesKnown,
       reason: reason,
       experience: experience,
       availability: availability,
@@ -583,78 +910,82 @@ class FellowshipState extends ChangeNotifier {
     String? reviewedBy,
   }) {
     final index = _volunteerApplications.indexWhere((a) => a.id == applicationId);
-    if (index != -1) {
-      final oldApp = _volunteerApplications[index];
-      final app = oldApp.copyWith(
-        status: ApplicationStatus.approved,
-        reviewedAt: DateTime.now(),
-        reviewedByCoordinator: reviewedBy ?? 'Department Coordinator',
-        coordinatorNotes: notes ?? 'Welcome to the department! Orientation details shared.',
+    if (index == -1) return;
+
+    final oldApp = _volunteerApplications[index];
+    // Scoped RBAC Guard: Verify write authorization for target department
+    if (!canAccessDepartmentWrite(oldApp.ministryId)) return;
+
+    final app = oldApp.copyWith(
+      status: ApplicationStatus.approved,
+      reviewedAt: DateTime.now(),
+      reviewedByCoordinator: reviewedBy ?? (_currentUser.coordinatorProfile?.coordinatorTitle ?? 'Department Coordinator'),
+      coordinatorNotes: notes ?? 'Welcome to the department! Orientation details shared.',
+    );
+    _volunteerApplications[index] = app;
+
+    // Add to department members roster
+    final existingMemberIndex = _departmentMembers.indexWhere(
+      (m) => m.studentId == app.studentId && m.departmentId == app.ministryId,
+    );
+    if (existingMemberIndex == -1) {
+      _departmentMembers.insert(
+        0,
+        DepartmentMemberModel(
+          id: 'mem-${DateTime.now().millisecondsSinceEpoch}',
+          departmentId: app.ministryId,
+          studentId: app.studentId,
+          studentName: app.studentName,
+          studentBaptismalName: app.studentBaptismalName,
+          studentDept: app.studentDept,
+          studentYear: app.studentYear,
+          phoneNumber: app.studentPhone,
+          subWing: app.preferredSubWing,
+          choirWing: app.choirWing,
+          roleInDepartment: 'Active Servant',
+          joinedDate: DateTime.now(),
+        ),
       );
-      _volunteerApplications[index] = app;
-
-      // Add to department members roster
-      final existingMemberIndex = _departmentMembers.indexWhere(
-        (m) => m.studentId == app.studentId && m.departmentId == app.ministryId,
-      );
-      if (existingMemberIndex == -1) {
-        _departmentMembers.insert(
-          0,
-          DepartmentMemberModel(
-            id: 'mem-${DateTime.now().millisecondsSinceEpoch}',
-            departmentId: app.ministryId,
-            studentId: app.studentId,
-            studentName: app.studentName,
-            studentBaptismalName: app.studentBaptismalName,
-            studentDept: app.studentDept,
-            studentYear: app.studentYear,
-            phoneNumber: app.studentPhone,
-            subWing: app.preferredSubWing,
-            roleInDepartment: 'Active Servant',
-            joinedDate: DateTime.now(),
-          ),
-        );
-      }
-
-      // Increment active count on department
-      final mIndex = _ministries.indexWhere((m) => m.id == app.ministryId);
-      if (mIndex != -1) {
-        final currentM = _ministries[mIndex];
-        _ministries[mIndex] = MinistryModel(
-          id: currentM.id,
-          titleEn: currentM.titleEn,
-          titleAmharic: currentM.titleAmharic,
-          iconName: currentM.iconName,
-          descriptionEn: currentM.descriptionEn,
-          descriptionAmharic: currentM.descriptionAmharic,
-          pillar: currentM.pillar,
-          teamLead: currentM.teamLead,
-          coordinatorBaptismalName: currentM.coordinatorBaptismalName,
-          coordinatorPhone: currentM.coordinatorPhone,
-          coordinatorRole: currentM.coordinatorRole,
-          openSlots: currentM.openSlots > 0 ? currentM.openSlots - 1 : 0,
-          activeCount: currentM.activeCount + 1,
-          tags: currentM.tags,
-          subWings: currentM.subWings,
-          meetingSchedule: currentM.meetingSchedule,
-          requirements: currentM.requirements,
-        );
-      }
-
-      // Update student status
-      final sIndex = _allStudents.indexWhere((s) => s.id == app.studentId);
-      if (sIndex != -1) {
-        _allStudents[sIndex] = _allStudents[sIndex].copyWith(
-          ministryStatus: '${app.ministryTitle} Member',
-        );
-      }
-      if (_currentUser.id == app.studentId) {
-        _currentUser = _currentUser.copyWith(
-          ministryStatus: '${app.ministryTitle} Member',
-        );
-      }
-      notifyListeners();
     }
+
+    // Increment active count on department
+    final mIndex = _ministries.indexWhere((m) => m.id == app.ministryId);
+    if (mIndex != -1) {
+      final currentM = _ministries[mIndex];
+      _ministries[mIndex] = MinistryModel(
+        id: currentM.id,
+        titleEn: currentM.titleEn,
+        titleAmharic: currentM.titleAmharic,
+        iconName: currentM.iconName,
+        descriptionEn: currentM.descriptionEn,
+        descriptionAmharic: currentM.descriptionAmharic,
+        pillar: currentM.pillar,
+        teamLead: currentM.teamLead,
+        coordinatorBaptismalName: currentM.coordinatorBaptismalName,
+        coordinatorPhone: currentM.coordinatorPhone,
+        coordinatorRole: currentM.coordinatorRole,
+        openSlots: currentM.openSlots > 0 ? currentM.openSlots - 1 : 0,
+        activeCount: currentM.activeCount + 1,
+        tags: currentM.tags,
+        subWings: currentM.subWings,
+        meetingSchedule: currentM.meetingSchedule,
+        requirements: currentM.requirements,
+      );
+    }
+
+    // Update student status
+    final sIndex = _allStudents.indexWhere((s) => s.id == app.studentId);
+    if (sIndex != -1) {
+      _allStudents[sIndex] = _allStudents[sIndex].copyWith(
+        ministryStatus: '${app.ministryTitle} Member',
+      );
+    }
+    if (_currentUser.id == app.studentId) {
+      _currentUser = _currentUser.copyWith(
+        ministryStatus: '${app.ministryTitle} Member',
+      );
+    }
+    notifyListeners();
   }
 
   void rejectVolunteerApplication(
@@ -663,15 +994,19 @@ class FellowshipState extends ChangeNotifier {
     String? reviewedBy,
   }) {
     final index = _volunteerApplications.indexWhere((a) => a.id == applicationId);
-    if (index != -1) {
-      _volunteerApplications[index] = _volunteerApplications[index].copyWith(
-        status: ApplicationStatus.rejected,
-        reviewedAt: DateTime.now(),
-        reviewedByCoordinator: reviewedBy ?? 'Department Coordinator',
-        coordinatorNotes: notes ?? 'Thank you for your interest. We encourage exploring alternative serving areas.',
-      );
-      notifyListeners();
-    }
+    if (index == -1) return;
+
+    final oldApp = _volunteerApplications[index];
+    // Scoped RBAC Guard: Verify write authorization for target department
+    if (!canAccessDepartmentWrite(oldApp.ministryId)) return;
+
+    _volunteerApplications[index] = _volunteerApplications[index].copyWith(
+      status: ApplicationStatus.rejected,
+      reviewedAt: DateTime.now(),
+      reviewedByCoordinator: reviewedBy ?? (_currentUser.coordinatorProfile?.coordinatorTitle ?? 'Department Coordinator'),
+      coordinatorNotes: notes ?? 'Thank you for your interest. We encourage exploring alternative serving areas.',
+    );
+    notifyListeners();
   }
 
   // ----------------------------------------------------
@@ -755,11 +1090,13 @@ class FellowshipState extends ChangeNotifier {
   }
 
   void addConfessorFather(ConfessorFatherModel father) {
+    if (!canSchedulePriests) return;
     _confessorFathers = List<ConfessorFatherModel>.from(_confessorFathers)..add(father);
     notifyListeners();
   }
 
   void updateConfessorFather(ConfessorFatherModel updated) {
+    if (!canSchedulePriests) return;
     final index = _confessorFathers.indexWhere((f) => f.id == updated.id);
     if (index != -1) {
       final list = List<ConfessorFatherModel>.from(_confessorFathers);
@@ -770,6 +1107,7 @@ class FellowshipState extends ChangeNotifier {
   }
 
   void deleteConfessorFather(String fatherId) {
+    if (!canSchedulePriests) return;
     _confessorFathers = _confessorFathers.where((f) => f.id != fatherId).toList();
     notifyListeners();
   }
@@ -779,6 +1117,7 @@ class FellowshipState extends ChangeNotifier {
     String? notes,
     String? assignedVenue,
   }) {
+    if (!canManageApprovals && !isAdmin) return;
     final index = _confessionAppointments.indexWhere((a) => a.id == apptId);
     if (index != -1) {
       final appt = _confessionAppointments[index];
@@ -794,6 +1133,7 @@ class FellowshipState extends ChangeNotifier {
     required String fatherName,
     required String newVenueOrTime,
   }) {
+    if (!canManageApprovals && !isAdmin) return;
     _broadcastEmergency(
       title: 'Clergy Schedule Update • $fatherName',
       description: '$fatherName schedule/venue updated: $newVenueOrTime. Please verify your appointments.',
@@ -903,11 +1243,53 @@ class FellowshipState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addPilgrimageTrip(PilgrimageTripModel trip) {
+    if (!canManagePilgrimages && !isAdmin) return;
+    _pilgrimageTrips.insert(0, trip);
+    notifyListeners();
+  }
+
+  void removePilgrimageTrip(String tripId) {
+    if (!canManagePilgrimages && !isAdmin) return;
+    _pilgrimageTrips.removeWhere((t) => t.id == tripId);
+    notifyListeners();
+  }
+
   void verifyTripPayment(String regId, bool approve) {
+    if (!canVerifyFinances && !canManagePilgrimages) return;
     final index = _tripRegistrations.indexWhere((r) => r.id == regId);
     if (index != -1) {
       _tripRegistrations[index] = _tripRegistrations[index].copyWith(
         paymentStatus: approve ? TripPaymentStatus.verified : TripPaymentStatus.rejected,
+      );
+      notifyListeners();
+    }
+  }
+
+  bool scanBusBoardingTicket(String qrTicketCode) {
+    if (!canManagePilgrimages && !isAdmin) return false;
+    final index = _tripRegistrations.indexWhere(
+      (r) => r.qrTicketCode.trim().toUpperCase() == qrTicketCode.trim().toUpperCase(),
+    );
+    if (index != -1) {
+      _tripRegistrations[index] = _tripRegistrations[index].copyWith(
+        isBoarded: true,
+        boardedAt: DateTime.now(),
+      );
+      notifyListeners();
+      return true;
+    }
+    return false;
+  }
+
+  void togglePassengerBoarded(String regId) {
+    if (!canManagePilgrimages && !isAdmin) return;
+    final index = _tripRegistrations.indexWhere((r) => r.id == regId);
+    if (index != -1) {
+      final current = _tripRegistrations[index];
+      _tripRegistrations[index] = current.copyWith(
+        isBoarded: !current.isBoarded,
+        boardedAt: !current.isBoarded ? DateTime.now() : null,
       );
       notifyListeners();
     }
@@ -926,6 +1308,18 @@ class FellowshipState extends ChangeNotifier {
 
   List<EmergencyAidRequestModel> get myEmergencyAidRequests =>
       _emergencyAidRequests.where((r) => r.studentId == _currentUser.id).toList();
+
+  void addCharityCampaign(CharityCampaignModel campaign) {
+    if (!canManageCharityAndAid && !isAdmin) return;
+    _charityCampaigns.insert(0, campaign);
+    notifyListeners();
+  }
+
+  void removeCharityCampaign(String campaignId) {
+    if (!canManageCharityAndAid && !isAdmin) return;
+    _charityCampaigns.removeWhere((c) => c.id == campaignId);
+    notifyListeners();
+  }
 
   void submitDuesPayment({
     required double amount,
@@ -946,6 +1340,26 @@ class FellowshipState extends ChangeNotifier {
     );
     _duesPayments.insert(0, payment);
     notifyListeners();
+  }
+
+  void verifyDuesPayment(String duesId, bool approve) {
+    if (!canVerifyFinances && !canManageCharityAndAid && !isAdmin) return;
+    final index = _duesPayments.indexWhere((d) => d.id == duesId);
+    if (index != -1) {
+      final d = _duesPayments[index];
+      _duesPayments[index] = DuesPaymentModel(
+        id: d.id,
+        studentId: d.studentId,
+        studentName: d.studentName,
+        amount: d.amount,
+        purpose: d.purpose,
+        paymentMethod: d.paymentMethod,
+        transactionReference: d.transactionReference,
+        status: approve ? 'Verified' : 'Declined',
+        submittedAt: d.submittedAt,
+      );
+      notifyListeners();
+    }
   }
 
   void donateToCharityCampaign(String campaignId, double amount) {
@@ -991,6 +1405,7 @@ class FellowshipState extends ChangeNotifier {
   }
 
   void updateAidRequestStatus(String reqId, EmergencyAidStatus status, {String? adminNote}) {
+    if (!canManageEmergencyAid && !canVerifyFinances && !isAdmin) return;
     final index = _emergencyAidRequests.indexWhere((r) => r.id == reqId);
     if (index != -1) {
       _emergencyAidRequests[index] = _emergencyAidRequests[index].copyWith(
@@ -999,6 +1414,10 @@ class FellowshipState extends ChangeNotifier {
       );
       notifyListeners();
     }
+  }
+
+  void verifyEmergencyAid(String reqId, EmergencyAidStatus status, {String? adminNote}) {
+    updateAidRequestStatus(reqId, status, adminNote: adminNote);
   }
 
   // ----------------------------------------------------
@@ -1082,7 +1501,7 @@ class FellowshipState extends ChangeNotifier {
     );
     _quizAttempts.insert(0, attempt);
 
-    // Update family leaderboard
+    // Update family leaderboard and dynamically re-sort ranks descending by totalScore
     final famIdx = _familyLeaderboard.indexWhere((f) => f.familyId == attempt.familyId);
     if (famIdx != -1) {
       final cur = _familyLeaderboard[famIdx];
@@ -1093,6 +1512,19 @@ class FellowshipState extends ChangeNotifier {
         participantsCount: cur.participantsCount + 1,
         rank: cur.rank,
       );
+
+      final sorted = List<FamilyLeaderboardEntry>.from(_familyLeaderboard)
+        ..sort((a, b) => b.totalScore.compareTo(a.totalScore));
+      _familyLeaderboard = [
+        for (int i = 0; i < sorted.length; i++)
+          FamilyLeaderboardEntry(
+            familyId: sorted[i].familyId,
+            familyName: sorted[i].familyName,
+            totalScore: sorted[i].totalScore,
+            participantsCount: sorted[i].participantsCount,
+            rank: i + 1,
+          )
+      ];
     }
     notifyListeners();
   }
@@ -1829,20 +2261,21 @@ class FellowshipState extends ChangeNotifier {
       ),
     ];
 
-    // Seeded Department Members (Active Servants)
+    // Seeded Department Members (Active Servants with Dual Choir Leadership)
     _departmentMembers = [
       DepartmentMemberModel(
         id: 'mem-1',
         departmentId: 'dept-music',
         studentId: 'usr-101',
-        studentName: 'Yohannes Girma',
-        studentBaptismalName: 'Haile Selassie',
+        studentName: 'Dawit Fikadu',
+        studentBaptismalName: 'Gebre Yohannes',
         studentDept: 'Civil Engineering',
-        studentYear: '3rd Year',
-        phoneNumber: '+251911445566',
+        studentYear: '4th Year',
+        phoneNumber: '+251933445566',
         subWing: 'Choir Vocal & Zema (የዝማሬና ዜማ ዘርፍ)',
-        roleInDepartment: 'Lead Chanter (አዝማሪ)',
-        joinedDate: DateTime.now().subtract(const Duration(days: 180)),
+        choirWing: ChoirWingType.mezmur,
+        roleInDepartment: 'Mezmur Section Lead (የመዝሙር ክፍል ኃላፊ)',
+        joinedDate: DateTime.now().subtract(const Duration(days: 300)),
       ),
       DepartmentMemberModel(
         id: 'mem-2',
@@ -1853,9 +2286,10 @@ class FellowshipState extends ChangeNotifier {
         studentDept: 'Medicine',
         studentYear: '4th Year',
         phoneNumber: '+251922556677',
-        subWing: 'Begena & Instruments (የበገናና መሳሪያዎች)',
-        roleInDepartment: 'Begena Instructor',
-        joinedDate: DateTime.now().subtract(const Duration(days: 220)),
+        subWing: 'Spiritual Drama & Arts (መንፈሳዊ ቴአትርና ስነ ጥበባት)',
+        choirWing: ChoirWingType.fineArts,
+        roleInDepartment: 'Fine Arts Section Lead (የስነ ጥበባት ክፍል ኃላፊ)',
+        joinedDate: DateTime.now().subtract(const Duration(days: 280)),
       ),
       DepartmentMemberModel(
         id: 'mem-3',
@@ -1898,7 +2332,8 @@ class FellowshipState extends ChangeNotifier {
         ministryId: 'dept-music',
         ministryTitle: 'Music & Arts',
         ministryAmharicTitle: 'መዝሙርና ስነ ጥበባት',
-        preferredSubWing: 'Begena & Instruments (የበገናና መሳሪያዎች)',
+        preferredSubWing: 'Choir Vocal & Zema (የዝማሬና ዜማ ዘርፍ)',
+        choirWing: ChoirWingType.mezmur,
         reason: 'I have been learning traditional Begena hymnody for 2 years and wish to serve in campus spiritual nights.',
         experience: 'Parish youth choir Begena player in Debre Markos',
         availability: 'Wednesday evenings & Sunday afternoons',
@@ -1943,6 +2378,91 @@ class FellowshipState extends ChangeNotifier {
         reviewedAt: DateTime.now().subtract(const Duration(days: 1)),
         reviewedByCoordinator: 'Rahel Tesfaye (Charity Coordinator)',
         coordinatorNotes: 'Welcome aboard Mikias! Please join the Saturday 2:00 PM briefing.',
+      ),
+      VolunteerApplicationModel(
+        id: 'app-sample-4',
+        studentId: 'usr-4',
+        studentName: 'Tolosa Dibaba',
+        studentBaptismalName: 'Gebre Yesus',
+        studentDept: 'Law',
+        studentPhone: '+251955112233',
+        studentYear: '3rd Year',
+        ministryId: 'dept-language',
+        ministryTitle: 'Language & Special Needs',
+        ministryAmharicTitle: 'ቋንቋና ልዩ ልዩ ፍላጎት',
+        preferredSubWing: 'Afan Oromo Ministry (የአፋን ኦሮሞ አገልግሎት)',
+        languagesKnown: ['Afan Oromo', 'Amharic', 'English'],
+        reason: 'Passionate about translating patristic catechism and Sunday hymns into Afan Oromo for campus freshmen.',
+        experience: 'Youth fellowship translator for 3 years',
+        availability: 'Sundays after Liturgy & Tuesday evenings',
+        status: ApplicationStatus.pending,
+        appliedAt: DateTime.now().subtract(const Duration(hours: 8)),
+      ),
+    ];
+
+    // Seeded Department Broadcast Messages
+    _departmentBroadcasts = [
+      DepartmentBroadcastMessageModel(
+        id: 'dmsg-1',
+        departmentId: FellowshipDepartmentConstants.deptEducation,
+        title: '🌟 ልዩ የስብከተ ወንጌል መርሐ ግብር - መጋቤ ሐዲስ ዶ/ር ሮዳስ ታደሰ',
+        body: 'በመጪው እሑድ ከቀኑ 9:00 ጀምሮ በዋናው አዳራሽ ልዩ የአባቶች ታሪክና አስደናቂ የስነ-ፍጥረት ትምህርት ይሰጣል። ሁሉም የግቢው ተማሪዎች እንዲገኙ ተጋብዘዋል።',
+        senderName: 'Mulugeta Assefa',
+        senderRole: 'Education Coordinator',
+        sentAt: DateTime.now().subtract(const Duration(days: 1)),
+        urgency: 'meeting',
+        meetingLocation: 'WCU Main Auditorium Hall A',
+        meetingTime: DateTime.now().add(const Duration(days: 3, hours: 4)),
+      ),
+      DepartmentBroadcastMessageModel(
+        id: 'dmsg-2',
+        departmentId: FellowshipDepartmentConstants.deptChoirArts,
+        title: '🎼 አስቸኳይ የመዝሙርና የድራማ ልምምድ ጥሪ',
+        body: 'ለመስቀል በዓል ዝግጅት የመዝሙርና የስነ ጥበባት አባላት ቅዳሜ ከቀኑ 8:30 ጀምሮ በቤተክርስቲያኑ አዳራሽ እንድትገኙ።',
+        senderName: 'Dawit Fikadu',
+        senderRole: 'Choir & Arts Coordinator',
+        sentAt: DateTime.now().subtract(const Duration(hours: 12)),
+        urgency: 'meeting',
+        meetingLocation: 'Campus Chapel Youth Hall',
+        meetingTime: DateTime.now().add(const Duration(days: 2)),
+      ),
+      DepartmentBroadcastMessageModel(
+        id: 'dmsg-3',
+        departmentId: FellowshipDepartmentConstants.deptDevelopment,
+        title: '💼 የገቢ አሰባሰብ ፕሮፖዛል ለሥራ አስፈፃሚ ቀርቧል',
+        body: 'የ2017 ዓመታዊ የበዓላት ባዛርና የንዋያተ ቅድሳት ኤግዚቢሽን ፕሮፖዛል ለአድሚን ቦርድ ቀርቦ ፀድቋል። ዝርዝር የስራ ክፍፍል በቅርቡ ይገለጻል።',
+        senderName: 'Ermias Berhanu',
+        senderRole: 'Development Coordinator',
+        sentAt: DateTime.now().subtract(const Duration(days: 2)),
+        urgency: 'normal',
+      ),
+    ];
+
+    // Seeded Fundraising Proposals (DEPT_DEVELOPMENT)
+    _fundraisingProposals = [
+      FundraisingProposalModel(
+        id: 'prop-1',
+        title: 'የ2017 ዓመታዊ ታላቁ የበዓላት ባዛርና የንዋያተ ቅድሳት ሽያጭ',
+        objective: 'ለተማሪዎች መንፈሳዊ ጉዞ እና ለተቸገሩ አባላት የዕለት ድጋፍ የሚውል ገቢ ማሰባሰብ።',
+        targetAmount: 75000.0,
+        proposedStrategy: 'የበዓላት ዳቦና ሻማ ሽያጭ፣ የኦርቶዶክሳዊ መጻሕፍትና መዛሙርት አውደ ርዕይ፣ የፎቶ ማስታወሻዎች።',
+        targetAudience: 'የግቢው ተማሪዎች፣ መምህራንና የከተማው ኦርቶዶክሳውያን ምዕመናን',
+        submittedByName: 'Ermias Berhanu',
+        submittedAt: DateTime.now().subtract(const Duration(days: 4)),
+        status: ProposalStatus.approved,
+        adminReviewNotes: 'ታላቅ እቅድ ነው፤ የቦታ ፈቃድ ከግቢው አስተዳደር ጋር ተነጋግረን አጠናቀናል። ተፈቅዷል!',
+        reviewedAt: DateTime.now().subtract(const Duration(days: 2)),
+      ),
+      FundraisingProposalModel(
+        id: 'prop-2',
+        title: 'የቀድሞ ተማሪዎች (Alumni Fellowship) የቋሚ ድጋፍ ፈንድ',
+        objective: 'ከተመረቁ የቀድሞ የግቢ ጉባኤ አባላት ጋር ኔትወርክ በመፍጠር ወርሃዊ የድጋፍ ስምምነት መመስረት።',
+        targetAmount: 120000.0,
+        proposedStrategy: 'የቴሌግራም ቦትና የባንክ ቋሚ ትእዛዝ (Standing Order) በማዘጋጀት ወርሃዊ የ100 ብር አባልነት ማስተባበር።',
+        targetAudience: 'በመላው ሀገሪቱ የሚገኙ የቀድሞ ዋቸሞ ግቢ ጉባኤ ተመራቂዎች',
+        submittedByName: 'Ermias Berhanu',
+        submittedAt: DateTime.now().subtract(const Duration(hours: 18)),
+        status: ProposalStatus.pending,
       ),
     ];
 
@@ -2630,6 +3150,8 @@ class FellowshipState extends ChangeNotifier {
   void dispose() {
     _pinTimer?.cancel();
     _countdownTimer?.cancel();
+    pinCountdownNotifier.dispose();
+    liturgyCountdownNotifier.dispose();
     super.dispose();
   }
 }
