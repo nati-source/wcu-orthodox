@@ -1512,6 +1512,7 @@ enum PaymentMethodType {
   telebirr,
   cbeBirr,
   cbeAccount,
+  cash,
   free,
 }
 
@@ -1524,6 +1525,8 @@ extension PaymentMethodTypeExt on PaymentMethodType {
         return 'CBE Birr (ሲቢኢ ብር)';
       case PaymentMethodType.cbeAccount:
         return 'CBE Account Transfer (የንግድ ባንክ ሒሳብ)';
+      case PaymentMethodType.cash:
+        return 'Cash in Hand (በእጅ ጥሬ ገንዘብ)';
       case PaymentMethodType.free:
         return 'Free / No Fee (ነፃ)';
     }
@@ -1537,6 +1540,8 @@ extension PaymentMethodTypeExt on PaymentMethodType {
         return Icons.account_balance_wallet;
       case PaymentMethodType.cbeAccount:
         return Icons.account_balance;
+      case PaymentMethodType.cash:
+        return Icons.payments_outlined;
       case PaymentMethodType.free:
         return Icons.check_circle_outline;
     }
@@ -1811,6 +1816,74 @@ class DuesPaymentModel {
     required this.status,
     required this.submittedAt,
   });
+
+  DuesPaymentModel copyWith({
+    String? id,
+    String? studentId,
+    String? studentName,
+    double? amount,
+    String? purpose,
+    PaymentMethodType? paymentMethod,
+    String? transactionReference,
+    String? status,
+    DateTime? submittedAt,
+  }) {
+    return DuesPaymentModel(
+      id: id ?? this.id,
+      studentId: studentId ?? this.studentId,
+      studentName: studentName ?? this.studentName,
+      amount: amount ?? this.amount,
+      purpose: purpose ?? this.purpose,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      transactionReference: transactionReference ?? this.transactionReference,
+      status: status ?? this.status,
+      submittedAt: submittedAt ?? this.submittedAt,
+    );
+  }
+}
+
+class CharityDisbursementModel {
+  final String id;
+  final String beneficiaryName;
+  final String assistanceType; // "Student Cafeteria Meal Support", "Medical & Prescription", "Emergency Transport", "Academic Supplies"
+  final double amount;
+  final String voucherReference;
+  final String approvedBy;
+  final DateTime disbursedAt;
+  final String notes;
+
+  const CharityDisbursementModel({
+    required this.id,
+    required this.beneficiaryName,
+    required this.assistanceType,
+    required this.amount,
+    required this.voucherReference,
+    required this.approvedBy,
+    required this.disbursedAt,
+    this.notes = '',
+  });
+
+  CharityDisbursementModel copyWith({
+    String? id,
+    String? beneficiaryName,
+    String? assistanceType,
+    double? amount,
+    String? voucherReference,
+    String? approvedBy,
+    DateTime? disbursedAt,
+    String? notes,
+  }) {
+    return CharityDisbursementModel(
+      id: id ?? this.id,
+      beneficiaryName: beneficiaryName ?? this.beneficiaryName,
+      assistanceType: assistanceType ?? this.assistanceType,
+      amount: amount ?? this.amount,
+      voucherReference: voucherReference ?? this.voucherReference,
+      approvedBy: approvedBy ?? this.approvedBy,
+      disbursedAt: disbursedAt ?? this.disbursedAt,
+      notes: notes ?? this.notes,
+    );
+  }
 }
 
 enum EmergencyAidCategory {

@@ -209,26 +209,32 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                child.fullName,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: isSelected ? primaryAccent : textCol,
+                          Flexible(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  child.fullName,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: isSelected ? primaryAccent : textCol,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                              Text(
-                                'B.N. ${child.baptismalName} • Yr ${child.academicYear}',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: textMuted,
+                                Text(
+                                  'B.N. ${child.baptismalName} • Yr ${child.academicYear}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: textMuted,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),

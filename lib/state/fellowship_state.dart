@@ -1249,10 +1249,57 @@ class FellowshipState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updatePilgrimageTrip(PilgrimageTripModel updatedTrip) {
+    if (!canManagePilgrimages && !isAdmin) return;
+    final idx = _pilgrimageTrips.indexWhere((t) => t.id == updatedTrip.id);
+    if (idx != -1) {
+      _pilgrimageTrips[idx] = updatedTrip;
+      notifyListeners();
+    }
+  }
+
   void removePilgrimageTrip(String tripId) {
     if (!canManagePilgrimages && !isAdmin) return;
     _pilgrimageTrips.removeWhere((t) => t.id == tripId);
+    _tripRegistrations.removeWhere((r) => r.tripId == tripId);
     notifyListeners();
+  }
+
+  void addPilgrimRegistration(TripRegistrationModel reg) {
+    if (!canManagePilgrimages && !isAdmin) return;
+    _tripRegistrations.insert(0, reg);
+    final tripIdx = _pilgrimageTrips.indexWhere((t) => t.id == reg.tripId);
+    if (tripIdx != -1) {
+      _pilgrimageTrips[tripIdx] = _pilgrimageTrips[tripIdx].copyWith(
+        bookedSeats: _pilgrimageTrips[tripIdx].bookedSeats + 1,
+      );
+    }
+    notifyListeners();
+  }
+
+  void deletePilgrimRegistration(String regId) {
+    if (!canManagePilgrimages && !isAdmin) return;
+    final idx = _tripRegistrations.indexWhere((r) => r.id == regId);
+    if (idx != -1) {
+      final reg = _tripRegistrations.removeAt(idx);
+      final tripIdx = _pilgrimageTrips.indexWhere((t) => t.id == reg.tripId);
+      if (tripIdx != -1) {
+        final currentBooked = _pilgrimageTrips[tripIdx].bookedSeats;
+        _pilgrimageTrips[tripIdx] = _pilgrimageTrips[tripIdx].copyWith(
+          bookedSeats: currentBooked > 0 ? currentBooked - 1 : 0,
+        );
+      }
+      notifyListeners();
+    }
+  }
+
+  void updatePilgrimRegistration(TripRegistrationModel updated) {
+    if (!canManagePilgrimages && !isAdmin) return;
+    final index = _tripRegistrations.indexWhere((r) => r.id == updated.id);
+    if (index != -1) {
+      _tripRegistrations[index] = updated;
+      notifyListeners();
+    }
   }
 
   void verifyTripPayment(String regId, bool approve) {
@@ -1300,10 +1347,12 @@ class FellowshipState extends ChangeNotifier {
   // ----------------------------------------------------
   List<CharityCampaignModel> _charityCampaigns = [];
   List<DuesPaymentModel> _duesPayments = [];
+  List<CharityDisbursementModel> _charityDisbursements = [];
   List<EmergencyAidRequestModel> _emergencyAidRequests = [];
 
   List<CharityCampaignModel> get charityCampaigns => List.unmodifiable(_charityCampaigns);
   List<DuesPaymentModel> get duesPayments => List.unmodifiable(_duesPayments);
+  List<CharityDisbursementModel> get charityDisbursements => List.unmodifiable(_charityDisbursements);
   List<EmergencyAidRequestModel> get emergencyAidRequests => List.unmodifiable(_emergencyAidRequests);
 
   List<EmergencyAidRequestModel> get myEmergencyAidRequests =>
@@ -1315,9 +1364,54 @@ class FellowshipState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateCharityCampaign(CharityCampaignModel updatedCampaign) {
+    if (!canManageCharityAndAid && !isAdmin) return;
+    final idx = _charityCampaigns.indexWhere((c) => c.id == updatedCampaign.id);
+    if (idx != -1) {
+      _charityCampaigns[idx] = updatedCampaign;
+      notifyListeners();
+    }
+  }
+
   void removeCharityCampaign(String campaignId) {
     if (!canManageCharityAndAid && !isAdmin) return;
     _charityCampaigns.removeWhere((c) => c.id == campaignId);
+    notifyListeners();
+  }
+
+  void deleteDuesPayment(String paymentId) {
+    if (!canVerifyFinances && !canManageCharityAndAid && !isAdmin) return;
+    _duesPayments.removeWhere((d) => d.id == paymentId);
+    notifyListeners();
+  }
+
+  void updateDuesPayment(DuesPaymentModel updated) {
+    if (!canVerifyFinances && !canManageCharityAndAid && !isAdmin) return;
+    final index = _duesPayments.indexWhere((d) => d.id == updated.id);
+    if (index != -1) {
+      _duesPayments[index] = updated;
+      notifyListeners();
+    }
+  }
+
+  void addCharityDisbursement(CharityDisbursementModel disbursement) {
+    if (!canManageCharityAndAid && !isAdmin) return;
+    _charityDisbursements.insert(0, disbursement);
+    notifyListeners();
+  }
+
+  void updateCharityDisbursement(CharityDisbursementModel updated) {
+    if (!canManageCharityAndAid && !isAdmin) return;
+    final index = _charityDisbursements.indexWhere((d) => d.id == updated.id);
+    if (index != -1) {
+      _charityDisbursements[index] = updated;
+      notifyListeners();
+    }
+  }
+
+  void deleteCharityDisbursement(String disbursementId) {
+    if (!canManageCharityAndAid && !isAdmin) return;
+    _charityDisbursements.removeWhere((d) => d.id == disbursementId);
     notifyListeners();
   }
 
@@ -2959,6 +3053,40 @@ class FellowshipState extends ChangeNotifier {
         transactionReference: 'TB-87491028374',
         status: 'Verified',
         submittedAt: DateTime.now().subtract(const Duration(days: 5)),
+      ),
+      DuesPaymentModel(
+        id: 'due-2',
+        studentId: 'usr-senior-1',
+        studentName: 'Abel Tesfaye',
+        amount: 250.0,
+        purpose: 'Student Mutual Aid Donation',
+        paymentMethod: PaymentMethodType.cbeBirr,
+        transactionReference: 'CBE-394827104',
+        status: 'Verified',
+        submittedAt: DateTime.now().subtract(const Duration(days: 3)),
+      ),
+    ];
+
+    _charityDisbursements = [
+      CharityDisbursementModel(
+        id: 'disb-1',
+        beneficiaryName: 'Hewan Bekele (Year 2 Law)',
+        assistanceType: 'Medical & Clinic Prescription Support',
+        amount: 1200.0,
+        voucherReference: 'DISB-MED-2026-08',
+        approvedBy: 'Charity Coordinator',
+        disbursedAt: DateTime.now().subtract(const Duration(days: 2)),
+        notes: 'Disbursed via Telebirr for urgent malaria medication.',
+      ),
+      CharityDisbursementModel(
+        id: 'disb-2',
+        beneficiaryName: 'Yohannes Girma (Year 1 Engineering)',
+        assistanceType: 'Cafeteria & Meal Subsidy Voucher',
+        amount: 850.0,
+        voucherReference: 'DISB-MEAL-2026-04',
+        approvedBy: 'Charity Coordinator',
+        disbursedAt: DateTime.now().subtract(const Duration(days: 6)),
+        notes: 'Meal assistance voucher for needy freshman student.',
       ),
     ];
 

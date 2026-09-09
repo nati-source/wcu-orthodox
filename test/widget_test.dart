@@ -1,8 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wcu_orthodox/main.dart';
 import 'package:wcu_orthodox/models/app_models.dart';
 import 'package:wcu_orthodox/state/fellowship_state.dart';
+import 'package:wcu_orthodox/theme/app_theme.dart';
+import 'package:wcu_orthodox/views/coordinator/coordinator_hub_screen.dart';
 
 void main() {
   setUp(() {
@@ -530,6 +533,122 @@ void main() {
       expect(updatedAid.status, EmergencyAidStatus.approved);
       expect(updatedAid.adminNote, 'Emergency medical aid approved and transferred via Telebirr.');
     }
+  });
+
+  testWidgets('Coordinator Hub: Batch Programs Pilgrimage & Charity interactive features test', (tester) async {
+    final state = FellowshipState();
+    // Set to Batch & Programs coordinator
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptBatchPrograms);
+
+    // 1. Interactive Pilgrimage CRUD
+    final initialTripsCount = state.pilgrimageTrips.length;
+    final testTrip = PilgrimageTripModel(
+      id: 'trip-interactive-test',
+      title: 'Debre Libanos Pilgrimage Retreat',
+      destination: 'Debre Libanos Monastery',
+      departureDate: DateTime.now().add(const Duration(days: 10)),
+      returnDate: DateTime.now().add(const Duration(days: 11)),
+      departurePoint: 'WCU Campus Gate',
+      feeAmount: 450.0,
+      isFree: false,
+      telebirrNumber: '+251911223344',
+      telebirrAccountName: 'WCU Orthodox Fellowship',
+      cbeAccountNumber: '1000234567890',
+      cbeAccountName: 'WCU Orthodox Tewahedo Fellowship',
+      totalSeats: 60,
+      bookedSeats: 0,
+      itinerary: ['Morning departure', 'Liturgy and prayers', 'Return in evening'],
+      packingList: ['Netela', 'Bible'],
+      coordinatorName: 'Batch Coordinator',
+      coordinatorPhone: '+251911000000',
+    );
+    state.addPilgrimageTrip(testTrip);
+    expect(state.pilgrimageTrips.length, initialTripsCount + 1);
+
+    // Edit trip
+    final editedTrip = testTrip.copyWith(title: 'Debre Libanos Pilgrimage & Holy Water Blessing', feeAmount: 500.0);
+    state.updatePilgrimageTrip(editedTrip);
+    expect(state.pilgrimageTrips.firstWhere((t) => t.id == testTrip.id).title, 'Debre Libanos Pilgrimage & Holy Water Blessing');
+
+    // Register pilgrim student
+    final pilgrim = TripRegistrationModel(
+      id: 'reg-test-1',
+      tripId: testTrip.id,
+      tripTitle: editedTrip.title,
+      studentId: 'usr-pilgrim-1',
+      studentName: 'Betelehem Tadesse',
+      studentBaptismalName: 'Walata Kidan',
+      studentPhone: '+251911887766',
+      department: 'Biomedical Engineering',
+      academicYear: 3,
+      busNumber: 1,
+      seatNumber: 18,
+      feeAmount: 500.0,
+      isFree: false,
+      paymentMethod: PaymentMethodType.telebirr,
+      transactionReference: 'TB-TEST-998877',
+      paymentStatus: TripPaymentStatus.pendingVerification,
+      qrTicketCode: 'PILGRIM-TEST-9988',
+      registeredAt: DateTime.now(),
+    );
+    state.addPilgrimRegistration(pilgrim);
+    expect(state.allTripRegistrations.any((r) => r.id == 'reg-test-1'), true);
+
+    // Verify payment
+    state.verifyTripPayment('reg-test-1', true);
+    expect(state.allTripRegistrations.firstWhere((r) => r.id == 'reg-test-1').paymentStatus, TripPaymentStatus.verified);
+
+    // Edit pilgrim seat
+    final updatedPilgrim = pilgrim.copyWith(busNumber: 2, seatNumber: 5, paymentStatus: TripPaymentStatus.verified);
+    state.updatePilgrimRegistration(updatedPilgrim);
+    expect(state.allTripRegistrations.firstWhere((r) => r.id == 'reg-test-1').seatNumber, 5);
+
+    // 2. Switch to Charity Coordinator
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptCharity);
+
+    // Add & Edit Charity Campaign
+    final initialCampsCount = state.charityCampaigns.length;
+    final testCamp = CharityCampaignModel(
+      id: 'camp-test-1',
+      title: 'Needy Students Cafeteria Meal Voucher Fund',
+      description: 'Monthly meal voucher support for underprivileged campus students.',
+      targetAmount: 30000.0,
+      raisedAmount: 5000.0,
+      donorsCount: 15,
+      deadline: DateTime.now().add(const Duration(days: 30)),
+      category: 'Student Mutual Aid',
+    );
+    state.addCharityCampaign(testCamp);
+    expect(state.charityCampaigns.length, initialCampsCount + 1);
+
+    // Add and delete charity disbursement
+    final disb = CharityDisbursementModel(
+      id: 'disb-test-1',
+      beneficiaryName: 'Mekdes Zewdu (Year 2 Medicine)',
+      assistanceType: 'Prescription Medicine Voucher',
+      amount: 600.0,
+      voucherReference: 'VOUCH-MED-099',
+      approvedBy: 'Charity Coordinator',
+      disbursedAt: DateTime.now(),
+      notes: 'Disbursed via Telebirr for emergency clinic pharmacy prescription.',
+    );
+    state.addCharityDisbursement(disb);
+    expect(state.charityDisbursements.any((d) => d.id == 'disb-test-1'), true);
+
+    state.deleteCharityDisbursement('disb-test-1');
+    expect(state.charityDisbursements.any((d) => d.id == 'disb-test-1'), false);
+
+    // Render CoordinatorHubScreen to ensure zero layout exceptions / overflows
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: CoordinatorHubScreen(state: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Coordinator Hub'), findsOneWidget);
+    state.dispose();
   });
 }
 
