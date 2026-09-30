@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "624095213051",
+    "project_id": "wcu-orthodox",
+    "storage_bucket": "wcu-orthodox.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:624095213051:android:c399bea4eb96797bd6c75e",
+        "android_client_info": {
+          "package_name": "com.example.wcu_orthodox"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCehEa2VsvKf5RuOkBtZmKiwetp_E_VKWk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

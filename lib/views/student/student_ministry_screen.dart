@@ -575,9 +575,6 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               ),
             ),
 
-            // Broadcast Notice Feed for Members & Students
-            _buildBroadcastsFeed(context),
-
             const SizedBox(height: 16),
 
             // 2. Search Box
@@ -620,15 +617,20 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'My Department Applications',
-                    style: TextStyle(
-                      fontFamily: 'serif',
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: textCol,
+                  Expanded(
+                    child: Text(
+                      'My Department Applications',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: textCol,
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
@@ -652,15 +654,20 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Explore Fellowship Wings',
-                  style: TextStyle(
-                    fontFamily: 'serif',
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: textCol,
+                Expanded(
+                  child: Text(
+                    'Explore Fellowship Wings',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'serif',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: textCol,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   '${filteredMinistries.length} Departments',
                   style: TextStyle(fontSize: 12, color: textMuted),
@@ -1068,139 +1075,6 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBroadcastsFeed(BuildContext context) {
-    final broadcasts = widget.state.departmentBroadcasts;
-    if (broadcasts.isEmpty) return const SizedBox.shrink();
-
-    final theme = Theme.of(context);
-    final primaryAccent = theme.colorScheme.primary;
-    final textCol = theme.colorScheme.onSurface;
-    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
-    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
-    final elevatedBg = theme.colorScheme.surfaceContainerHighest;
-
-    return Container(
-      margin: const EdgeInsets.only(top: 14),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: primaryAccent.withOpacity(0.35)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.campaign, color: primaryAccent, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Department Broadcasts & Notices',
-                  style: TextStyle(
-                    fontFamily: 'serif',
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: textCol,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: primaryAccent.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${broadcasts.length} Active',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ...broadcasts.take(3).map((b) {
-            final isTeacherNotice = b.isSpecialTeacherNotice;
-            final isUrgent = b.urgency == 'urgent';
-            final badgeColor = isTeacherNotice
-                ? AppTheme.gold
-                : isUrgent
-                    ? AppTheme.crimson
-                    : primaryAccent;
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: elevatedBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: badgeColor.withOpacity(0.3)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: badgeColor.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          isTeacherNotice
-                              ? '🎓 GUEST TEACHER'
-                              : isUrgent
-                                  ? '🚨 URGENT'
-                                  : '📢 NOTICE',
-                          style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: badgeColor),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          b.title,
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textCol),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    b.body,
-                    style: TextStyle(fontSize: 11, color: textMuted),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (b.meetingLocation != null || b.meetingTime != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.place, size: 11, color: primaryAccent),
-                        const SizedBox(width: 3),
-                        Text(
-                          b.meetingLocation ?? 'Campus Fellowship Hall',
-                          style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  Text(
-                    'From: ${b.senderName} (${b.senderRole})',
-                    style: TextStyle(fontSize: 9, color: textMuted.withOpacity(0.7)),
-                  ),
-                ],
-              ),
-            );
-          }),
         ],
       ),
     );

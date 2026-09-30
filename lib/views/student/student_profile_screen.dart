@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/app_models.dart';
+import '../../services/auth_service.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/interactive_fellowship_card.dart';
@@ -10,7 +11,6 @@ import 'student_confessor_screen.dart';
 import 'student_pilgrimage_screen.dart';
 import 'student_charity_screen.dart';
 import 'student_mentorship_screen.dart';
-import '../admin/admin_approvals_screen.dart';
 import '../coordinator/coordinator_hub_screen.dart';
 
 class StudentProfileScreen extends StatelessWidget {
@@ -138,11 +138,11 @@ class StudentProfileScreen extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildIdField(context, 'BATCH', user.batchYear),
+                      Expanded(child: _buildIdField(context, 'BATCH', user.batchYear)),
                       Container(width: 1, height: 28, color: theme.dividerColor),
-                      _buildIdField(context, 'DEPT', user.department.split(' ').first),
+                      Expanded(child: _buildIdField(context, 'DEPT', user.department.split(' ').first)),
                       Container(width: 1, height: 28, color: theme.dividerColor),
-                      _buildIdField(context, 'YEAR', 'Year ${user.academicYear}'),
+                      Expanded(child: _buildIdField(context, 'YEAR', 'Year ${user.academicYear}')),
                     ],
                   ),
                 ),
@@ -160,6 +160,7 @@ class StudentProfileScreen extends StatelessWidget {
                     data: 'WCU-ORTHODOX-FELLOW:${user.id}:${user.fullName}',
                     version: QrVersions.auto,
                     size: 130.0,
+                    backgroundColor: Colors.white,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -312,15 +313,20 @@ class StudentProfileScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Appearance & Theme (የመተግበሪያው ገጽታ)',
-                style: TextStyle(
-                  fontFamily: 'serif',
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: primaryAccent,
+              Expanded(
+                child: Text(
+                  'Appearance & Theme (የመተግበሪያው ገጽታ)',
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: primaryAccent,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -556,9 +562,13 @@ class StudentProfileScreen extends StatelessWidget {
                         children: [
                           const Icon(Icons.verified, color: AppTheme.emerald, size: 16),
                           const SizedBox(width: 4),
-                          const Text(
-                            'Verified Fellowship Member',
-                            style: TextStyle(fontSize: 11, color: AppTheme.emerald, fontWeight: FontWeight.w600),
+                          const Flexible(
+                            child: Text(
+                              'Verified Fellowship Member',
+                              style: TextStyle(fontSize: 11, color: AppTheme.emerald, fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -652,9 +662,13 @@ class StudentProfileScreen extends StatelessWidget {
                         },
                         child: Row(
                           children: [
-                            Text(
-                              'Serving Areas',
-                              style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.bold),
+                            Flexible(
+                              child: Text(
+                                'Serving Areas',
+                                style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.bold),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             Icon(Icons.chevron_right, size: 14, color: primaryAccent),
                           ],
@@ -697,12 +711,16 @@ class StudentProfileScreen extends StatelessWidget {
                   children: [
                     Icon(Icons.workspace_premium, color: primaryAccent, size: 18),
                     const SizedBox(width: 6),
-                    Text(
-                      badge,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface,
+                    Flexible(
+                      child: Text(
+                        badge,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -765,6 +783,69 @@ class StudentProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
+
+          // 5. Account & Sign Out Section
+
+          Container(
+            width: double.infinity,
+            height: 52,
+            margin: const EdgeInsets.only(bottom: 24),
+            child: OutlinedButton.icon(
+              onPressed: () => _confirmSignOut(context),
+              icon: const Icon(Icons.logout, color: AppTheme.crimson, size: 20),
+              label: const Text(
+                'Sign Out / ከመለያ ውጣ',
+                style: TextStyle(
+                  color: AppTheme.crimson,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: AppTheme.crimson.withOpacity(0.5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: AppTheme.crimson, size: 22),
+            SizedBox(width: 10),
+            Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to sign out from your fellowship account?',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await AuthService().signOut();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.crimson,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
         ],
       ),
     );
@@ -785,6 +866,8 @@ class StudentProfileScreen extends StatelessWidget {
             color: textMuted.withOpacity(0.7),
             letterSpacing: 1.1,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 4),
         Text(
@@ -794,6 +877,9 @@ class StudentProfileScreen extends StatelessWidget {
             fontWeight: FontWeight.bold,
             color: textCol,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -838,9 +924,9 @@ class StudentProfileScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textCol)),
+                  Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textCol), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
-                  Text(subtitle, style: TextStyle(fontSize: 10, color: textMuted)),
+                  Text(subtitle, style: TextStyle(fontSize: 10, color: textMuted), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),

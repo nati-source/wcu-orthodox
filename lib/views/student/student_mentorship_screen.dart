@@ -88,7 +88,7 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
     return GestureDetector(
       onTap: () => setState(() => _activeTab = index),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
           color: isSelected ? primaryAccent.withOpacity(0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -97,14 +97,18 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+            Icon(icon, size: 15, color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                ),
               ),
             ),
           ],
@@ -276,10 +280,15 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '${mentor.activeMenteesCount}/${mentor.maxMentees} Mentees Active',
-                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                    Flexible(
+                      child: Text(
+                        '${mentor.activeMenteesCount}/${mentor.maxMentees} Mentees Active',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     ElevatedButton(
                       onPressed: isRequested
                           ? null
@@ -362,10 +371,15 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Mentor: ${req.mentorName}',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                  Expanded(
+                    child: Text(
+                      'Mentor: ${req.mentorName}',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
@@ -381,20 +395,26 @@ class _StudentMentorshipScreenState extends State<StudentMentorshipScreen> {
               Text(
                 'Department: ${req.department}',
                 style: TextStyle(fontSize: 12, color: primaryAccent),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 4),
               Text(
                 'Courses: ${req.coursesNeeded}',
                 style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 14),
               Row(
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () => state.launchTelegram('https://t.me/abel_fellowship_cs'),
-                    icon: const Icon(Icons.send, size: 14, color: Colors.white),
-                    label: const Text('Message on Telegram', style: TextStyle(fontSize: 11, color: Colors.white)),
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0088CC)),
+                  Flexible(
+                    child: ElevatedButton.icon(
+                      onPressed: () => state.launchTelegram('https://t.me/abel_fellowship_cs'),
+                      icon: const Icon(Icons.send, size: 14, color: Colors.white),
+                      label: const Text('Message on Telegram', style: TextStyle(fontSize: 11, color: Colors.white), overflow: TextOverflow.ellipsis),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0088CC)),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   IconButton(

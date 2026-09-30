@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
@@ -93,7 +94,7 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
     return GestureDetector(
       onTap: () => setState(() => _activeTab = index),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
           color: isSelected ? primaryAccent.withOpacity(0.18) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -102,14 +103,18 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+            Icon(icon, size: 15, color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                ),
               ),
             ),
           ],
@@ -259,7 +264,14 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                         children: [
                           Icon(Icons.payment, size: 14, color: primaryAccent),
                           const SizedBox(width: 6),
-                          Text('Accepted Payment Methods: Telebirr & CBE', style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600)),
+                          Expanded(
+                            child: Text(
+                              'Accepted Payment Methods: Telebirr & CBE',
+                              style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -272,7 +284,10 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                               ? ElevatedButton.icon(
                                   onPressed: () => setState(() => _activeTab = 1),
                                   icon: const Icon(Icons.check_circle, color: Color(0xFF10B981), size: 18),
-                                  label: const Text('Registered • View Boarding Pass', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  label: const FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text('Registered • View Boarding Pass', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF10B981),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -282,9 +297,12 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                               : ElevatedButton.icon(
                                   onPressed: () => _openRegistrationModal(context, trip),
                                   icon: Icon(Icons.confirmation_number_outlined, color: isDark ? Colors.black : Colors.white, size: 18),
-                                  label: Text(
-                                    trip.isFree ? 'Register for Free Trip' : 'Register & Pay via Telebirr / CBE',
-                                    style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                  label: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Text(
+                                      trip.isFree ? 'Register for Free Trip' : 'Register & Pay via Telebirr / CBE',
+                                      style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                                    ),
                                   ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: trip.isFree ? const Color(0xFF10B981) : primaryAccent,
@@ -407,7 +425,14 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('WCU FELLOWSHIP PILGRIM PASS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: primaryAccent, letterSpacing: 1.2)),
+                        Expanded(
+                          child: Text(
+                            'WCU FELLOWSHIP PILGRIM PASS',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: primaryAccent, letterSpacing: 1.2),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
@@ -459,6 +484,7 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                         data: ticket.qrTicketCode,
                         version: QrVersions.auto,
                         size: 90.0,
+                        backgroundColor: Colors.white,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -477,10 +503,11 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                             style: TextStyle(fontSize: 12, color: primaryAccent),
                           ),
                           const SizedBox(height: 6),
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
                             children: [
                               _buildPill('Bus #${ticket.busNumber}', const Color(0xFF3B82F6)),
-                              const SizedBox(width: 6),
                               _buildPill('Seat #${ticket.seatNumber}', const Color(0xFF10B981)),
                             ],
                           ),
@@ -550,9 +577,13 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          trip.isFree ? 'Free Pilgrimage Registration' : 'Pilgrimage Registration & Payment',
-                          style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent),
+                        Expanded(
+                          child: Text(
+                            trip.isFree ? 'Free Pilgrimage Registration' : 'Pilgrimage Registration & Payment',
+                            style: TextStyle(fontFamily: 'serif', fontSize: 15, fontWeight: FontWeight.bold, color: primaryAccent),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         IconButton(icon: Icon(Icons.close, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary), onPressed: () => Navigator.pop(ctx)),
                       ],
@@ -576,7 +607,14 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Total Pilgrimage Fee:', style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+                            Flexible(
+                              child: Text(
+                                'Total Pilgrimage Fee:',
+                                style: TextStyle(fontSize: 13, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
                             Text(
                               '${trip.feeAmount.toInt()} ETB',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryAccent),
@@ -586,29 +624,147 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      Text('Select Payment Method:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+                      Text('Select Payment Method & Send Fee:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
                       const SizedBox(height: 8),
 
-                      // Telebirr Option
-                      RadioListTile<PaymentMethodType>(
-                        value: PaymentMethodType.telebirr,
-                        groupValue: selectedMethod,
-                        activeColor: primaryAccent,
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (val) => setModalState(() => selectedMethod = val!),
-                        title: Text('Telebirr (ቴሌብር)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-                        subtitle: Text('Send to: ${trip.telebirrNumber} (${trip.telebirrAccountName})', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+                      // Telebirr Option Card
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: selectedMethod == PaymentMethodType.telebirr ? primaryAccent.withOpacity(0.08) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: selectedMethod == PaymentMethodType.telebirr ? primaryAccent : theme.dividerColor),
+                        ),
+                        child: Column(
+                          children: [
+                            RadioListTile<PaymentMethodType>(
+                              value: PaymentMethodType.telebirr,
+                              groupValue: selectedMethod,
+                              activeColor: primaryAccent,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                              onChanged: (val) => setModalState(() => selectedMethod = val!),
+                              title: Row(
+                                children: [
+                                  Icon(Icons.phone_android, size: 16, color: primaryAccent),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Telebirr (ቴሌብር)',
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text('${trip.telebirrNumber} (${trip.telebirrAccountName})', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+                            ),
+                            if (selectedMethod == PaymentMethodType.telebirr)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 10),
+                                child: InkWell(
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(text: trip.telebirrNumber));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Telebirr number "${trip.telebirrNumber}" copied to clipboard!')),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: primaryAccent.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.copy, size: 13, color: primaryAccent),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            'Copy Telebirr Number (${trip.telebirrNumber})',
+                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryAccent),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
 
-                      // CBE Option
-                      RadioListTile<PaymentMethodType>(
-                        value: PaymentMethodType.cbeAccount,
-                        groupValue: selectedMethod,
-                        activeColor: primaryAccent,
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (val) => setModalState(() => selectedMethod = val!),
-                        title: Text('CBE / Commercial Bank of Ethiopia (ሲቢኢ)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-                        subtitle: Text('Acct: ${trip.cbeAccountNumber} (${trip.cbeAccountName})', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+                      // CBE Option Card
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: selectedMethod == PaymentMethodType.cbeAccount ? primaryAccent.withOpacity(0.08) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: selectedMethod == PaymentMethodType.cbeAccount ? primaryAccent : theme.dividerColor),
+                        ),
+                        child: Column(
+                          children: [
+                            RadioListTile<PaymentMethodType>(
+                              value: PaymentMethodType.cbeAccount,
+                              groupValue: selectedMethod,
+                              activeColor: primaryAccent,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                              onChanged: (val) => setModalState(() => selectedMethod = val!),
+                              title: Row(
+                                children: [
+                                  Icon(Icons.account_balance, size: 16, color: primaryAccent),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'CBE / Commercial Bank of Ethiopia (ሲቢኢ)',
+                                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text('Acct: ${trip.cbeAccountNumber} (${trip.cbeAccountName})', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+                            ),
+                            if (selectedMethod == PaymentMethodType.cbeAccount)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 16, right: 16, bottom: 10),
+                                child: InkWell(
+                                  onTap: () {
+                                    Clipboard.setData(ClipboardData(text: trip.cbeAccountNumber));
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('CBE Account "${trip.cbeAccountNumber}" copied to clipboard!')),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: primaryAccent.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.copy, size: 13, color: primaryAccent),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            'Copy CBE Account (${trip.cbeAccountNumber})',
+                                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryAccent),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
 
                       const SizedBox(height: 12),
@@ -682,6 +838,10 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
     final feeCtrl = TextEditingController(text: '350');
     final departPointCtrl = TextEditingController(text: 'WCU Main Campus Gate');
     final seatsCtrl = TextEditingController(text: '90');
+    final telebirrNumCtrl = TextEditingController(text: '+251911223344');
+    final telebirrNameCtrl = TextEditingController(text: 'WCU Orthodox Fellowship');
+    final cbeAcctCtrl = TextEditingController(text: '1000293848123');
+    final cbeNameCtrl = TextEditingController(text: 'WCU Orthodox Student Fellowship');
     bool isFree = false;
 
     showDialog(
@@ -713,6 +873,14 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                     if (!isFree) ...[
                       TextField(controller: feeCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Trip Fee in ETB (የጉዞ ዋጋ)')),
                       const SizedBox(height: 8),
+                      TextField(controller: telebirrNumCtrl, decoration: const InputDecoration(labelText: 'Telebirr Receiving Number')),
+                      const SizedBox(height: 8),
+                      TextField(controller: telebirrNameCtrl, decoration: const InputDecoration(labelText: 'Telebirr Receiver Name')),
+                      const SizedBox(height: 8),
+                      TextField(controller: cbeAcctCtrl, decoration: const InputDecoration(labelText: 'CBE Account Number')),
+                      const SizedBox(height: 8),
+                      TextField(controller: cbeNameCtrl, decoration: const InputDecoration(labelText: 'CBE Account Holder Name')),
+                      const SizedBox(height: 8),
                     ],
                     TextField(controller: seatsCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Total Available Seats (ጠቅላላ ወንበር)')),
                   ],
@@ -735,10 +903,10 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                       departurePoint: departPointCtrl.text.trim(),
                       isFree: isFree,
                       feeAmount: feeAmt,
-                      telebirrNumber: '+251911223344',
-                      telebirrAccountName: 'WCU Orthodox Fellowship',
-                      cbeAccountNumber: '1000123456789',
-                      cbeAccountName: 'WCU Orthodox Student Fellowship',
+                      telebirrNumber: telebirrNumCtrl.text.trim().isNotEmpty ? telebirrNumCtrl.text.trim() : '+251911223344',
+                      telebirrAccountName: telebirrNameCtrl.text.trim().isNotEmpty ? telebirrNameCtrl.text.trim() : 'WCU Orthodox Fellowship',
+                      cbeAccountNumber: cbeAcctCtrl.text.trim().isNotEmpty ? cbeAcctCtrl.text.trim() : '1000293848123',
+                      cbeAccountName: cbeNameCtrl.text.trim().isNotEmpty ? cbeNameCtrl.text.trim() : 'WCU Orthodox Student Fellowship',
                       totalSeats: totalSeats,
                       bookedSeats: 0,
                       itinerary: ['5:30 AM - Departure from WCU Gate', '10:00 AM - Arrival & Liturgy', '3:00 PM - Spiritual Teaching & Return'],
@@ -795,12 +963,21 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.directions_bus, color: Color(0xFF10B981), size: 22),
-                            const SizedBox(width: 8),
-                            Text('Bus Boarding & QR Ticket Control', style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent)),
-                          ],
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.directions_bus, color: Color(0xFF10B981), size: 22),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Bus Boarding & QR Ticket Control',
+                                  style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                       ],
@@ -862,7 +1039,14 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Passenger Manifest (${allRegs.length} total)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+                          Flexible(
+                            child: Text(
+                              'Passenger Manifest (${allRegs.length} total)',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(

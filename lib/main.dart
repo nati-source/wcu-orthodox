@@ -10,7 +10,6 @@ import 'views/student/student_roadmap_screen.dart';
 import 'views/student/student_library_screen.dart';
 import 'views/student/student_profile_screen.dart';
 import 'views/student/student_qr_scanner_screen.dart';
-import 'views/student/student_registration_screen.dart';
 import 'views/admin/admin_dashboard_screen.dart';
 import 'views/admin/admin_family_matching_screen.dart';
 import 'views/admin/admin_live_attendance_screen.dart';
@@ -18,7 +17,20 @@ import 'views/admin/admin_approvals_screen.dart';
 import 'views/admin/admin_media_curriculum_screen.dart';
 import 'views/coordinator/coordinator_hub_screen.dart';
 
-void main() {
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'views/auth/login_screen.dart';
+import 'services/auth_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization notice: $e');
+  }
   runApp(const WcuOrthodoxApp());
 }
 
@@ -31,11 +43,56 @@ class WcuOrthodoxApp extends StatefulWidget {
 
 class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
   final FellowshipState _fellowshipState = FellowshipState();
+  final AuthService _authService = AuthService();
+  bool _isDemoMode = false;
+  String? _syncedUid;
 
   @override
   void dispose() {
     _fellowshipState.dispose();
     super.dispose();
+  }
+
+  void _syncUserProfile(dynamic user) async {
+    if (user == null || _syncedUid == user.uid) return;
+    _syncedUid = user.uid;
+
+    if (user.displayName != null && (user.displayName as String).trim().isNotEmpty) {
+      _fellowshipState.updateCurrentUserProfile(
+        id: user.uid,
+        fullName: (user.displayName as String).trim(),
+      );
+    }
+
+    try {
+      final profile = await _authService.getUserProfile(user.uid);
+      if (profile != null && mounted) {
+        final roleStr = profile['role'] as String?;
+        UserRole role = UserRole.student;
+        if (roleStr != null) {
+          for (final r in UserRole.values) {
+            if (r.name == roleStr) {
+              role = r;
+              break;
+            }
+          }
+        }
+        _fellowshipState.updateCurrentUserProfile(
+          id: user.uid,
+          fullName: profile['fullName'] ?? user.displayName ?? 'Student Fellow',
+          baptismalName: profile['baptismalName'],
+          phoneNumber: profile['phoneNumber'],
+          department: profile['department'],
+          academicYear: profile['academicYear'] is int ? profile['academicYear'] : int.tryParse(profile['academicYear']?.toString() ?? '1'),
+          batchYear: profile['batchYear']?.toString(),
+          role: role,
+          assignedFamilyId: profile['assignedFamilyId'] ?? profile['familyId'] ?? profile['family'] ?? profile['assignedFamily'],
+        );
+        _fellowshipState.autoSeedIfEmpty();
+      }
+    } catch (e) {
+      debugPrint('Error syncing user profile: $e');
+    }
   }
 
   @override
@@ -47,7 +104,30 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
           title: 'WCU Orthodox Fellowship',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.getTheme(_fellowshipState.currentThemePalette),
-          home: MainFellowshipScaffold(state: _fellowshipState),
+          home: StreamBuilder(
+            stream: _authService.authStateChanges,
+            builder: (context, snapshot) {
+              final user = snapshot.data;
+              if (user != null) {
+                _syncUserProfile(user);
+                return MainFellowshipScaffold(state: _fellowshipState);
+              }
+              if (_isDemoMode) {
+                return MainFellowshipScaffold(state: _fellowshipState);
+              }
+              return LoginScreen(
+                state: _fellowshipState,
+                onLoginSuccess: () {
+                  setState(() {});
+                },
+                onSkipDemo: () {
+                  setState(() {
+                    _isDemoMode = true;
+                  });
+                },
+              );
+            },
+          ),
         );
       },
     );
@@ -68,28 +148,44 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
   int _adminTabIndex = 0;
   int _coordinatorTabIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    widget.state.addListener(_onStateChanged);
+  }
+
+  @override
+  void didUpdateWidget(MainFellowshipScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) {
+      oldWidget.state.removeListener(_onStateChanged);
+      widget.state.addListener(_onStateChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.state.removeListener(_onStateChanged);
+    super.dispose();
+  }
+
+  void _onStateChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   void _openQrScanner() {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => StudentQrScannerScreen(state: widget.state),
-      ),
-    );
-  }
-
-  void _openRegistrationModal() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => StudentRegistrationScreen(
-          state: widget.state,
-          onRegistered: () {
-            setState(() {
-              _studentTabIndex = 0;
-            });
-          },
+        builder: (_) => ListenableBuilder(
+          listenable: widget.state,
+          builder: (context, _) => StudentQrScannerScreen(state: widget.state),
         ),
       ),
     );
   }
+
 
   void _openNotificationsModal(BuildContext context, bool isAdmin) {
     final state = widget.state;
@@ -251,16 +347,15 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
     final isCoordinator = state.activeRole == UserRole.volunteerCoordinator;
 
     final theme = Theme.of(context);
-    final isStudent = !isAdmin && !isCoordinator;
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // Top Experience Switcher Bar (For testing both Student, Coordinator & Admin workflows)
-            ExperienceSwitcherBanner(state: state),
+            // Top Experience Switcher Bar (Hidden for regular students in production; visible for Admin or when Dev Mode is toggled)
+            if (state.canSwitchRoles)
+              ExperienceSwitcherBanner(state: state),
 
             // Authentic Orthodox Header Bar
             OrthodoxHeader(
@@ -280,6 +375,46 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
               onNotificationTap: () => _openNotificationsModal(context, isAdmin),
             ),
 
+            // User-Facing Error Boundary Banner
+            if (state.lastErrorMessage != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.crimson.withOpacity(0.14),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.crimson.withOpacity(0.45)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: AppTheme.crimson, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        state.lastErrorMessage!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: state.clearError,
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('Dismiss', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.crimson)),
+                    ),
+                  ],
+                ),
+              ),
+
             // Main Body Content
             Expanded(
               child: isAdmin
@@ -296,17 +431,6 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
           : isCoordinator
               ? _buildCoordinatorBottomNav()
               : _buildStudentBottomNav(),
-      floatingActionButton: isStudent && _studentTabIndex == 0
-          ? FloatingActionButton.extended(
-              onPressed: _openRegistrationModal,
-              backgroundColor: theme.colorScheme.primary,
-              icon: Icon(Icons.person_add_alt_1, color: isDark ? Colors.black : Colors.white, size: 20),
-              label: Text(
-                'Registration Form',
-                style: TextStyle(color: isDark ? Colors.black : Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-              ),
-            )
-          : null,
     );
   }
 
@@ -397,13 +521,25 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
           onOpenLiveAttendance: () => setState(() => _adminTabIndex = 2),
         );
       case 1:
-        return AdminFamilyMatchingScreen(state: widget.state);
+        return AdminFamilyMatchingScreen(
+          state: widget.state,
+          onBackPressed: () => setState(() => _adminTabIndex = 0),
+        );
       case 2:
-        return AdminLiveAttendanceScreen(state: widget.state);
+        return AdminLiveAttendanceScreen(
+          state: widget.state,
+          onBackPressed: () => setState(() => _adminTabIndex = 0),
+        );
       case 3:
-        return AdminApprovalsScreen(state: widget.state);
+        return AdminApprovalsScreen(
+          state: widget.state,
+          onBackPressed: () => setState(() => _adminTabIndex = 0),
+        );
       case 4:
-        return AdminMediaCurriculumScreen(state: widget.state);
+        return AdminMediaCurriculumScreen(
+          state: widget.state,
+          onBackPressed: () => setState(() => _adminTabIndex = 0),
+        );
       default:
         return AdminDashboardScreen(
           state: widget.state,

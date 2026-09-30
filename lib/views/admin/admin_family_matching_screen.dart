@@ -3,12 +3,12 @@ import 'package:flutter/services.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/interactive_fellowship_card.dart';
 
 class AdminFamilyMatchingScreen extends StatefulWidget {
   final FellowshipState state;
+  final VoidCallback? onBackPressed;
 
-  const AdminFamilyMatchingScreen({super.key, required this.state});
+  const AdminFamilyMatchingScreen({super.key, required this.state, this.onBackPressed});
 
   @override
   State<AdminFamilyMatchingScreen> createState() => _AdminFamilyMatchingScreenState();
@@ -373,13 +373,17 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
           children: [
             Icon(Icons.cell_tower, color: primaryAccent, size: 28),
             const SizedBox(width: 10),
-            Text(
-              'Publish & Broadcast Roster',
-              style: TextStyle(
-                fontFamily: 'serif',
-                color: textCol,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
+            Expanded(
+              child: Text(
+                'Publish & Broadcast Roster',
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  color: textCol,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -447,10 +451,18 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
         title: Text('Spiritual Parent Matching', style: TextStyle(color: textCol)),
         backgroundColor: cardBg,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: (Navigator.canPop(context) || widget.onBackPressed != null)
+            ? IconButton(
+                icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
+                onPressed: () {
+                  if (widget.onBackPressed != null) {
+                    widget.onBackPressed!();
+                  } else if (Navigator.canPop(context)) {
+                    Navigator.of(context).pop();
+                  }
+                },
+              )
+            : null,
       ),
       body: SafeArea(
         child: Column(
@@ -664,13 +676,42 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                           color: textCol,
                                         ),
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        '${family.spiritualFather.fullName.split(' ').first} & ${family.spiritualMother.fullName.split(' ').first}',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: textMuted,
-                                        ),
+                                      const SizedBox(height: 4),
+                                      Wrap(
+                                        spacing: 8,
+                                        runSpacing: 4,
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.male, color: Color(0xFF38A3E5), size: 14),
+                                              const SizedBox(width: 3),
+                                              Flexible(
+                                                child: Text(
+                                                  'Father: ${family.spiritualFather.fullName.split(' ').first}',
+                                                  style: TextStyle(fontSize: 12, color: textMuted, fontWeight: FontWeight.w600),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.female, color: Color(0xFFE056FD), size: 14),
+                                              const SizedBox(width: 3),
+                                              Flexible(
+                                                child: Text(
+                                                  'Mother: ${family.spiritualMother.fullName.split(' ').first}',
+                                                  style: TextStyle(fontSize: 12, color: textMuted, fontWeight: FontWeight.w600),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
@@ -700,7 +741,59 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                               ],
                             ),
 
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 10),
+
+                            // Telegram Group Invite Link Row
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: elevatedBg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: borderCol.withOpacity(0.6)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.send_rounded, color: Color(0xFF229ED9), size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      family.telegramGroupUrl.isNotEmpty
+                                          ? family.telegramGroupUrl
+                                          : 'No Telegram link set',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: family.telegramGroupUrl.isNotEmpty ? primaryAccent : textMuted,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  InkWell(
+                                    onTap: () => _openEditTelegramDialog(context, state, family),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: primaryAccent.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.edit, size: 12, color: primaryAccent),
+                                          const SizedBox(width: 4),
+                                          Text('Edit Link', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 14),
 
                             // List of Students with Swap Trigger Buttons & Pulse Border
                             ...members.map((student) {
@@ -839,19 +932,24 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                       ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: _showPublishConfirmation,
-                    icon: Icon(Icons.send_rounded, size: 18, color: isDark ? Colors.black : Colors.white),
-                    label: Text(
-                      state.isFamilyPublished ? 'Re-Broadcast' : 'Publish & Broadcast',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.black : Colors.white,
+                    icon: Icon(Icons.send_rounded, size: 16, color: isDark ? Colors.black : Colors.white),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        state.isFamilyPublished ? 'Re-Broadcast' : 'Publish & Broadcast',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.black : Colors.white,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryAccent,
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
@@ -860,6 +958,108 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _openEditTelegramDialog(BuildContext context, FellowshipState state, FamilyModel family) {
+    final theme = Theme.of(context);
+    final linkController = TextEditingController(text: family.telegramGroupUrl);
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            const Icon(Icons.send_rounded, color: Color(0xFF229ED9), size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Telegram Group Link',
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Set or update the Telegram group invite link for ${family.name}. Spiritual children will tap "Join Telegram Group" to enter your family chat.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: linkController,
+                style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
+                decoration: InputDecoration(
+                  labelText: 'Telegram Invite Link',
+                  hintText: 'https://t.me/+...',
+                  prefixIcon: const Icon(Icons.link, color: Color(0xFF229ED9)),
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                validator: (val) {
+                  if (val == null || val.trim().isEmpty) {
+                    return 'Please enter a Telegram group link';
+                  }
+                  if (!val.trim().contains('t.me')) {
+                    return 'Must be a valid Telegram link (contains t.me)';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                final newLink = linkController.text.trim();
+                state.updateFamilyTelegramLink(family.id, newLink);
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Updated Telegram link for ${family.name}'),
+                    backgroundColor: const Color(0xFF229ED9),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              'Save Link',
+              style: TextStyle(
+                color: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

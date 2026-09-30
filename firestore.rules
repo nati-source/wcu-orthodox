@@ -1,0 +1,285 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // HELPER FUNCTIONS FOR ROLE-BASED ACCESS CONTROL (RBAC)
+    // =========================================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function currentUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Checks custom claims first (server-enforced), then verified user document role
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.role == 'admin' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         currentUserDoc().role == 'admin' &&
+         currentUserDoc().isApproved == true)
+      );
+    }
+
+    function isSpiritualParent() {
+      return isSignedIn() && (
+        request.auth.token.role == 'spiritualParent' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         currentUserDoc().role == 'spiritualParent' &&
+         currentUserDoc().isApproved == true)
+      );
+    }
+
+    function isCoordinator() {
+      return isSignedIn() && (
+        request.auth.token.role == 'volunteerCoordinator' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         currentUserDoc().role == 'volunteerCoordinator' &&
+         currentUserDoc().isApproved == true)
+      );
+    }
+
+    function isCoordinatorOf(deptId) {
+      return isAdmin() || (
+        isCoordinator() &&
+        currentUserDoc().coordinatorProfile != null &&
+        currentUserDoc().coordinatorProfile.departmentId == deptId &&
+        currentUserDoc().coordinatorProfile.isReadOnlyAudit != true
+      );
+    }
+
+    // =========================================================================
+    // 1. USERS COLLECTION (Strict privilege escalation protection)
+    // =========================================================================
+    match /users/{userId} {
+      allow read: if isSignedIn();
+
+      // Students can register their own initial document ONLY with 'student' role and unapproved status
+      allow create: if isSignedIn() && (
+        isAdmin() || (
+          request.auth.uid == userId &&
+          (!('role' in request.resource.data) || request.resource.data.role == 'student') &&
+          (!('isApproved' in request.resource.data) || request.resource.data.isApproved == false)
+        )
+      );
+
+      // Users can update their own profile fields, but CANNOT modify their own role, approval status, or coordinatorProfile
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          request.auth.uid == userId &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.isApproved == resource.data.isApproved &&
+          request.resource.data.get('coordinatorProfile', null) == resource.data.get('coordinatorProfile', null)
+        )
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 2. SPIRITUAL FAMILIES & CONFIGURATION
+    // =========================================================================
+    match /families/{familyId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isSpiritualParent() || isCoordinatorOf('dept-membercare');
+    }
+
+    match /app_config/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinatorOf('dept-membercare');
+    }
+
+    // =========================================================================
+    // 3. PILGRIMAGE TRIPS & BUS REGISTRATIONS (DEPT_BATCH_PROGRAMS)
+    // =========================================================================
+    match /pilgrimage_trips/{tripId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinatorOf('dept-programs');
+    }
+
+    match /trip_registrations/{regId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && (
+        request.resource.data.studentId == request.auth.uid ||
+        isAdmin() ||
+        isCoordinatorOf('dept-programs')
+      );
+      // Only Admin or Batch & Programs Coordinator can verify trip payments or mark boarded
+      allow update, delete: if isAdmin() || isCoordinatorOf('dept-programs');
+    }
+
+    // =========================================================================
+    // 4. CHARITY CAMPAIGNS, DUES & EMERGENCY AID
+    // =========================================================================
+    match /charity_campaigns/{campaignId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinatorOf('dept-charity');
+    }
+
+    match /financial_dues/{duesId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid ||
+        isAdmin() ||
+        isCoordinatorOf('dept-charity') ||
+        isCoordinatorOf('dept-accounting') ||
+        isCoordinator()
+      );
+      allow create: if isSignedIn();
+      // Only Admin, Charity, or Finance/Accounting can verify/modify financial records
+      allow update, delete: if isAdmin() || isCoordinatorOf('dept-charity') || isCoordinatorOf('dept-accounting');
+    }
+
+    match /charity_disbursements/{disbId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinatorOf('dept-charity') || isCoordinatorOf('dept-membercare') || isCoordinatorOf('dept-accounting');
+    }
+
+    match /emergency_aid_requests/{reqId} {
+      // Confidential: only the requesting student, Admin, Member Care, or Charity can view
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid ||
+        isAdmin() ||
+        isCoordinatorOf('dept-membercare') ||
+        isCoordinatorOf('dept-charity')
+      );
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      allow update, delete: if isAdmin() || isCoordinatorOf('dept-membercare') || isCoordinatorOf('dept-charity');
+    }
+
+    // =========================================================================
+    // 5. DIGITAL LIBRARY & CHURCH PROGRAMS
+    // =========================================================================
+    match /library_items/{itemId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinatorOf('dept-apostolic') || isCoordinatorOf('dept-music');
+    }
+
+    match /church_programs/{programId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinator();
+    }
+
+    // =========================================================================
+    // 6. 10 EOTC DEPARTMENTS, BROADCASTS, APPLICATIONS & PROPOSALS
+    // =========================================================================
+    match /department_broadcasts/{msgId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || isCoordinatorOf(request.resource.data.departmentId);
+      allow delete: if isAdmin() || isCoordinatorOf(resource.data.departmentId);
+    }
+
+    match /department_applications/{appId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid ||
+        isAdmin() ||
+        isCoordinator()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() || isCoordinatorOf(resource.data.ministryId);
+    }
+
+    match /department_members/{memberId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinatorOf(request.resource.data.departmentId);
+    }
+
+    match /fundraising_proposals/{proposalId} {
+      allow read: if isSignedIn() && (isAdmin() || isCoordinator());
+      allow create: if isAdmin() || isCoordinatorOf('dept-development');
+      allow update, delete: if isAdmin() || isCoordinatorOf('dept-development');
+    }
+
+    // =========================================================================
+    // 7. CONFESSOR FATHERS, APPOINTMENTS & SPIRITUAL Q&A
+    // =========================================================================
+    match /confessors/{fatherId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /confession_appointments/{apptId} {
+      allow read: if isSignedIn() && (
+        resource.data.studentId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+    }
+
+    match /spiritual_questions/{questionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() || isCoordinatorOf('dept-apostolic');
+    }
+
+    // =========================================================================
+    // 8. ACADEMIC MENTORSHIP & FAITH TRIVIA
+    // =========================================================================
+    match /academic_mentors/{mentorId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinatorOf('dept-membercare') || isCoordinatorOf('dept-apostolic');
+    }
+
+    match /mentorship_requests/{reqId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() || isCoordinatorOf('dept-membercare') || (isSignedIn() && resource.data.juniorStudentId == request.auth.uid);
+    }
+
+    match /quiz_attempts/{attemptId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    match /trivia_quizzes/{quizId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinator();
+    }
+
+    match /attendance_sessions/{sessionId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin() || isCoordinator();
+
+      // Subcollection for individual scan records — each student writes their own.
+      // Admin & coordinators can read all scans for reporting.
+      match /scans/{scanId} {
+        allow read: if isSignedIn() && (
+          scanId == request.auth.uid ||
+          isAdmin() ||
+          isCoordinator()
+        );
+        allow create: if isSignedIn() && scanId == request.auth.uid;
+        allow update, delete: if isAdmin() || isCoordinator();
+      }
+    }
+
+    // =========================================================================
+    // 9. GENERAL ANNOUNCEMENTS (Admin-authored notice board)
+    // =========================================================================
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // 10. TRIVIA SCORES LEADERBOARD (Per-student aggregate totals)
+    // =========================================================================
+    match /trivia_scores/{studentUid} {
+      // All signed-in users can view the leaderboard.
+      allow read: if isSignedIn();
+      // A student can only create/update their own score document.
+      allow create: if isSignedIn() && studentUid == request.auth.uid;
+      allow update: if isSignedIn() && (
+        studentUid == request.auth.uid ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}

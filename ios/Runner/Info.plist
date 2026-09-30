@@ -65,6 +65,15 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is required for scanning Attendance and Pilgrimage Pass QR codes.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tg</string>
+		<string>https</string>
+		<string>http</string>
+		<string>tel</string>
+		<string>sms</string>
 	</array>
 </dict>
 </plist>

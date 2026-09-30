@@ -138,14 +138,30 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
           const SizedBox(height: 18),
 
           // 2. Spiritual Children Scroller / Selector
-          Text(
-            'ASSIGNED SPIRITUAL CHILDREN (${children.length})',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-              color: primaryAccent,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'ASSIGNED SPIRITUAL CHILDREN • የመንፈስ ልጆች (${children.length})',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: primaryAccent,
+                  ),
+                ),
+              ),
+              if (children.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                Text(
+                  'Tap to switch child',
+                  style: TextStyle(fontSize: 10, color: textMuted, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: 8),
 
@@ -163,7 +179,7 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
             )
           else
             SizedBox(
-              height: 74,
+              height: 78,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: children.length,
@@ -178,7 +194,8 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                     },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      margin: const EdgeInsets.only(right: 10),
+                      width: 220,
+                      margin: const EdgeInsets.only(right: 12),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
                         color: isSelected
@@ -189,11 +206,20 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                           color: isSelected ? primaryAccent : theme.dividerColor,
                           width: isSelected ? 1.8 : 1.0,
                         ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: primaryAccent.withOpacity(0.18),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                )
+                              ]
+                            : null,
                       ),
                       child: Row(
                         children: [
                           CircleAvatar(
-                            radius: 18,
+                            radius: 20,
                             backgroundColor: isSelected
                                 ? primaryAccent
                                 : theme.colorScheme.surfaceContainerHighest,
@@ -204,12 +230,12 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                                     ? (theme.brightness == Brightness.dark ? Colors.black : Colors.white)
                                     : primaryAccent,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                                fontSize: 14,
                               ),
                             ),
                           ),
                           const SizedBox(width: 10),
-                          Flexible(
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
@@ -224,14 +250,38 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                Text(
-                                  'B.N. ${child.baptismalName} • Yr ${child.academicYear}',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: textMuted,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                const SizedBox(height: 2),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        child.baptismalName.isNotEmpty ? child.baptismalName : 'Yr ${child.academicYear}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: textMuted,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: child.attendancePercentage >= 75
+                                            ? AppTheme.emerald.withOpacity(0.2)
+                                            : AppTheme.crimson.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        '${child.attendancePercentage.toInt()}%',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                          color: child.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -244,68 +294,130 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
               ),
             ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
-          // 3. Child Profile & Attendance Card
+          // 3. Child Profile & Attendance Card with Direct Communication
           if (children.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: theme.cardTheme.color ?? theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: theme.dividerColor),
+                border: Border.all(color: primaryAccent.withOpacity(0.3)),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${selectedChild.fullName} • ${selectedChild.department}',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: textCol),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Batch ${selectedChild.batchYear} • ${selectedChild.ministryStatus}',
-                          style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: selectedChild.attendancePercentage >= 75
-                          ? AppTheme.emerald.withOpacity(0.15)
-                          : AppTheme.crimson.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selectedChild.attendancePercentage >= 75
-                            ? AppTheme.emerald.withOpacity(0.4)
-                            : AppTheme.crimson.withOpacity(0.4),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: primaryAccent.withOpacity(0.15),
+                        child: Icon(Icons.person, color: primaryAccent, size: 24),
                       ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '${selectedChild.attendancePercentage.toInt()}%',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: selectedChild.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              selectedChild.fullName,
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textCol),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'የክርስትና ስም: ${selectedChild.baptismalName} • Year ${selectedChild.academicYear} (${selectedChild.batchYear})',
+                              style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.w600),
+                            ),
+                            Text(
+                              '${selectedChild.department} • ${selectedChild.ministryStatus}',
+                              style: TextStyle(fontSize: 10, color: textMuted),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: selectedChild.attendancePercentage >= 75
+                              ? AppTheme.emerald.withOpacity(0.15)
+                              : AppTheme.crimson.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selectedChild.attendancePercentage >= 75
+                                ? AppTheme.emerald.withOpacity(0.4)
+                                : AppTheme.crimson.withOpacity(0.4),
                           ),
                         ),
-                        Text(
-                          'Attendance',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: selectedChild.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                        child: Column(
+                          children: [
+                            Text(
+                              '${selectedChild.attendancePercentage.toInt()}%',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: selectedChild.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                              ),
+                            ),
+                            Text(
+                              'Attendance',
+                              style: TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                                color: selectedChild.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Divider(height: 1, color: theme.dividerColor.withOpacity(0.5)),
+                  const SizedBox(height: 12),
+                  // Quick Contact & Milestone Actions
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: selectedChild.phoneNumber.isNotEmpty && selectedChild.phoneNumber != '-'
+                              ? () => state.launchCall(selectedChild.phoneNumber)
+                              : null,
+                          icon: const Icon(Icons.phone, size: 15),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('ደውል (Call)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: primaryAccent,
+                            side: BorderSide(color: primaryAccent.withOpacity(0.5)),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: selectedChild.phoneNumber.isNotEmpty && selectedChild.phoneNumber != '-'
+                              ? () => state.launchSms(
+                                    selectedChild.phoneNumber,
+                                    body: 'ሰላም ${selectedChild.baptismalName}፣ የመንፈሳዊ ትምህርት ጉዞህን/ሽን በተመለከተ...',
+                                  )
+                              : null,
+                          icon: const Icon(Icons.sms_outlined, size: 15),
+                          label: const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('መልዕክት (SMS)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: primaryAccent,
+                            side: BorderSide(color: primaryAccent.withOpacity(0.5)),
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -673,14 +785,22 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                         children: [
                           Icon(Icons.person_pin, size: 14, color: textMuted),
                           const SizedBox(width: 4),
-                          Text(
-                            phase.instructor,
-                            style: TextStyle(fontSize: 11, color: textMuted),
+                          Expanded(
+                            child: Text(
+                              phase.instructor,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 11, color: textMuted),
+                            ),
                           ),
-                          const Spacer(),
-                          Text(
-                            'View Lessons',
-                            style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.bold),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'View Lessons',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.bold),
+                            ),
                           ),
                           Icon(Icons.chevron_right, size: 16, color: primaryAccent),
                         ],

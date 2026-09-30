@@ -5,7 +5,13 @@ import 'package:wcu_orthodox/main.dart';
 import 'package:wcu_orthodox/models/app_models.dart';
 import 'package:wcu_orthodox/state/fellowship_state.dart';
 import 'package:wcu_orthodox/theme/app_theme.dart';
+import 'package:wcu_orthodox/views/admin/admin_approvals_screen.dart';
 import 'package:wcu_orthodox/views/coordinator/coordinator_hub_screen.dart';
+import 'package:wcu_orthodox/views/student/student_roadmap_screen.dart';
+import 'package:wcu_orthodox/views/student/student_family_screen.dart';
+import 'package:wcu_orthodox/views/student/student_home_screen.dart';
+import 'package:wcu_orthodox/views/student/student_library_screen.dart';
+import 'package:wcu_orthodox/views/student/student_qr_scanner_screen.dart';
 
 void main() {
   setUp(() {
@@ -13,12 +19,24 @@ void main() {
   });
 
   testWidgets('WCU Orthodox App smoke & role switcher test', (WidgetTester tester) async {
-    await tester.pumpWidget(const WcuOrthodoxApp());
+    final state = FellowshipState();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: StudentHomeScreen(
+            state: state,
+            onNavigateTab: (_) {},
+            onOpenScanner: () {},
+          ),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // Verify initial Student Header and Liturgy section
-    expect(find.text('Wachamo University Fellowship'), findsOneWidget);
     expect(find.text('Upcoming Liturgy'), findsOneWidget);
+    state.dispose();
   });
 
   test('FellowshipDepartmentConstants mapping & normalization test', () {
@@ -371,15 +389,32 @@ void main() {
       title: 'Campus Begena & Sacred Art Charity Exhibition',
       objective: 'Handcrafted cross sales and sacred iconography exhibition to fund student aid.',
       targetAmount: 45000.0,
-      proposedStrategy: '1 Month exhibition in campus hall',
+      expectedExpenses: 8000.0,
+      category: 'Sacred Artifacts Expo',
+      timelineOrDuration: '3 Weeks (Meskerem 15 - Tikimt 5)',
+      proposedStrategy: '1 Month exhibition in campus hall with alumni invitations',
       targetAudience: '50 needy freshmen students for stationery and cafeteria support',
     );
 
     expect(state.fundraisingProposals.any((p) => p.title == 'Campus Begena & Sacred Art Charity Exhibition'), true);
     final proposal = state.fundraisingProposals.firstWhere((p) => p.title == 'Campus Begena & Sacred Art Charity Exhibition');
     expect(proposal.status, ProposalStatus.pending);
+    expect(proposal.category, 'Sacred Artifacts Expo');
+    expect(proposal.expectedExpenses, 8000.0);
+    expect(proposal.netExpectedProceeds, 37000.0);
 
-    // 2. Non-admin coordinator cannot approve proposals
+    // 2. Update proposal as coordinator
+    final updated = proposal.copyWith(
+      targetAmount: 50000.0,
+      expectedExpenses: 9000.0,
+      objective: 'Updated objective with increased student coverage.',
+    );
+    state.updateFundraisingProposal(updated);
+    final fetchedUpdated = state.fundraisingProposals.firstWhere((p) => p.id == proposal.id);
+    expect(fetchedUpdated.targetAmount, 50000.0);
+    expect(fetchedUpdated.netExpectedProceeds, 41000.0);
+
+    // 3. Non-admin coordinator cannot approve proposals
     state.reviewFundraisingProposal(
       proposalId: proposal.id,
       status: ProposalStatus.approved,
@@ -387,7 +422,7 @@ void main() {
     );
     expect(state.fundraisingProposals.firstWhere((p) => p.id == proposal.id).status, ProposalStatus.pending);
 
-    // 3. Admin approves proposal with executive review notes
+    // 4. Admin approves proposal with executive review notes
     state.switchRole(UserRole.admin);
     state.reviewFundraisingProposal(
       proposalId: proposal.id,
@@ -397,6 +432,21 @@ void main() {
     final approvedProp = state.fundraisingProposals.firstWhere((p) => p.id == proposal.id);
     expect(approvedProp.status, ProposalStatus.approved);
     expect(approvedProp.adminReviewNotes, 'Approved by Executive Committee. Budget allocation sanctioned.');
+
+    // 5. Delete / withdraw a proposal test
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptDevelopment);
+    state.submitFundraisingProposal(
+      title: 'Temporary Draft Proposal',
+      objective: 'Draft only',
+      targetAmount: 5000.0,
+      expectedExpenses: 500.0,
+      proposedStrategy: 'Test strategy',
+      targetAudience: 'Test audience',
+    );
+    final tempProp = state.fundraisingProposals.firstWhere((p) => p.title == 'Temporary Draft Proposal');
+    expect(state.fundraisingProposals.any((p) => p.id == tempProp.id), true);
+    state.deleteFundraisingProposal(tempProp.id);
+    expect(state.fundraisingProposals.any((p) => p.id == tempProp.id), false);
   });
 
   test('Department Capabilities: Dual Choir Wings (Mezmur & Fine Arts) & Multilingual Gated Applications', () {
@@ -650,5 +700,407 @@ void main() {
     expect(find.textContaining('Coordinator Hub'), findsOneWidget);
     state.dispose();
   });
+
+  testWidgets('Spiritual Parent: Children Progress Tracking in Family and Roadmap screens test', (WidgetTester tester) async {
+    final state = FellowshipState();
+    state.switchRole(UserRole.spiritualParent);
+
+    final children = state.spiritualChildren;
+    expect(children.isNotEmpty, true);
+
+    // 1. Render StudentRoadmapScreen as Spiritual Parent
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: StudentRoadmapScreen(
+            state: state,
+            onOpenScanner: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify presence of spiritual children selector and overview
+    expect(find.textContaining('ASSIGNED SPIRITUAL CHILDREN'), findsOneWidget);
+    expect(find.textContaining('Spiritual Parent Curriculum Oversight'), findsOneWidget);
+    expect(find.textContaining('CURRICULUM ROADMAP PROGRESS'), findsOneWidget);
+    expect(find.textContaining('ደውል (Call)'), findsOneWidget);
+
+    // 2. Render StudentFamilyScreen as Spiritual Parent
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: StudentFamilyScreen(state: state),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('My Spiritual Children • የመንፈስ ልጆቼ'), findsOneWidget);
+    expect(find.textContaining('Assigned'), findsOneWidget);
+    expect(find.text('Roadmap'), findsWidgets);
+
+    state.dispose();
+  });
+
+  testWidgets('Education & Apostolic Coordinator Hub: Batch targeting, announcements & special programs test', (WidgetTester tester) async {
+    final state = FellowshipState();
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptEducation);
+
+    // 1. Verify batch-specific broadcast dispatch
+    final initialCount = state.getBroadcastsForDepartment(FellowshipDepartmentConstants.deptEducation).length;
+    state.sendDepartmentBroadcast(
+      departmentId: FellowshipDepartmentConstants.deptEducation,
+      title: 'Year 2 Patristics Midterm Exam Announcement',
+      body: 'Exam will be held next Tuesday in Hall 402. Bring IDs.',
+      targetBatch: '2',
+      targetAudienceLabel: 'Year 2 Batch (2ኛ ዓመት ባች)',
+      broadcastCategory: 'courseInfo',
+      courseCode: 'PATR-201',
+      instructorOrSpeaker: 'Memhir Yohannes',
+    );
+
+    final eduBroadcasts = state.getBroadcastsForDepartment(FellowshipDepartmentConstants.deptEducation);
+    expect(eduBroadcasts.length, initialCount + 1);
+
+    final created = eduBroadcasts.firstWhere((b) => b.title.contains('Year 2 Patristics'));
+    expect(created.targetBatch, '2');
+    expect(created.broadcastCategory, 'courseInfo');
+    expect(created.courseCode, 'PATR-201');
+
+    // 2. Verify getBroadcastsForBatch query
+    final year2Broadcasts = state.getBroadcastsForBatch('2');
+    expect(year2Broadcasts.any((b) => b.id == created.id), true);
+
+    final year4Broadcasts = state.getBroadcastsForBatch('4');
+    // Year 4 should not see Year 2 specific broadcast, but will see 'all' batch broadcasts
+    expect(year4Broadcasts.any((b) => b.id == created.id), false);
+
+    // 3. Verify special guest teacher notice scheduling
+    state.publishSpecialGuestTeacherNotice(
+      teacherName: 'Dr. Rodas Tadesse',
+      teacherTitle: 'Megabe Hadis',
+      topic: 'Sacred Creation & Patristic Theology',
+      venue: 'WCU Main Auditorium Hall A',
+      dateAndTime: DateTime.now().add(const Duration(days: 4)),
+      targetBatch: 'all',
+      description: 'Open to all university students.',
+    );
+
+    final updatedEduBroadcasts = state.getBroadcastsForDepartment(FellowshipDepartmentConstants.deptEducation);
+    expect(updatedEduBroadcasts.any((b) => b.title.contains('Dr. Rodas Tadesse') || b.title.contains('ሮዳስ')), true);
+
+    // 4. Verify broadcast deletion
+    state.deleteDepartmentBroadcast(created.id);
+    expect(state.getBroadcastsForDepartment(FellowshipDepartmentConstants.deptEducation).any((b) => b.id == created.id), false);
+
+    // 5. Render CoordinatorHubScreen with Education Department selected
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: CoordinatorHubScreen(state: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Apostolic Education'), findsOneWidget);
+    expect(find.textContaining('አዲስ ማስታወቂያ (Broadcast)'), findsOneWidget);
+    expect(find.textContaining('ልዩ መርሐ ግብር (Program)'), findsOneWidget);
+    expect(find.textContaining('DEPARTMENT BROADCASTS FEED'), findsOneWidget);
+
+    state.dispose();
+  });
+
+  testWidgets('Coordinator Hub: Development & Fundraising Module UI and Actions Test', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    final state = FellowshipState();
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptDevelopment);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: CoordinatorHubScreen(state: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify header and action buttons
+    expect(find.textContaining('ልማትና ገቢ አሰባሰብ (Development & Fundraising)'), findsOneWidget);
+    expect(find.textContaining('አዲስ ፕሮፖዛል አዘጋጅ (Draft)'), findsOneWidget);
+    expect(find.textContaining('Templates'), findsOneWidget);
+
+    // Verify metrics cards
+    expect(find.textContaining('Total Target Capital'), findsOneWidget);
+    expect(find.textContaining('Approved Target'), findsOneWidget);
+
+    // Verify search and status filter chips
+    expect(find.textContaining('Search proposals'), findsOneWidget);
+    expect(find.textContaining('All ('), findsOneWidget);
+    expect(find.textContaining('Pending Review ('), findsOneWidget);
+    expect(find.textContaining('Approved ('), findsOneWidget);
+    expect(find.textContaining('Revision Needed ('), findsOneWidget);
+
+    // Verify seeded proposals are displayed
+    expect(find.textContaining('የ2017 ዓመታዊ ታላቁ የበዓላት ባዛር'), findsOneWidget);
+    expect(find.textContaining('Alumni Fellowship'), findsOneWidget);
+
+    // Tap Templates button to open templates bottom sheet
+    await tester.tap(find.textContaining('Templates'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Fundraising Proposal Templates'), findsOneWidget);
+    expect(find.textContaining('የተማሪዎች አስቸኳይ የጤናና የምግብ መረዳጃ ፈንድ'), findsOneWidget);
+
+    // Tap Use Template button to open draft dialog pre-populated
+    await tester.tap(find.text('Use Template').first);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Submit to Admin Board'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    await tester.binding.setSurfaceSize(null);
+    state.dispose();
+  });
+
+  testWidgets('Coordinator Hub: Mobile Screen Responsiveness & Zero Right Overflow in Education and Development', (tester) async {
+    // Set small mobile screen size (360 x 740)
+    await tester.binding.setSurfaceSize(const Size(360, 740));
+    final state = FellowshipState();
+
+    // 1. Verify Education module on narrow screen
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptEducation);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: CoordinatorHubScreen(state: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Apostolic Education • ትምህርትና ሐዋርያዊ'), findsOneWidget);
+    expect(find.textContaining('Broadcasts'), findsOneWidget);
+    expect(tester.takeException(), isNull); // Zero overflow exception!
+
+    // 2. Verify Development module on narrow screen
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptDevelopment);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: CoordinatorHubScreen(state: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Development & Proposals • ልማትና ገቢ'), findsOneWidget);
+    expect(find.textContaining('Submitted Fundraising Proposals'), findsNothing);
+    expect(tester.takeException(), isNull); // Zero overflow exception!
+
+    await tester.binding.setSurfaceSize(null);
+    state.dispose();
+  });
+
+  testWidgets('Admin Approvals: Proposals Tab, Interactive Approval, Revision Request, and Coordinator Reflection Test', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1000, 1600));
+    final state = FellowshipState();
+    state.switchRole(UserRole.admin);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: AdminApprovalsScreen(state: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Verify Proposals Tab is present in Admin Approvals
+    expect(find.textContaining('Proposals ('), findsOneWidget);
+
+    // 2. Tap Proposals Tab
+    await tester.tap(find.textContaining('Proposals ('));
+    await tester.pumpAndSettle();
+
+    // Verify Proposals Overview & Cards
+    expect(find.textContaining('Fundraising Proposals • ልማትና ገቢ'), findsOneWidget);
+    expect(find.textContaining('PROPOSALS REVIEW QUEUE'), findsOneWidget);
+    expect(find.textContaining('የ2017 ዓመታዊ ታላቁ የበዓላት ባዛር'), findsOneWidget);
+
+    // 3. Find pending proposal and approve it interactively
+    final pendingProposals = state.fundraisingProposals.where((p) => p.isPending).toList();
+    expect(pendingProposals.isNotEmpty, true);
+    final targetPending = pendingProposals.first;
+
+    // Tap Approve button on card
+    final approveBtnFinder = find.widgetWithText(ElevatedButton, 'አጽድቅ (Approve)');
+    expect(approveBtnFinder, findsWidgets);
+    await tester.tap(approveBtnFinder.first);
+    await tester.pumpAndSettle();
+
+    // Verify Approval Confirmation Dialog
+    expect(find.textContaining('Approve Proposal • ፕሮፖዛል አጽድቅ'), findsOneWidget);
+    expect(find.textContaining('Board Approval Note & Allocation Remarks'), findsOneWidget);
+
+    // Confirm approval
+    await tester.tap(find.text('Confirm Approval • አጽድቅ'));
+    await tester.pumpAndSettle();
+
+    // Verify state updated
+    final updatedApproved = state.fundraisingProposals.firstWhere((p) => p.id == targetPending.id);
+    expect(updatedApproved.isApproved, true);
+    expect(updatedApproved.adminReviewNotes, isNotNull);
+
+    // 4. Test Revision Request on another pending proposal (or submit a new one and reject it)
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptDevelopment);
+    state.submitFundraisingProposal(
+      title: 'Youth Choir Audio Equipment Campaign',
+      objective: 'Purchase wireless microphones for holiday liturgies.',
+      targetAmount: 35000,
+      expectedExpenses: 2000,
+      proposedStrategy: 'Holiday tea and bread sale.',
+      targetAudience: 'Campus Fellowship',
+    );
+
+    // Switch back to Admin to review
+    state.switchRole(UserRole.admin);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: AdminApprovalsScreen(state: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Navigate to Proposals Tab
+    await tester.tap(find.textContaining('Proposals ('));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Youth Choir Audio Equipment Campaign'), findsOneWidget);
+
+    // Tap Revision button
+    final revisionBtnFinder = find.widgetWithText(OutlinedButton, 'ማሻሻያ እዘዝ (Revision)');
+    expect(revisionBtnFinder, findsWidgets);
+    await tester.tap(revisionBtnFinder.first);
+    await tester.pumpAndSettle();
+
+    // Verify Revision Dialog
+    expect(find.textContaining('Request Revision • ማሻሻያ እዘዝ'), findsOneWidget);
+
+    // Tap Send Feedback
+    await tester.tap(find.text('Send Feedback • ማሻሻያውን ላክ'));
+    await tester.pumpAndSettle();
+
+    final revisedProp = state.fundraisingProposals.firstWhere((p) => p.title.contains('Youth Choir Audio Equipment'));
+    expect(revisedProp.isRejected, true);
+
+    // 5. Verify Coordinator sees the updated status and admin note in Coordinator Hub
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptDevelopment);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: CoordinatorHubScreen(state: state),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('REVISION NEEDED • የተመለሰ'), findsWidgets);
+    expect(find.textContaining('Admin Revision Feedback'), findsWidgets);
+
+    await tester.binding.setSurfaceSize(null);
+    state.dispose();
+  });
+
+  testWidgets('Integration: Home Screen 10 Departments Quick Action and Library Category Chips Test', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(450, 900));
+    final state = FellowshipState();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: StudentHomeScreen(
+            state: state,
+            onNavigateTab: (_) {},
+            onOpenScanner: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // 1. Verify 10 Ministries & Volunteer Serving quick action card is present on home screen
+    expect(find.textContaining('10 Ministries'), findsOneWidget);
+    expect(find.textContaining('Volunteer Serving'), findsOneWidget);
+
+    // 2. Verify Digital Library category filter chips
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: StudentLibraryScreen(state: state),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('All Material'), findsOneWidget);
+    expect(find.text('Patristics (አበው)'), findsOneWidget);
+    expect(find.text('Liturgical (ቅዳሴ)'), findsOneWidget);
+    expect(find.text('Mezmur Audio (መዝሙር)'), findsOneWidget);
+    expect(find.text('Dogma (ዶግማ)'), findsOneWidget);
+
+    // Scroll to see extended category chips
+    await tester.drag(find.text('Patristics (አበው)'), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lives of Saints (ገድላት)'), findsOneWidget);
+    expect(find.text('Scripture (መጽሐፍ ቅዱስ)'), findsOneWidget);
+
+    await tester.binding.setSurfaceSize(null);
+    state.dispose();
+  });
+
+  testWidgets('Scanner RBAC: Student Attendance mode vs Coordinator Pilgrim Pass Camera mode test', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(450, 900));
+    final state = FellowshipState();
+
+    // 1. As Normal Student: Only Attendance mode visible, Pilgrim Pass mode hidden
+    state.switchRole(UserRole.student);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: StudentQrScannerScreen(state: state),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Live Attendance Scanner'), findsOneWidget);
+    expect(find.text('SESSION ACTIVE'), findsOneWidget);
+    expect(find.text('OR ENTER ROLLING 4-DIGIT PIN'), findsOneWidget);
+    // Pilgrim Pass mode tab should NOT be visible to regular students
+    expect(find.text('Pilgrim Pass'), findsNothing);
+
+    // 2. As Batch & Programs Coordinator: Mode selector is visible & Pilgrim Pass mode available
+    state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptBatchPrograms);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.darkTheme,
+        home: StudentQrScannerScreen(state: state, initialMode: 1),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('Pilgrim Pass Boarding Scanner'), findsOneWidget);
+    expect(find.text('Pilgrim Pass'), findsOneWidget);
+    expect(find.text('Course Attendance'), findsOneWidget);
+    expect(find.text('OR ENTER TICKET / REF CODE'), findsOneWidget);
+
+    await tester.binding.setSurfaceSize(null);
+    state.dispose();
+  });
 }
+
+
 

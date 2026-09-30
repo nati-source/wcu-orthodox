@@ -174,57 +174,63 @@ class _StudentPrayerBookScreenState extends State<StudentPrayerBookScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    FilterChip(
-                      selected: _showGeEz,
-                      label: Text(
-                        'ግዕዝ (Ge\'ez)',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _showGeEz
-                              ? (isDark ? Colors.black : Colors.white)
-                              : textCol.withOpacity(0.8),
+                Expanded(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        FilterChip(
+                          selected: _showGeEz,
+                          label: Text(
+                            'ግዕዝ (Ge\'ez)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _showGeEz
+                                  ? (isDark ? Colors.black : Colors.white)
+                                  : textCol.withOpacity(0.8),
+                            ),
+                          ),
+                          selectedColor: primaryAccent,
+                          checkmarkColor: isDark ? Colors.black : Colors.white,
+                          backgroundColor: cardBg,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: _showGeEz ? primaryAccent : borderCol),
+                          ),
+                          onSelected: (val) {
+                            if (!_showAmharic && !val) return; // Keep at least one
+                            setState(() => _showGeEz = val);
+                          },
                         ),
-                      ),
-                      selectedColor: primaryAccent,
-                      checkmarkColor: isDark ? Colors.black : Colors.white,
-                      backgroundColor: cardBg,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(color: _showGeEz ? primaryAccent : borderCol),
-                      ),
-                      onSelected: (val) {
-                        if (!_showAmharic && !val) return; // Keep at least one
-                        setState(() => _showGeEz = val);
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    FilterChip(
-                      selected: _showAmharic,
-                      label: Text(
-                        'አማርኛ (Amharic)',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _showAmharic
-                              ? (isDark ? Colors.black : Colors.white)
-                              : textCol.withOpacity(0.8),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          selected: _showAmharic,
+                          label: Text(
+                            'አማርኛ (Amharic)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _showAmharic
+                                  ? (isDark ? Colors.black : Colors.white)
+                                  : textCol.withOpacity(0.8),
+                            ),
+                          ),
+                          selectedColor: primaryAccent,
+                          checkmarkColor: isDark ? Colors.black : Colors.white,
+                          backgroundColor: cardBg,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(color: _showAmharic ? primaryAccent : borderCol),
+                          ),
+                          onSelected: (val) {
+                            if (!_showGeEz && !val) return; // Keep at least one
+                            setState(() => _showAmharic = val);
+                          },
                         ),
-                      ),
-                      selectedColor: primaryAccent,
-                      checkmarkColor: isDark ? Colors.black : Colors.white,
-                      backgroundColor: cardBg,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: BorderSide(color: _showAmharic ? primaryAccent : borderCol),
-                      ),
-                      onSelected: (val) {
-                        if (!_showGeEz && !val) return; // Keep at least one
-                        setState(() => _showAmharic = val);
-                      },
+                      ],
                     ),
-                  ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   'Font: ${state.prayerFontSize.toInt()} pt',
                   style: TextStyle(fontSize: 11, color: textMuted),

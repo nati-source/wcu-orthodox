@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/interactive_fellowship_card.dart';
@@ -10,6 +11,7 @@ import 'student_pilgrimage_screen.dart';
 import 'student_charity_screen.dart';
 import 'student_mentorship_screen.dart';
 import 'student_trivia_screen.dart';
+import 'student_ministry_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   final FellowshipState state;
@@ -40,7 +42,12 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
   void _navigateTo(Widget screen) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => screen),
+      MaterialPageRoute(
+        builder: (_) => ListenableBuilder(
+          listenable: widget.state,
+          builder: (context, _) => screen,
+        ),
+      ),
     );
   }
 
@@ -49,7 +56,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     final state = widget.state;
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
-    final countdownStr = _formatDuration(state.liturgyCountdown);
     final calDay = state.currentCalendarDay;
     final isDark = theme.brightness == Brightness.dark;
 
@@ -68,6 +74,168 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ),
           ),
           const SizedBox(height: 12),
+
+          // EMERGENCY BROADCAST ALERT CARD (Shown when admin pushes an emergency broadcast)
+          if (state.latestEmergencyBroadcast != null) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.crimson.withOpacity(0.18),
+                    theme.cardTheme.color ?? theme.colorScheme.surface,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.crimson.withOpacity(0.6), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.crimson.withOpacity(0.15),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.crimson,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.campaign, color: Colors.white, size: 16),
+                            SizedBox(width: 5),
+                            Text(
+                              'URGENT BROADCAST',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: Icon(Icons.close, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textTertiary, size: 18),
+                        visualDensity: VisualDensity.compact,
+                        tooltip: 'Dismiss from feed',
+                        onPressed: () {
+                          state.dismissEmergencyBanner();
+                          setState(() {});
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    state.latestEmergencyBroadcast!.title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  if (state.latestEmergencyBroadcast!.churchName.isNotEmpty) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Icon(Icons.location_on_outlined, size: 14, color: primaryAccent),
+                        const SizedBox(width: 4),
+                        Text(
+                          state.latestEmergencyBroadcast!.churchName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: primaryAccent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Text(
+                    state.latestEmergencyBroadcast!.description,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton.icon(
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text('Dismiss Alert'),
+                        onPressed: () => state.dismissEmergencyBanner(),
+                        style: TextButton.styleFrom(
+                          foregroundColor: theme.textTheme.bodyMedium?.color,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      if (state.isAdmin || state.activeRole == UserRole.admin) ...[
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.delete_forever, size: 16, color: Colors.white),
+                          label: const Text('Delete from DB', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.crimson,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () {
+                            final bId = state.latestEmergencyBroadcast?.id;
+                            if (bId == null) return;
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                                title: const Text('Delete from Database?'),
+                                content: const Text('This will delete the emergency broadcast from Cloud Firestore and remove it from all user screens in real time.'),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(ctx),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.crimson),
+                                    onPressed: () async {
+                                      Navigator.pop(ctx);
+                                      await state.deleteEmergencyBroadcast(bId);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Emergency broadcast permanently deleted from database.')),
+                                        );
+                                      }
+                                    },
+                                    child: const Text('Delete Permanently', style: TextStyle(color: Colors.white)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           // 0. Daily Liturgical Calendar & Fasting Banner (Interactive)
           GestureDetector(
@@ -106,12 +274,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              calDay.geezDateString,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: primaryAccent,
+                            Flexible(
+                              child: Text(
+                                calDay.geezDateString,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryAccent,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -186,15 +358,18 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Upcoming Liturgy',
-                      style: TextStyle(
-                        fontFamily: 'serif',
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.onSurface,
+                    Expanded(
+                      child: Text(
+                        'Upcoming Liturgy',
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 8),
                     // Liturgy Reminder Switch
                     Transform.scale(
                       scale: 0.85,
@@ -223,11 +398,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   children: [
                     Icon(Icons.location_on_outlined, color: primaryAccent, size: 16),
                     const SizedBox(width: 4),
-                    Text(
-                      'St. Mary\'s Orthodox Church',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                    Expanded(
+                      child: Text(
+                        'St. Mary\'s Orthodox Church',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -354,6 +533,34 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             ],
           ),
 
+          const SizedBox(height: 10),
+
+          // Tertiary Quick Action 2-Card Row (10 Departments & Liturgical Calendar)
+          Row(
+            children: [
+              // 7. 10 Departments & Volunteer Serving
+              Expanded(
+                child: _buildQuickActionCard(
+                  icon: Icons.hub_outlined,
+                  iconColor: const Color(0xFF8B5CF6),
+                  title: '10 Ministries\n& Volunteer Serving',
+                  onTap: () => _navigateTo(StudentMinistryScreen(state: state)),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // 8. Liturgical Calendar & Feasts
+              Expanded(
+                child: _buildQuickActionCard(
+                  icon: Icons.calendar_month_outlined,
+                  iconColor: const Color(0xFFEC4899),
+                  title: 'Liturgical\nCalendar & Feasts',
+                  onTap: () => _navigateTo(StudentLiturgicalCalendarScreen(state: state)),
+                ),
+              ),
+            ],
+          ),
+
           const SizedBox(height: 24),
 
           // Weekly Christian Education Card
@@ -444,12 +651,16 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   },
                   child: Row(
                     children: [
-                      Text(
-                        'Open Spiritual Roadmap',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: primaryAccent,
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: Text(
+                          'Open Spiritual Roadmap',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: primaryAccent,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 4),
@@ -467,13 +678,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'FEASTS & GATHERINGS',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary,
-                  letterSpacing: 1.5,
+              Expanded(
+                child: Text(
+                  'FEASTS & GATHERINGS',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary,
+                    letterSpacing: 1.5,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               TextButton(

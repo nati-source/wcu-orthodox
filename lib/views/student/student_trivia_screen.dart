@@ -148,7 +148,7 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
     return GestureDetector(
       onTap: () => setState(() => _activeTab = index),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
           color: isSelected ? elevatedBg : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
@@ -157,14 +157,18 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: isSelected ? primaryAccent : textMuted),
-            const SizedBox(width: 6),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? (isDark ? primaryAccent : textCol) : textMuted,
+            Icon(icon, size: 15, color: isSelected ? primaryAccent : textMuted),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? (isDark ? primaryAccent : textCol) : textMuted,
+                ),
               ),
             ),
           ],
@@ -211,10 +215,15 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Question ${_currentQuestionIndex + 1} of ${quiz.questions.length}',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: primaryAccent),
+                    Flexible(
+                      child: Text(
+                        'Question ${_currentQuestionIndex + 1} of ${quiz.questions.length}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: primaryAccent),
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       'Score: $_score',
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),

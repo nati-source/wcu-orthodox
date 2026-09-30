@@ -72,30 +72,58 @@ class StudentLibraryScreen extends StatelessWidget {
                     const SizedBox(width: 8),
                     _buildCategoryChip(
                       context: context,
-                      label: 'Patristics',
+                      label: 'Patristics (አበው)',
                       isSelected: state.selectedCategory == LibraryCategory.patristics,
                       onTap: () => state.setLibraryCategory(LibraryCategory.patristics),
                     ),
                     const SizedBox(width: 8),
                     _buildCategoryChip(
                       context: context,
-                      label: 'Liturgical',
+                      label: 'Liturgical (ቅዳሴ)',
                       isSelected: state.selectedCategory == LibraryCategory.liturgical,
                       onTap: () => state.setLibraryCategory(LibraryCategory.liturgical),
                     ),
                     const SizedBox(width: 8),
                     _buildCategoryChip(
                       context: context,
-                      label: 'Mezmur Audio',
+                      label: 'Mezmur Audio (መዝሙር)',
                       isSelected: state.selectedCategory == LibraryCategory.mezmur,
                       onTap: () => state.setLibraryCategory(LibraryCategory.mezmur),
                     ),
                     const SizedBox(width: 8),
                     _buildCategoryChip(
                       context: context,
-                      label: 'Dogma',
+                      label: 'Dogma (ዶግማ)',
                       isSelected: state.selectedCategory == LibraryCategory.dogma,
                       onTap: () => state.setLibraryCategory(LibraryCategory.dogma),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildCategoryChip(
+                      context: context,
+                      label: 'Lives of Saints (ገድላት)',
+                      isSelected: state.selectedCategory == LibraryCategory.livesOfSaints,
+                      onTap: () => state.setLibraryCategory(LibraryCategory.livesOfSaints),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildCategoryChip(
+                      context: context,
+                      label: 'Scripture (መጽሐፍ ቅዱስ)',
+                      isSelected: state.selectedCategory == LibraryCategory.scripture,
+                      onTap: () => state.setLibraryCategory(LibraryCategory.scripture),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildCategoryChip(
+                      context: context,
+                      label: 'Canon & Law (ቀኖና)',
+                      isSelected: state.selectedCategory == LibraryCategory.canon,
+                      onTap: () => state.setLibraryCategory(LibraryCategory.canon),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildCategoryChip(
+                      context: context,
+                      label: 'General (አጠቃላይ)',
+                      isSelected: state.selectedCategory == LibraryCategory.general,
+                      onTap: () => state.setLibraryCategory(LibraryCategory.general),
                     ),
                   ],
                 ),
@@ -169,6 +197,27 @@ class StudentLibraryScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  IconData _getCategoryIcon(LibraryCategory cat) {
+    switch (cat) {
+      case LibraryCategory.patristics:
+        return Icons.menu_book;
+      case LibraryCategory.liturgical:
+        return Icons.church_outlined;
+      case LibraryCategory.mezmur:
+        return Icons.music_note;
+      case LibraryCategory.dogma:
+        return Icons.shield_outlined;
+      case LibraryCategory.livesOfSaints:
+        return Icons.auto_awesome;
+      case LibraryCategory.scripture:
+        return Icons.import_contacts;
+      case LibraryCategory.canon:
+        return Icons.balance;
+      case LibraryCategory.general:
+        return Icons.auto_stories;
+    }
   }
 
   Widget _buildFeaturedLibraryCard(BuildContext context, LibraryItemModel item) {
@@ -333,6 +382,53 @@ class StudentLibraryScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (state.isAdmin || state.activeRole == UserRole.admin || state.activeRole == UserRole.volunteerCoordinator) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, color: AppTheme.crimson, size: 22),
+                        tooltip: 'Delete Material',
+                        style: IconButton.styleFrom(
+                          backgroundColor: AppTheme.crimson.withOpacity(0.12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          showDialog(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: cardBg,
+                              title: const Row(
+                                children: [
+                                  Icon(Icons.delete_forever, color: AppTheme.crimson, size: 22),
+                                  SizedBox(width: 8),
+                                  Text('Delete Material?'),
+                                ],
+                              ),
+                              content: Text('Remove "${item.title}" from the digital library? This will delete it from Cloud Firestore in real time.'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx),
+                                  child: Text('Cancel', style: TextStyle(color: textMuted)),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.crimson),
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    state.deleteLibraryBook(item.id);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('"${item.title}" was removed from the digital library.'),
+                                        backgroundColor: cardBg,
+                                      ),
+                                    );
+                                  },
+                                  child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -377,11 +473,7 @@ class StudentLibraryScreen extends StatelessWidget {
                 ),
                 child: Center(
                   child: Icon(
-                    item.category == LibraryCategory.mezmur
-                        ? Icons.music_note
-                        : item.category == LibraryCategory.patristics
-                            ? Icons.menu_book
-                            : Icons.auto_stories,
+                    _getCategoryIcon(item.category),
                     color: primaryAccent,
                     size: 26,
                   ),
@@ -426,6 +518,47 @@ class StudentLibraryScreen extends StatelessWidget {
                 onPressed: () => state.launchTelegram(item.telegramUrl),
                 tooltip: 'Open in Telegram Channel',
               ),
+              if (state.isAdmin || state.activeRole == UserRole.admin || state.activeRole == UserRole.volunteerCoordinator)
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: AppTheme.crimson, size: 20),
+                  tooltip: 'Delete Material from Database',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: cardBg,
+                        title: const Row(
+                          children: [
+                            Icon(Icons.delete_forever, color: AppTheme.crimson, size: 22),
+                            SizedBox(width: 8),
+                            Text('Delete Material?'),
+                          ],
+                        ),
+                        content: Text('Remove "${item.title}" from the digital library? This will delete it for all users in real time.'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text('Cancel', style: TextStyle(color: textMuted)),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.crimson),
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              state.deleteLibraryBook(item.id);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('"${item.title}" was deleted from digital library.'),
+                                  backgroundColor: cardBg,
+                                ),
+                              );
+                            },
+                            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -434,11 +567,17 @@ class StudentLibraryScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                item.readTime ?? item.audioDuration ?? 'WCU Orthodox Archive',
-                style: TextStyle(fontSize: 11, color: textMuted.withOpacity(0.8)),
+              Expanded(
+                child: Text(
+                  item.readTime ?? item.audioDuration ?? 'WCU Orthodox Archive',
+                  style: TextStyle(fontSize: 11, color: textMuted.withOpacity(0.8)),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   if (item.category == LibraryCategory.mezmur) ...[
                     InkWell(

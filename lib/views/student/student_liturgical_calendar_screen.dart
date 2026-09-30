@@ -109,23 +109,28 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: primaryAccent.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: primaryAccent.withOpacity(0.5)),
-                        ),
-                        child: Text(
-                          currentDay.geezDateString,
-                          style: TextStyle(
-                            fontFamily: 'serif',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: primaryAccent,
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: primaryAccent.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: primaryAccent.withOpacity(0.5)),
+                          ),
+                          child: Text(
+                            currentDay.geezDateString,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: primaryAccent,
+                            ),
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
@@ -231,7 +236,7 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
             const SizedBox(height: 10),
 
             SizedBox(
-              height: 70,
+              height: 80,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: state.calendarWeek.length,
@@ -242,9 +247,9 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                   return GestureDetector(
                     onTap: () => state.selectCalendarDay(day),
                     child: Container(
-                      width: 110,
+                      width: 118,
                       margin: const EdgeInsets.only(right: 10),
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
                         color: isSelected ? elevatedBg : cardBg,
                         borderRadius: BorderRadius.circular(16),
@@ -258,8 +263,11 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                         children: [
                           Text(
                             day.geezDateString,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
                               color: isSelected ? primaryAccent : textCol,
                             ),
@@ -267,6 +275,8 @@ class _StudentLiturgicalCalendarScreenState extends State<StudentLiturgicalCalen
                           const SizedBox(height: 4),
                           Text(
                             day.isFasting ? 'Fasting' : 'Free',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: 10,
                               color: day.isFasting ? const Color(0xFFEF4444) : const Color(0xFF10B981),

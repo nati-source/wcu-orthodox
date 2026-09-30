@@ -71,38 +71,44 @@ class ExperienceSwitcherBanner extends StatelessWidget {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: theme.cardTheme.color ?? theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: theme.dividerColor),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<UserRole>(
-                      value: state.activeRole,
-                      isDense: true,
-                      dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
-                      icon: Icon(Icons.swap_horiz, color: primaryColor, size: 18),
-                      items: UserRole.values.map((role) {
-                        return DropdownMenuItem<UserRole>(
-                          value: role,
-                          child: Text(
-                            role.displayName,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: role == state.activeRole ? primaryColor : theme.colorScheme.onSurface,
-                              fontWeight: role == state.activeRole ? FontWeight.bold : FontWeight.normal,
+                Flexible(
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: theme.dividerColor),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<UserRole>(
+                        value: state.activeRole,
+                        isDense: true,
+                        isExpanded: true,
+                        dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                        icon: Icon(Icons.swap_horiz, color: primaryColor, size: 18),
+                        items: state.availableRoles.map((role) {
+                          return DropdownMenuItem<UserRole>(
+                            value: role,
+                            child: Text(
+                              role.displayName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: role == state.activeRole ? primaryColor : theme.colorScheme.onSurface,
+                                fontWeight: role == state.activeRole ? FontWeight.bold : FontWeight.normal,
+                              ),
                             ),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (newRole) {
-                        if (newRole != null) {
-                          HapticFeedback.selectionClick();
-                          state.switchRole(newRole);
-                        }
-                      },
+                          );
+                        }).toList(),
+                        onChanged: (newRole) {
+                          if (newRole != null) {
+                            HapticFeedback.selectionClick();
+                            state.switchRole(newRole);
+                          }
+                        },
+                      ),
                     ),
                   ),
                 ),

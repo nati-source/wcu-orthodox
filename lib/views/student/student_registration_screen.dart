@@ -26,6 +26,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
 
   int _selectedAcademicYear = 3;
   String _selectedDepartment = 'Computer Science';
+  String _selectedGender = 'male';
 
   @override
   void dispose() {
@@ -62,6 +63,7 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
         batchYear: _batchYearController.text.trim(),
         department: _selectedDepartment,
         academicYear: _selectedAcademicYear,
+        gender: _selectedGender,
       );
 
       _showWelcomeDialog();
@@ -526,6 +528,89 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                   ),
                 ),
 
+                const SizedBox(height: 16),
+
+                // Gender Selection (ጾታ)
+                Text('Gender (ጾታ)', style: TextStyle(color: textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedGender = 'male'),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedGender == 'male' ? primaryAccent.withOpacity(0.18) : cardBg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _selectedGender == 'male' ? primaryAccent : borderCol,
+                              width: _selectedGender == 'male' ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.male, color: _selectedGender == 'male' ? primaryAccent : textMuted, size: 20),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'Male (ወንድ)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: _selectedGender == 'male' ? primaryAccent : textCol,
+                                    fontWeight: _selectedGender == 'male' ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedGender = 'female'),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: _selectedGender == 'female' ? primaryAccent.withOpacity(0.18) : cardBg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _selectedGender == 'female' ? primaryAccent : borderCol,
+                              width: _selectedGender == 'female' ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.female, color: _selectedGender == 'female' ? primaryAccent : textMuted, size: 20),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  'Female (ሴት)',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: _selectedGender == 'female' ? primaryAccent : textCol,
+                                    fontWeight: _selectedGender == 'female' ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
                 const SizedBox(height: 32),
 
                 // Join Fellowship Action Button
@@ -541,13 +626,17 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          'Join Fellowship (ይመዝገቡ)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.black : Colors.white,
-                            letterSpacing: 0.5,
+                        Flexible(
+                          child: Text(
+                            'Join Fellowship (ይመዝገቡ)',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.black : Colors.white,
+                              letterSpacing: 0.5,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),

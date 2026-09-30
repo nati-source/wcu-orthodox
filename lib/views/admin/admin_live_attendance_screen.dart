@@ -7,8 +7,9 @@ import '../../theme/app_theme.dart';
 
 class AdminLiveAttendanceScreen extends StatelessWidget {
   final FellowshipState state;
+  final VoidCallback? onBackPressed;
 
-  const AdminLiveAttendanceScreen({super.key, required this.state});
+  const AdminLiveAttendanceScreen({super.key, required this.state, this.onBackPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +23,6 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final session = state.activeSession;
-    final countdown = state.pinCountdownSeconds;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -30,10 +30,18 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
         title: Text('Live Attendance', style: TextStyle(color: textCol, fontFamily: 'serif', fontWeight: FontWeight.bold)),
         backgroundColor: cardBg,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
+        leading: (Navigator.canPop(context) || onBackPressed != null)
+            ? IconButton(
+                icon: Icon(Icons.arrow_back_ios, color: primaryAccent),
+                onPressed: () {
+                  if (onBackPressed != null) {
+                    onBackPressed!();
+                  } else if (Navigator.canPop(context)) {
+                    Navigator.of(context).pop();
+                  }
+                },
+              )
+            : null,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -48,6 +56,8 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                   fontSize: 13,
                   color: textMuted,
                 ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 16),
 
@@ -69,52 +79,60 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'PRESENT',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: textMuted.withOpacity(0.7),
-                            letterSpacing: 1.2,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PRESENT',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: textMuted.withOpacity(0.7),
+                              letterSpacing: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${session.scans.length}',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: primaryAccent,
+                          const SizedBox(height: 4),
+                          Text(
+                            '${session.scans.length}',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: primaryAccent,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     Container(width: 1, height: 40, color: borderCol),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'TOTAL ENROLLED',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: textMuted.withOpacity(0.7),
-                            letterSpacing: 1.2,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'TOTAL ENROLLED',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: textMuted.withOpacity(0.7),
+                              letterSpacing: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${session.totalEnrolled}',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: textCol,
+                          const SizedBox(height: 4),
+                          Text(
+                            '${session.totalEnrolled}',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: textCol,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -234,13 +252,17 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Recent Scans',
-                    style: TextStyle(
-                      fontFamily: 'serif',
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: textCol,
+                  Expanded(
+                    child: Text(
+                      'Recent Scans',
+                      style: TextStyle(
+                        fontFamily: 'serif',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textCol,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   TextButton(

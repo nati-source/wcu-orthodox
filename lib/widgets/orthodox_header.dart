@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/app_models.dart';
 import '../state/fellowship_state.dart';
 import '../theme/app_theme.dart';
 
@@ -73,8 +74,55 @@ class OrthodoxHeader extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (state.isAdmin || state.activeRole == UserRole.admin)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: AppTheme.crimson, size: 20),
+                    tooltip: 'Delete broadcast from database',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () {
+                      final broadcast = state.latestEmergencyBroadcast;
+                      if (broadcast == null) return;
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                          title: const Row(
+                            children: [
+                              Icon(Icons.delete_forever, color: AppTheme.crimson, size: 24),
+                              SizedBox(width: 8),
+                              Text('Delete Broadcast?'),
+                            ],
+                          ),
+                          content: Text(
+                            'Permanently delete "${broadcast.title}" from the cloud database? It will be removed from all student devices in real time.',
+                            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.crimson),
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                await state.deleteEmergencyBroadcast(broadcast.id);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Emergency broadcast removed from database.')),
+                                  );
+                                }
+                              },
+                              child: const Text('Delete from DB', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 IconButton(
                   icon: Icon(Icons.close, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textTertiary, size: 18),
+                  tooltip: 'Dismiss',
                   onPressed: () => state.dismissEmergencyBanner(),
                   visualDensity: VisualDensity.compact,
                 ),
@@ -87,29 +135,66 @@ class OrthodoxHeader extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
           child: Row(
             children: [
-              // Orthodox Fellowship Icon Emblem
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      primaryColor.withOpacity(0.35),
-                      theme.cardTheme.color ?? theme.colorScheme.surface,
+              // Orthodox Fellowship Icon Emblem (Long-press toggles Dev Role Switcher for debugging)
+              GestureDetector(
+                onLongPress: () {
+                  // Only allow toggling dev role switcher if user is Admin
+                  if (state.currentUser.role != UserRole.admin && state.activeRole != UserRole.admin && !state.showDevRoleSwitcher) {
+                    return;
+                  }
+                  state.toggleDevRoleSwitcher();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: state.showDevRoleSwitcher ? AppTheme.gold : AppTheme.surfaceElevated,
+                      content: Row(
+                        children: [
+                          Icon(
+                            state.showDevRoleSwitcher ? Icons.build_circle : Icons.lock_outline,
+                            color: state.showDevRoleSwitcher ? const Color(0xFF070F1E) : Colors.white,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              state.showDevRoleSwitcher
+                                  ? '🛠️ Developer Mode ON: Role Switcher unlocked'
+                                  : '🔒 Developer Mode OFF: Role Switcher hidden',
+                              style: TextStyle(
+                                color: state.showDevRoleSwitcher ? const Color(0xFF070F1E) : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        primaryColor.withOpacity(0.35),
+                        theme.cardTheme.color ?? theme.colorScheme.surface,
+                      ],
+                    ),
+                    border: Border.all(color: primaryColor.withOpacity(0.6), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: primaryColor.withOpacity(0.25),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
                     ],
                   ),
-                  border: Border.all(color: primaryColor.withOpacity(0.6), width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: primaryColor.withOpacity(0.25),
-                      blurRadius: 10,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Icon(Icons.wb_sunny_outlined, color: primaryColor, size: 22),
+                  child: Center(
+                    child: Icon(Icons.wb_sunny_outlined, color: primaryColor, size: 22),
+                  ),
                 ),
               ),
               const SizedBox(width: 14),
