@@ -771,20 +771,22 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                 right: 20,
                 bottom: MediaQuery.of(context).viewInsets.bottom + 24,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Submit Monthly Dues (50 ETB)', style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent)),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<PaymentMethodType>(
-                    value: method,
-                    dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
-                    items: [PaymentMethodType.telebirr, PaymentMethodType.cbeAccount]
-                        .map((m) => DropdownMenuItem(value: m, child: Text(m.displayName, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface))))
-                        .toList(),
-                    onChanged: (val) => setModalState(() => method = val!),
-                  ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Submit Monthly Dues (50 ETB)', style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent)),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<PaymentMethodType>(
+                      value: method,
+                      isExpanded: true,
+                      dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                      items: [PaymentMethodType.telebirr, PaymentMethodType.cbeAccount]
+                          .map((m) => DropdownMenuItem(value: m, child: Text(m.displayName, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface), overflow: TextOverflow.ellipsis)))
+                          .toList(),
+                      onChanged: (val) => setModalState(() => method = val!),
+                    ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: refController,
@@ -814,7 +816,8 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                   ),
                 ],
               ),
-            );
+            ),
+          );
           },
         );
       },
@@ -1010,12 +1013,20 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.volunteer_activism, color: Color(0xFF10B981), size: 22),
-                            const SizedBox(width: 8),
-                            Text('Emergency Student Aid Reviews', style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent)),
-                          ],
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.volunteer_activism, color: Color(0xFF10B981), size: 22),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Emergency Student Aid Reviews',
+                                  style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: primaryAccent),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
                       ],

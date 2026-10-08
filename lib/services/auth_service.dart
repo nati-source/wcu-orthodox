@@ -3,14 +3,43 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/app_models.dart';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseAuth? get _authInstance {
+    try {
+      return FirebaseAuth.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  FirebaseFirestore? get _firestoreInstance {
+    try {
+      return FirebaseFirestore.instance;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  FirebaseAuth get _auth {
+    final inst = _authInstance;
+    if (inst == null) throw StateError('Firebase Auth is not initialized');
+    return inst;
+  }
+
+  FirebaseFirestore get _firestore {
+    final inst = _firestoreInstance;
+    if (inst == null) throw StateError('Firestore is not initialized');
+    return inst;
+  }
 
   // Stream of auth state changes
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  Stream<User?> get authStateChanges {
+    final inst = _authInstance;
+    if (inst == null) return const Stream.empty();
+    return inst.authStateChanges();
+  }
 
   // Current logged in Firebase user
-  User? get currentUser => _auth.currentUser;
+  User? get currentUser => _authInstance?.currentUser;
 
   /// Sign Up with Email and Password & initialize User Profile in Firestore
   Future<UserCredential> signUpWithEmail({
@@ -36,6 +65,10 @@ class AuthService {
       final uid = credential.user!.uid;
       await credential.user!.updateDisplayName(fullName);
 
+      final bool isAdminEmail = AppAdminConstants.isAdminEmail(email);
+      final effectiveRole = isAdminEmail ? UserRole.admin : initialRole;
+      final effectiveApproved = isAdminEmail ? true : false;
+
       // Create user document in Firestore
       final userDoc = _firestore.collection('users').doc(uid);
       await userDoc.set({
@@ -49,8 +82,8 @@ class AuthService {
         'department': department.trim(),
         'academicYear': academicYear,
         'batchYear': batchYear.trim(),
-        'role': initialRole.name,
-        'isApproved': true,
+        'role': effectiveRole.name,
+        'isApproved': effectiveApproved,  // Admin is approved immediately; students require approval
         'gender': gender.toLowerCase(),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -68,10 +101,25 @@ class AuthService {
     required String password,
   }) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
+      if (AppAdminConstants.isAdminEmail(email)) {
+        final uid = credential.user?.uid;
+        if (uid != null) {
+          try {
+            await _firestore.collection('users').doc(uid).set({
+              'id': uid,
+              'email': email.trim().toLowerCase(),
+              'role': 'admin',
+              'isApproved': true,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (_) {}
+        }
+      }
+      return credential;
     } catch (e) {
       rethrow;
     }
@@ -84,6 +132,24 @@ class AuthService {
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Change/Update Password for currently logged in user
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null || user.email!.trim().isEmpty) {
+      throw Exception('No active authenticated email user session found.');
+    }
+    // Re-authenticate user to confirm their identity before password change
+    final cred = EmailAuthProvider.credential(
+      email: user.email!.trim(),
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(cred);
+    await user.updatePassword(newPassword);
   }
 
   /// Sign Out

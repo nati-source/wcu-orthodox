@@ -16,7 +16,7 @@ mixin BroadcastStateMixin on ChangeNotifier {
   List<ChurchProgramModel> _programs = [];
   Timer? _countdownTimer;
   final ValueNotifier<Duration> liturgyCountdownNotifier =
-      ValueNotifier<Duration>(const Duration(hours: 2, minutes: 15, seconds: 45));
+      ValueNotifier<Duration>(Duration.zero);
   ChurchProgramModel? _latestEmergencyBroadcast;
   final Set<String> _dismissedEmergencyIds = {};
   // General announcements from the 'announcements' collection (admin-authored).
@@ -47,10 +47,7 @@ mixin BroadcastStateMixin on ChangeNotifier {
       );
       liturgyCountdownNotifier.value = nextProgram.dateTime.difference(now);
     } else {
-      if (liturgyCountdownNotifier.value.inSeconds > 0) {
-        liturgyCountdownNotifier.value =
-            liturgyCountdownNotifier.value - const Duration(seconds: 1);
-      }
+      liturgyCountdownNotifier.value = Duration.zero;
     }
   }
 

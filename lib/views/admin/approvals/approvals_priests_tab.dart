@@ -363,6 +363,9 @@ extension ApprovalsPriestsTabExt on _AdminApprovalsScreenState {
             return AlertDialog(
               backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              actionsOverflowButtonSpacing: 8,
+              actionsOverflowDirection: VerticalDirection.down,
+              actionsAlignment: MainAxisAlignment.end,
               title: Text(
                 isEditing ? 'Edit Priest & Venue' : 'Add Confessor Father',
                 style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold),
@@ -544,24 +547,29 @@ extension ApprovalsPriestsTabExt on _AdminApprovalsScreenState {
         return AlertDialog(
           backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          actionsOverflowButtonSpacing: 8,
+          actionsOverflowDirection: VerticalDirection.down,
+          actionsAlignment: MainAxisAlignment.end,
           title: Text('Confirm ${appt.studentName}\'s Visit', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Father: ${appt.fatherName}', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
-              Text('Topic: ${appt.topic}', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
-              Text('Requested Date: ${appt.scheduledDate.year}-${appt.scheduledDate.month}-${appt.scheduledDate.day} (${appt.timeSlot})', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: noteCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Confirmation Note & Venue Instructions',
-                  hintText: 'e.g. Meet at Room 2, fast from midnight',
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Father: ${appt.fatherName}', style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+                Text('Topic: ${appt.topic}', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+                Text('Requested Date: ${appt.scheduledDate.year}-${appt.scheduledDate.month}-${appt.scheduledDate.day} (${appt.timeSlot})', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary)),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: noteCtrl,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmation Note & Venue Instructions',
+                    hintText: 'e.g. Meet at Room 2, fast from midnight',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -599,26 +607,44 @@ extension ApprovalsPriestsTabExt on _AdminApprovalsScreenState {
         return AlertDialog(
           backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text('Broadcast Clergy Notice', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          actionsOverflowButtonSpacing: 8,
+          actionsOverflowDirection: VerticalDirection.down,
+          actionsAlignment: MainAxisAlignment.end,
+          title: Row(
             children: [
-              Text(
-                'Send an instant broadcast notification to all students regarding schedule or venue updates.',
-                style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: fatherCtrl,
-                decoration: const InputDecoration(labelText: 'Father / Clergy Name'),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: changeCtrl,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Venue / Schedule Update Details'),
+              Icon(Icons.campaign, color: primaryAccent, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Broadcast Clergy Notice',
+                  style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Send an instant broadcast notification to all students regarding schedule or venue updates.',
+                  style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: fatherCtrl,
+                  decoration: const InputDecoration(labelText: 'Father / Clergy Name'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: changeCtrl,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Venue / Schedule Update Details'),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(

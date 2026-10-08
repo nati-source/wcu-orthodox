@@ -202,14 +202,17 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                     const SizedBox(height: 4),
 
                     // Large 4-Digit Rolling PIN (e.g. 8421)
-                    Text(
-                      session.rollingPin,
-                      style: TextStyle(
-                        fontFamily: 'serif',
-                        fontSize: 44,
-                        fontWeight: FontWeight.w900,
-                        color: primaryAccent,
-                        letterSpacing: 8.0,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        session.rollingPin,
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: 44,
+                          fontWeight: FontWeight.w900,
+                          color: primaryAccent,
+                          letterSpacing: 8.0,
+                        ),
                       ),
                     ),
 

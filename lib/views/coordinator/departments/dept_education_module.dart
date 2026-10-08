@@ -22,7 +22,7 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
 
     // Filter by Target Batch
     if (_educationBatchFilter != 'All') {
-      filtered = filtered.where((b) => b.targetBatch == 'all' || b.targetBatch == _educationBatchFilter).toList();
+      filtered = filtered.where((b) => b.targetBatch == _educationBatchFilter).toList();
     }
 
     final totalCount = allDeptBroadcasts.length;
@@ -239,7 +239,96 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
+          if (state.triviaQuizzes.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.quiz_outlined, size: 18, color: Color(0xFF10B981)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Published Faith Challenges • የዕውቀት ውድድሮች (${state.triviaQuizzes.length})',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textCol),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...state.triviaQuizzes.map((quiz) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: elevatedBg,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text('Wk ${quiz.weekNumber}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF10B981))),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              quiz.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textCol),
+                            ),
+                          ),
+                          Text(
+                            '${quiz.questions.length} Qs',
+                            style: TextStyle(fontSize: 11, color: textMuted),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (c) => AlertDialog(
+                                  title: const Text('Delete Faith Challenge?'),
+                                  content: Text('Delete "${quiz.title}" from database?'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+                                    TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                await state.deleteTriviaQuiz(quiz.id);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Faith Challenge deleted.')));
+                                }
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
         ],
 
         // 3. Interactive Category Filter Chips & Target Batch Selector
@@ -708,13 +797,16 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
                       children: [
                         Icon(Icons.campaign, color: primaryAccent, size: 22),
                         const SizedBox(width: 8),
-                        Text(
-                          'New Education Broadcast • አዲስ ማስታወቂያ',
-                          style: TextStyle(
-                            fontFamily: 'serif',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onSurface,
+                        Expanded(
+                          child: Text(
+                            'New Education Broadcast • አዲስ ማስታወቂያ',
+                            style: TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -875,7 +967,7 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
                         );
                       },
                       icon: const Icon(Icons.send_rounded, size: 18),
-                      label: const Text('Dispatch Broadcast • አስተላልፍ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      label: const Flexible(child: Text('Dispatch Broadcast • አስተላልፍ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryAccent,
                         foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
@@ -940,13 +1032,16 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
                       children: [
                         Icon(Icons.event_available, color: primaryAccent, size: 22),
                         const SizedBox(width: 8),
-                        Text(
-                          'Schedule Special Program • ልዩ መርሐ ግብር',
-                          style: TextStyle(
-                            fontFamily: 'serif',
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onSurface,
+                        Expanded(
+                          child: Text(
+                            'Schedule Special Program • ልዩ መርሐ ግብር',
+                            style: TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -1097,7 +1192,7 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
                         );
                       },
                       icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Publish Special Program • ይፋ አድርግ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      label: const Flexible(child: Text('Publish Special Program • ይፋ አድርግ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14), overflow: TextOverflow.ellipsis)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryAccent,
                         foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
@@ -1209,6 +1304,7 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
 
                     DropdownButtonFormField<String>(
                       value: selectedCategory,
+                      isExpanded: true,
                       decoration: InputDecoration(
                         labelText: 'Program Category • የመርሐ ግብሩ ዓይነት',
                         filled: true,
@@ -1217,10 +1313,10 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'Liturgy', child: Text('የቅዳሴ መርሐ ግብር (Divine Liturgy)')),
-                        DropdownMenuItem(value: 'Feast', child: Text('ንግሥ / ዓመታዊ በዓል (Feast Commemoration)')),
-                        DropdownMenuItem(value: 'Prayer Meeting', child: Text('የጸሎት ጉባኤ (Prayer Gathering)')),
-                        DropdownMenuItem(value: 'Bible Study', child: Text('የመጽሐፍ ቅዱስ ጥናት (Bible Study)')),
+                        DropdownMenuItem(value: 'Liturgy', child: Text('የቅዳሴ መርሐ ግብር (Divine Liturgy)', overflow: TextOverflow.ellipsis)),
+                        DropdownMenuItem(value: 'Feast', child: Text('ንግሥ / ዓመታዊ በዓል (Feast Commemoration)', overflow: TextOverflow.ellipsis)),
+                        DropdownMenuItem(value: 'Prayer Meeting', child: Text('የጸሎት ጉባኤ (Prayer Gathering)', overflow: TextOverflow.ellipsis)),
+                        DropdownMenuItem(value: 'Bible Study', child: Text('የመጽሐፍ ቅዱስ ጥናት (Bible Study)', overflow: TextOverflow.ellipsis)),
                       ],
                       onChanged: (val) {
                         if (val != null) setDialogState(() => selectedCategory = val);
@@ -1325,7 +1421,7 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
                         }
                       },
                       icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Publish Countdown • ሰዓቱን አስቀምጥና ጀምር', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      label: const Flexible(child: Text('Publish Countdown • ሰዓቱን አስቀምጥና ጀምር', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryAccent,
                         foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
@@ -1580,7 +1676,7 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
                         }
                       },
                       icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-                      label: const Text('Publish Challenge • ውድድሩን ይፋ አድርግ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      label: const Flexible(child: Text('Publish Challenge • ውድድሩን ይፋ አድርግ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryAccent,
                         foregroundColor: Colors.white,

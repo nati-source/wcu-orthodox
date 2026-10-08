@@ -244,8 +244,30 @@ class _StudentPrayerBookScreenState extends State<StudentPrayerBookScreen> {
           // 4. Main Prayer Scroll Content
           Expanded(
             child: _activeBookIndex == 0
-                ? _buildWudaseContent(context, wudase.sections[state.selectedPrayerDayIndex], state.prayerFontSize)
-                : _buildYezewetirContent(context, yezewetir.sections, state.prayerFontSize),
+                ? (wudase.sections.isEmpty
+                    ? Center(
+                        child: Text(
+                          'የውዳሴ ማርያም ጸሎት በመጫን ላይ ነው።',
+                          style: TextStyle(color: textMuted),
+                        ),
+                      )
+                    : _buildWudaseContent(
+                        context,
+                        wudase.sections[state.selectedPrayerDayIndex.clamp(0, wudase.sections.length - 1)],
+                        state.prayerFontSize,
+                      ))
+                : (yezewetir.sections.isEmpty
+                    ? Center(
+                        child: Text(
+                          'የዘወትር ጸሎት በመጫን ላይ ነው።',
+                          style: TextStyle(color: textMuted),
+                        ),
+                      )
+                    : _buildYezewetirContent(
+                        context,
+                        yezewetir.sections,
+                        state.prayerFontSize,
+                      )),
           ),
         ],
       ),

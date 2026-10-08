@@ -118,11 +118,12 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             ],
           ),
           child: SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Drag Handle
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Drag Handle
                 Center(
                   child: Container(
                     width: 44,
@@ -276,7 +277,8 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
               ],
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }
@@ -989,12 +991,16 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             ),
           ],
         ),
+        actionsOverflowButtonSpacing: 8,
+        actionsOverflowDirection: VerticalDirection.down,
+        actionsAlignment: MainAxisAlignment.end,
         content: Form(
           key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Text(
                 'Set or update the Telegram group invite link for ${family.name}. Spiritual children will tap "Join Telegram Group" to enter your family chat.',
                 style: TextStyle(
@@ -1028,7 +1034,8 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             ],
           ),
         ),
-        actions: [
+      ),
+      actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),

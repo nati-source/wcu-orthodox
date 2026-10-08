@@ -20,7 +20,7 @@ mixin MinistryStateMixin on ChangeNotifier {
   // ----------------------------------------------------
   // DOMAIN 7: 10 EOTC FELLOWSHIP DEPARTMENTS & COORDINATOR DELEGATION
   // ----------------------------------------------------
-  List<MinistryModel> _ministries = [];
+  List<MinistryModel> _ministries = MinistryModel.defaultMinistries;
   List<VolunteerApplicationModel> _volunteerApplications = [];
   List<DepartmentMemberModel> _departmentMembers = [];
   List<DepartmentBroadcastMessageModel> _departmentBroadcasts = [];
@@ -80,7 +80,7 @@ mixin MinistryStateMixin on ChangeNotifier {
     final audience = targetAudienceLabel ?? (targetBatch == 'all' ? 'All Students (ሁሉንም ተማሪዎች)' : 'Year $targetBatch Batch ($targetBatchኛ ዓመት ባች)');
 
     final broadcast = DepartmentBroadcastMessageModel(
-      id: 'dmsg-${DateTime.now().millisecondsSinceEpoch}',
+      id: 'dmsg-${DateTime.now().microsecondsSinceEpoch}',
       departmentId: departmentId,
       title: title,
       body: body,
@@ -101,11 +101,13 @@ mixin MinistryStateMixin on ChangeNotifier {
 
     // Also trigger an emergency/banner notification so students in that department see it
     final deptName = FellowshipDepartmentConstants.getNameAmharic(departmentId);
-    broadcastEmergency(
+    if (targetBatch == 'all' && (urgency == 'urgent' || urgency == 'meeting')) {
+      broadcastEmergency(
       title: '[$deptName] $title',
       description: body,
       category: urgency == 'meeting' ? 'Meeting Notice' : (urgency == 'urgent' ? 'Urgent Alert' : 'Department Announcement'),
-    );
+      );
+    }
 
     notifyListeners();
 
@@ -124,7 +126,7 @@ mixin MinistryStateMixin on ChangeNotifier {
     if (idx != -1) {
       final b = _departmentBroadcasts[idx];
       if (canAccessDepartmentWrite(b.departmentId) || isAdmin) {
-        _departmentBroadcasts.removeAt(idx);
+        _departmentBroadcasts.removeWhere((item) => item.id == id);
         notifyListeners();
 
         try {

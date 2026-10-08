@@ -221,6 +221,16 @@ class CoordinatorProfileModel {
   }
 }
 
+class AppAdminConstants {
+  static const String adminEmail = 'natisita928@gmail.com';
+
+  static bool isAdminEmail(String? email) {
+    if (email == null) return false;
+    final clean = email.trim().toLowerCase();
+    return clean == adminEmail;
+  }
+}
+
 class UserModel {
   final String id;
   final String fullName;
@@ -248,7 +258,7 @@ class UserModel {
     required this.department,
     required this.academicYear,
     this.role = UserRole.student,
-    this.isApproved = true,
+    this.isApproved = false,
     this.badges = const [],
     this.ministryStatus = 'General Fellow',
     this.assignedFamilyId,
@@ -376,15 +386,21 @@ class UserModel {
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map, String docId) {
+    final rawEmail = map['email']?.toString();
+    final bool isAdminEmail = AppAdminConstants.isAdminEmail(rawEmail) || docId == 'gonGT6FkXzZTlHQkXWTFokH8GZF3';
+
     final roleStr = map['role']?.toString() ?? 'student';
-    final role = UserRole.values.firstWhere(
+    UserRole role = UserRole.values.firstWhere(
       (r) => r.name == roleStr,
       orElse: () => UserRole.student,
     );
+    if (isAdminEmail) {
+      role = UserRole.admin;
+    }
     final rawName = map['fullName'] ?? map['name'];
     final nameStr = (rawName != null && rawName.toString().trim().isNotEmpty)
         ? rawName.toString().trim()
-        : 'Student Fellow';
+        : (isAdminEmail ? 'Nati (Admin)' : 'Student Fellow');
     final bapStr = map['baptismalName']?.toString() ?? '';
     final parsedGender = map['gender']?.toString().toLowerCase().trim();
     final finalGender = (parsedGender == 'male' || parsedGender == 'female')
@@ -400,7 +416,7 @@ class UserModel {
       department: map['department']?.toString() ?? 'General',
       academicYear: (map['academicYear'] as num?)?.toInt() ?? 1,
       role: role,
-      isApproved: map['isApproved'] ?? true,
+      isApproved: isAdminEmail ? true : (map['isApproved'] ?? false),
       badges: (map['badges'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       ministryStatus: map['ministryStatus']?.toString() ?? 'General Fellow',
       assignedFamilyId: map['assignedFamilyId'] ?? map['familyId'] ?? map['family'] ?? map['assignedFamily'],

@@ -27,7 +27,7 @@ mixin ConfessorStateMixin on ChangeNotifier {
   List<CommunionChecklistItem> get communionChecklist => _communionChecklist;
 
   List<ConfessionAppointmentModel> get myConfessionAppointments =>
-      _confessionAppointments.where((a) => a.studentId == _currentUser.id).toList();
+      _confessionAppointments.where((a) => a.studentId == _currentUser.id || (FirebaseAuth.instance.currentUser != null && a.studentId == FirebaseAuth.instance.currentUser!.uid)).toList();
 
   void bookConfessionAppointment({
     required String fatherId,
@@ -36,10 +36,24 @@ mixin ConfessorStateMixin on ChangeNotifier {
     required String topic,
     String? notes,
   }) {
-    final father = _confessorFathers.firstWhere((f) => f.id == fatherId);
+    final father = _confessorFathers.firstWhere(
+      (f) => f.id == fatherId,
+      orElse: () => _confessorFathers.isNotEmpty
+          ? _confessorFathers.first
+          : ConfessorFatherModel(
+              id: fatherId,
+              clericalTitle: 'Abba',
+              fullName: 'Spiritual Father',
+              churchName: 'WCU Fellowship Chapel',
+              phoneNumber: '+251911000000',
+              availableDays: const ['Sunday', 'Saturday'],
+              availableTimeSlots: const ['09:00 AM - 11:00 AM'],
+              bio: 'Campus Confession Father',
+            ),
+    );
     final newAppt = ConfessionAppointmentModel(
       id: 'conf-${DateTime.now().millisecondsSinceEpoch}',
-      studentId: _currentUser.id,
+      studentId: (() { try { final u = FirebaseAuth.instance.currentUser?.uid; if (u != null && u.isNotEmpty) return u; } catch (_) {} return _currentUser.id; })(),
       studentName: _currentUser.fullName,
       studentBaptismalName: _currentUser.baptismalName,
       studentPhone: _currentUser.phoneNumber,

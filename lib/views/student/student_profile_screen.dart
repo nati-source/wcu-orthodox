@@ -12,6 +12,7 @@ import 'student_pilgrimage_screen.dart';
 import 'student_charity_screen.dart';
 import 'student_mentorship_screen.dart';
 import '../coordinator/coordinator_hub_screen.dart';
+import '../help/user_guide_screen.dart';
 
 class StudentProfileScreen extends StatelessWidget {
   final FellowshipState state;
@@ -140,7 +141,7 @@ class StudentProfileScreen extends StatelessWidget {
                     children: [
                       Expanded(child: _buildIdField(context, 'BATCH', user.batchYear)),
                       Container(width: 1, height: 28, color: theme.dividerColor),
-                      Expanded(child: _buildIdField(context, 'DEPT', user.department.split(' ').first)),
+                      Expanded(child: _buildIdField(context, 'DEPT', user.department.trim().isEmpty ? 'General' : user.department.trim().split(' ').first)),
                       Container(width: 1, height: 28, color: theme.dividerColor),
                       Expanded(child: _buildIdField(context, 'YEAR', 'Year ${user.academicYear}')),
                     ],
@@ -784,7 +785,128 @@ class StudentProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // 5. Account & Sign Out Section
+          // Return to Admin Management Portal Card (if user is authenticated as Admin)
+          if (state.authenticatedRole == UserRole.admin && state.activeRole != UserRole.admin) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 18),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.crimson.withOpacity(0.18),
+                    theme.cardTheme.color ?? theme.colorScheme.surface,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.crimson.withOpacity(0.5)),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.crimson.withOpacity(0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.admin_panel_settings, color: AppTheme.crimson, size: 24),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'You are viewing as ${state.activeRole.displayName}',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          'Tap to return to your Admin Dashboard & Oversight controls.',
+                          style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      state.switchRole(UserRole.admin);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.crimson,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                    child: const Text('Back to Admin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // 5. Account & Security Section
+          // User Guide Button
+          Container(
+            width: double.infinity,
+            height: 52,
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (ctx) => UserGuideScreen(state: state),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.menu_book_rounded, color: Colors.white, size: 20),
+              label: const Text(
+                'App User Guide • የተጠቃሚ መመሪያ',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.gold,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+            ),
+          ),
+
+          // Change Password Button
+          Container(
+            width: double.infinity,
+            height: 50,
+            margin: const EdgeInsets.only(bottom: 12),
+            child: OutlinedButton.icon(
+              onPressed: () => _openChangePasswordDialog(context),
+              icon: const Icon(Icons.lock_reset, color: AppTheme.gold, size: 20),
+              label: const Text(
+                'Change Password / የይለፍ ቃል ቀይር',
+                style: TextStyle(
+                  color: AppTheme.gold,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: AppTheme.gold.withOpacity(0.6)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
 
           Container(
             width: double.infinity,
@@ -847,6 +969,342 @@ class StudentProfileScreen extends StatelessWidget {
             child: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openChangePasswordDialog(BuildContext context) {
+    final currentPwController = TextEditingController();
+    final newPwController = TextEditingController();
+    final confirmPwController = TextEditingController();
+    bool isSaving = false;
+    String? errorMsg;
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final theme = Theme.of(context);
+          final textCol = theme.colorScheme.onSurface;
+          final firebaseUser = AuthService().currentUser;
+
+          return Dialog(
+            backgroundColor: AppTheme.surfaceElevated,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+              side: BorderSide(color: AppTheme.gold.withOpacity(0.5), width: 1.5),
+            ),
+            insetPadding: EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: MediaQuery.of(ctx).viewInsets.bottom > 0 ? 12 : 24,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.gold.withOpacity(0.15),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.lock_reset, color: AppTheme.gold, size: 24),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Change Password',
+                                style: TextStyle(
+                                  fontFamily: 'serif',
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: textCol,
+                                ),
+                              ),
+                              const Text(
+                                'የይለፍ ቃል ቀይር',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.gold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: AppTheme.slateMuted, size: 20),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    const Text(
+                      'Enter your current password and choose a secure new password:',
+                      style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                    ),
+                    const SizedBox(height: 14),
+
+                    if (errorMsg != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.crimson.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.crimson.withOpacity(0.5)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: AppTheme.crimson, size: 16),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMsg!,
+                                style: const TextStyle(color: AppTheme.crimson, fontSize: 11),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    // Current Password
+                    TextField(
+                      controller: currentPwController,
+                      obscureText: obscureCurrent,
+                      style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: 'Current Password / የቀድሞ ይለፍ ቃል',
+                        labelStyle: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        prefixIcon: const Icon(Icons.lock_outline, size: 18, color: AppTheme.gold),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureCurrent ? Icons.visibility_off : Icons.visibility, size: 18),
+                          onPressed: () => setDialogState(() => obscureCurrent = !obscureCurrent),
+                        ),
+                        filled: true,
+                        fillColor: AppTheme.primaryBg,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+
+                    // Forgot current password quick link
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: () async {
+                          final email = firebaseUser?.email ?? 'student@wcu.test';
+                          if (email.isEmpty) {
+                            setDialogState(() => errorMsg = 'No registered email found for this profile.');
+                            return;
+                          }
+                          try {
+                            await AuthService().sendPasswordResetEmail(email);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Password reset link sent to $email! Please check your Spam / Inbox.'),
+                                  backgroundColor: AppTheme.emerald,
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setDialogState(() {
+                              errorMsg = 'Could not send reset link: ${e.toString().replaceAll(RegExp(r'\[.*?\]'), '').trim()}';
+                            });
+                          }
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 4),
+                          child: Text(
+                            'Forgot current password? / ረሱት?',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.gold,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // New Password
+                    TextField(
+                      controller: newPwController,
+                      obscureText: obscureNew,
+                      style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: 'New Password (min 6 characters) / አዲስ ይለፍ ቃል',
+                        labelStyle: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        prefixIcon: const Icon(Icons.vpn_key_outlined, size: 18, color: AppTheme.emerald),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureNew ? Icons.visibility_off : Icons.visibility, size: 18),
+                          onPressed: () => setDialogState(() => obscureNew = !obscureNew),
+                        ),
+                        filled: true,
+                        fillColor: AppTheme.primaryBg,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Confirm New Password
+                    TextField(
+                      controller: confirmPwController,
+                      obscureText: obscureConfirm,
+                      style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+                      decoration: InputDecoration(
+                        labelText: 'Confirm New Password / አዲሱን ያረጋግጡ',
+                        labelStyle: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+                        prefixIcon: const Icon(Icons.check_circle_outline, size: 18, color: AppTheme.emerald),
+                        suffixIcon: IconButton(
+                          icon: Icon(obscureConfirm ? Icons.visibility_off : Icons.visibility, size: 18),
+                          onPressed: () => setDialogState(() => obscureConfirm = !obscureConfirm),
+                        ),
+                        filled: true,
+                        fillColor: AppTheme.primaryBg,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Cancel', style: TextStyle(color: AppTheme.slateMuted)),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: isSaving
+                              ? null
+                              : () async {
+                                  final cur = currentPwController.text.trim();
+                                  final newPw = newPwController.text;
+                                  final conf = confirmPwController.text;
+
+                                  if (cur.isEmpty) {
+                                    setDialogState(() => errorMsg = 'Please enter your current password.');
+                                    return;
+                                  }
+                                  if (newPw.length < 6) {
+                                    setDialogState(() => errorMsg = 'New password must be at least 6 characters.');
+                                    return;
+                                  }
+                                  if (newPw != conf) {
+                                    setDialogState(() => errorMsg = 'New passwords do not match.');
+                                    return;
+                                  }
+
+                                  setDialogState(() {
+                                    isSaving = true;
+                                    errorMsg = null;
+                                  });
+
+                                  // If in local/demo mode (no active Firebase user logged in)
+                                  if (firebaseUser == null) {
+                                    await Future.delayed(const Duration(milliseconds: 500));
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: const Row(
+                                            children: [
+                                              Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                              SizedBox(width: 10),
+                                              Expanded(child: Text('Password updated successfully! (Demo / Offline mode)')),
+                                            ],
+                                          ),
+                                          backgroundColor: AppTheme.emerald,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                      );
+                                    }
+                                    return;
+                                  }
+
+                                  try {
+                                    await AuthService().updatePassword(
+                                      currentPassword: cur,
+                                      newPassword: newPw,
+                                    );
+                                    if (ctx.mounted) Navigator.pop(ctx);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: const Row(
+                                            children: [
+                                              Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                              SizedBox(width: 10),
+                                              Text('Password changed successfully!'),
+                                            ],
+                                          ),
+                                          backgroundColor: AppTheme.emerald,
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                        ),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    setDialogState(() {
+                                      isSaving = false;
+                                      final err = e.toString();
+                                      if (err.contains('wrong-password') || err.contains('invalid-credential')) {
+                                        errorMsg = 'Current password is incorrect. Please check and try again.';
+                                      } else if (err.contains('weak-password')) {
+                                        errorMsg = 'Password is too weak. Please use at least 6 characters.';
+                                      } else if (err.contains('requires-recent-login')) {
+                                        errorMsg = 'For security, please sign out and sign back in before changing your password.';
+                                      } else if (err.contains('network-request-failed')) {
+                                        errorMsg = 'Network error. Please check your internet connection.';
+                                      } else {
+                                        errorMsg = 'Failed: ${err.replaceAll(RegExp(r'\[.*?\]'), '').trim()}';
+                                      }
+                                    });
+                                  }
+                                },
+                          icon: isSaving
+                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF070F1E)))
+                              : const Icon(Icons.check, size: 18),
+                          label: const Text('Update Password'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.gold,
+                            foregroundColor: const Color(0xFF070F1E),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }

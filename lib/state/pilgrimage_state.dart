@@ -23,7 +23,23 @@ mixin PilgrimageStateMixin on ChangeNotifier {
   List<TripRegistrationModel> get allTripRegistrations => List.unmodifiable(_tripRegistrations);
 
   List<TripRegistrationModel> get myTripRegistrations =>
-      _tripRegistrations.where((r) => r.studentId == _currentUser.id).toList();
+      _tripRegistrations.where((r) {
+        final curId = _currentUser.id.trim();
+        final curPhone = _currentUser.phoneNumber.trim().replaceAll(RegExp(r'[^0-9]'), '');
+        final curName = _currentUser.fullName.trim().toLowerCase();
+        if (curId.isNotEmpty && r.studentId == curId) return true;
+        if (curPhone.isNotEmpty) {
+          final regPhone = r.studentPhone.trim().replaceAll(RegExp(r'[^0-9]'), '');
+          if (regPhone.isNotEmpty) {
+            if (regPhone == curPhone) return true;
+            if (regPhone.length >= 9 && curPhone.length >= 9) {
+              if (regPhone.substring(regPhone.length - 9) == curPhone.substring(curPhone.length - 9)) return true;
+            }
+          }
+        }
+        if (curName.isNotEmpty && r.studentName.trim().toLowerCase() == curName) return true;
+        return false;
+      }).toList();
 
   Future<void> registerForTrip({
     required String tripId,
@@ -34,6 +50,23 @@ mixin PilgrimageStateMixin on ChangeNotifier {
     try {
       trip = _pilgrimageTrips.firstWhere((t) => t.id == tripId);
     } catch (_) {
+      return;
+    }
+
+    final alreadyRegistered = _tripRegistrations.any(
+      (r) => r.tripId == tripId && (
+        (_currentUser.id.isNotEmpty && r.studentId == _currentUser.id) ||
+        (_currentUser.fullName.trim().isNotEmpty &&
+            r.studentName.trim().toLowerCase() == _currentUser.fullName.trim().toLowerCase())
+      ),
+    );
+    if (alreadyRegistered) {
+      debugPrint('Registration aborted: student already registered for trip $tripId');
+      return;
+    }
+
+    if (trip.bookedSeats >= trip.totalSeats) {
+      debugPrint('Registration aborted: trip $tripId is at full capacity (${trip.totalSeats})');
       return;
     }
 

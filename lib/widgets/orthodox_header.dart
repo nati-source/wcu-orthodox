@@ -86,11 +86,17 @@ class OrthodoxHeader extends StatelessWidget {
                         context: context,
                         builder: (ctx) => AlertDialog(
                           backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          actionsOverflowButtonSpacing: 8,
+                          actionsOverflowDirection: VerticalDirection.down,
+                          actionsAlignment: MainAxisAlignment.end,
                           title: const Row(
                             children: [
                               Icon(Icons.delete_forever, color: AppTheme.crimson, size: 24),
                               SizedBox(width: 8),
-                              Text('Delete Broadcast?'),
+                              Expanded(
+                                child: Text('Delete Broadcast?', overflow: TextOverflow.ellipsis),
+                              ),
                             ],
                           ),
                           content: Text(
@@ -139,7 +145,7 @@ class OrthodoxHeader extends StatelessWidget {
               GestureDetector(
                 onLongPress: () {
                   // Only allow toggling dev role switcher if user is Admin
-                  if (state.currentUser.role != UserRole.admin && state.activeRole != UserRole.admin && !state.showDevRoleSwitcher) {
+                  if (state.authenticatedRole != UserRole.admin && state.currentUser.role != UserRole.admin && state.activeRole != UserRole.admin && !state.showDevRoleSwitcher) {
                     return;
                   }
                   state.toggleDevRoleSwitcher();

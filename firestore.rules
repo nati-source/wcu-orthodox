@@ -128,7 +128,7 @@ service cloud.firestore {
         isCoordinatorOf('dept-accounting') ||
         isCoordinator()
       );
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
       // Only Admin, Charity, or Finance/Accounting can verify/modify financial records
       allow update, delete: if isAdmin() || isCoordinatorOf('dept-charity') || isCoordinatorOf('dept-accounting');
     }
@@ -178,7 +178,7 @@ service cloud.firestore {
         isAdmin() ||
         isCoordinator()
       );
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
       allow update, delete: if isAdmin() || isCoordinatorOf(resource.data.ministryId);
     }
 
@@ -206,7 +206,7 @@ service cloud.firestore {
         resource.data.studentId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
     }
 
@@ -225,8 +225,13 @@ service cloud.firestore {
     }
 
     match /mentorship_requests/{reqId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.juniorStudentId == request.auth.uid ||
+        resource.data.mentorId == request.auth.uid ||
+        isAdmin() ||
+        isCoordinatorOf('dept-membercare')
+      );
+      allow create: if isSignedIn() && request.resource.data.juniorStudentId == request.auth.uid;
       allow update, delete: if isAdmin() || isCoordinatorOf('dept-membercare') || (isSignedIn() && resource.data.juniorStudentId == request.auth.uid);
     }
 

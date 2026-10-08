@@ -5,6 +5,7 @@ import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
 
 
+part 'approvals/approvals_registrations_tab.dart';
 part 'approvals/approvals_emergency_aid_tab.dart';
 part 'approvals/approvals_roles_tab.dart';
 part 'approvals/approvals_priests_tab.dart';
@@ -22,6 +23,8 @@ class AdminApprovalsScreen extends StatefulWidget {
 
 class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   void _updateUi(VoidCallback fn) => setState(fn);
+  String _registrationSearchQuery = '';
+  String _registrationDeptFilter = 'All';
   String _proposalStatusFilter = 'All'; // 'All', 'Pending', 'Approved', 'Rejected'
   String _proposalSearch = '';
   String _roleSearchQuery = '';
@@ -38,6 +41,7 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     final pendingProposals = proposals.where((p) => p.isPending).toList();
 
     final isCoordinator = state.activeRole == UserRole.volunteerCoordinator;
+    final canSeeRegistrations = state.isAdmin || state.canApproveGeneralStudents;
     final canSeePriests = state.canSchedulePriests;
     final canSeeRoles = state.canAssignRoles;
     final canSeeAid = state.canManageEmergencyAid;
@@ -49,6 +53,12 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     // Dynamically build visible governance tabs
     final List<Widget> tabs = [];
     final List<Widget> views = [];
+
+    // 1. New Student Registrations Tab (Always prioritized for Admin)
+    if (canSeeRegistrations) {
+      tabs.add(Tab(text: 'Registrations (${state.pendingApprovals.length})'));
+      views.add(_buildRegistrationsTab(context, state));
+    }
 
     if (canSeeProposals) {
       tabs.add(Tab(text: 'Proposals (${pendingProposals.length})'));

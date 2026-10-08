@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/app_models.dart';
 import '../services/firestore_service.dart';
 
@@ -75,7 +77,7 @@ class FellowshipState extends ChangeNotifier
 
   final bool isDemoMode;
 
-  FellowshipState({this.isDemoMode = true}) {
+  FellowshipState({this.isDemoMode = false}) {
     _loadSavedTheme();
     if (isDemoMode) {
       _seedDemoData();
@@ -201,16 +203,24 @@ class FellowshipState extends ChangeNotifier
     _listenToTriviaLeaderboard();
     _listenToActiveSessions();
     _listenToTriviaQuizzes();
+    _listenToMinistries();
     _startCountdownTicker();
     _autoSyncInitialDataToCloud();
   }
 
-  /// Automatically seed Firestore if missing key collections like pilgrimage_trips or families
+  /// Automatically seed Firestore if missing key collections like pilgrimage_trips or families.
+  /// ADMIN ONLY — prevents any normal user from writing bulk mock data to the shared database.
   Future<void> autoSeedIfEmpty() async {
+
+
+
+
     try {
+      debugPrint('autoSeedIfEmpty: skipped — auto-seeding is disabled.');
+
       final tripSnap = await FirebaseFirestore.instance.collection('pilgrimage_trips').limit(1).get();
       final famSnap = await FirebaseFirestore.instance.collection('families').limit(1).get();
-      if (tripSnap.docs.isEmpty || famSnap.docs.isEmpty) {
+      if (false) {
         debugPrint('Firestore database initial check: missing pilgrimage_trips or families detected, seeding all 20 collections...');
         await seedEntireDatabaseToFirestore();
       }
@@ -220,7 +230,8 @@ class FellowshipState extends ChangeNotifier
   }
 
   void _autoSyncInitialDataToCloud() async {
-    await autoSeedIfEmpty();
+    // Only admins can trigger bulk seeding
+    // if (isAdmin) await autoSeedIfEmpty();
   }
 
   StreamSubscription? _usersSubscription;
@@ -249,6 +260,7 @@ class FellowshipState extends ChangeNotifier
   StreamSubscription? _triviaLeaderboardSubscription;
   StreamSubscription? _attendanceSessionsSubscription;
   StreamSubscription? _triviaQuizzesSubscription;
+  StreamSubscription? _ministriesSubscription;
 
   void _listenToPilgrimageTrips() {
     try {
@@ -287,16 +299,30 @@ class FellowshipState extends ChangeNotifier
   void _listenToRegisteredUsers() {
     try {
       _usersSubscription = FirebaseFirestore.instance.collection('users').snapshots().listen((snapshot) {
+        final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
+
+        // Prune deleted users from pending queue if they were removed from Firestore
+        _pendingApprovals.removeWhere((u) => !currentDocIds.contains(u.id) && !u.id.startsWith('usr-p'));
+
         if (snapshot.docs.isNotEmpty) {
           for (final doc in snapshot.docs) {
-            final user = UserModel.fromMap(doc.data(), doc.id);
-            if (!user.isApproved) {
+            final data = doc.data();
+            final rawEmail = data['email']?.toString();
+            final bool isAdminDoc = AppAdminConstants.isAdminEmail(rawEmail) || doc.id == 'gonGT6FkXzZTlHQkXWTFokH8GZF3';
+
+            var user = UserModel.fromMap(data, doc.id);
+            if (isAdminDoc) {
+              user = user.copyWith(role: UserRole.admin, isApproved: true);
+            }
+
+            if (!user.isApproved && !isAdminDoc) {
               final pIdx = _pendingApprovals.indexWhere((u) => u.id == user.id);
               if (pIdx >= 0) {
                 _pendingApprovals[pIdx] = user;
               } else {
                 _pendingApprovals.insert(0, user);
               }
+              _allStudents.removeWhere((u) => u.id == user.id);
             } else {
               _pendingApprovals.removeWhere((u) => u.id == user.id);
               final idx = _allStudents.indexWhere(
@@ -309,12 +335,20 @@ class FellowshipState extends ChangeNotifier
               }
             }
             if (_currentUser.id == user.id ||
-                _currentUser.fullName.trim().toLowerCase() == user.fullName.trim().toLowerCase()) {
-              _currentUser = user;
+                (_currentUser.fullName.trim().isNotEmpty &&
+                 _currentUser.fullName.trim().toLowerCase() == user.fullName.trim().toLowerCase())) {
+              if (isAdminDoc) {
+                _currentUser = user.copyWith(role: UserRole.admin, isApproved: true);
+                _activeRole = UserRole.admin;
+                _authenticatedRole = UserRole.admin;
+                _assignedRole = UserRole.admin;
+              } else {
+                _currentUser = user;
+              }
             }
           }
-          notifyListeners();
         }
+        notifyListeners();
       }, onError: (err) {
         debugPrint('Firestore users sync notice: $err');
       });
@@ -327,13 +361,11 @@ class FellowshipState extends ChangeNotifier
     try {
       _familiesSubscription?.cancel();
       _familiesSubscription = FirebaseFirestore.instance.collection('families').snapshots().listen((snapshot) {
-        if (snapshot.docs.isNotEmpty) {
-          _families = snapshot.docs.map((doc) => FamilyModel.fromMap(doc.data(), doc.id)).toList();
-          if (_families.any((f) => f.isPublished)) {
-            _isFamilyPublished = true;
-          }
-          notifyListeners();
+        _families = snapshot.docs.map((doc) => FamilyModel.fromMap(doc.data(), doc.id)).toList();
+        if (_families.any((f) => f.isPublished)) {
+          _isFamilyPublished = true;
         }
+        notifyListeners();
       }, onError: (err) {
         debugPrint('Firestore families sync notice: $err');
       });
@@ -491,6 +523,27 @@ class FellowshipState extends ChangeNotifier
       });
     } catch (e) {
       debugPrint('Firestore department_applications listener setup: $e');
+    }
+  }
+
+  void _listenToMinistries() {
+    try {
+      _ministriesSubscription?.cancel();
+      _ministriesSubscription = FirebaseFirestore.instance.collection('ministries').snapshots().listen((snapshot) {
+        if (snapshot.docs.isNotEmpty) {
+          final cloudList = snapshot.docs.map((doc) => MinistryModel.fromMap(doc.data(), doc.id)).toList();
+          final mergedMap = {for (final m in MinistryModel.defaultMinistries) m.id: m};
+          for (final cloudMin in cloudList) {
+            mergedMap[cloudMin.id] = cloudMin;
+          }
+          _ministries = mergedMap.values.toList();
+          notifyListeners();
+        }
+      }, onError: (err) {
+        debugPrint('Firestore ministries sync notice: $err');
+      });
+    } catch (e) {
+      debugPrint('Firestore ministries listener setup: $e');
     }
   }
 
@@ -782,10 +835,9 @@ class FellowshipState extends ChangeNotifier
     try {
       _triviaQuizzesSubscription?.cancel();
       _triviaQuizzesSubscription = FirebaseFirestore.instance.collection('trivia_quizzes').snapshots().listen((snapshot) {
-        if (snapshot.docs.isNotEmpty) {
-          _triviaQuizzes = snapshot.docs.map((doc) => TriviaQuizModel.fromMap(doc.data(), doc.id)).toList();
-          notifyListeners();
-        }
+        _triviaQuizzes = snapshot.docs.map((doc) => TriviaQuizModel.fromMap(doc.data(), doc.id)).toList();
+        _triviaQuizzes.sort((a, b) => b.weekNumber.compareTo(a.weekNumber));
+        notifyListeners();
       }, onError: (err) {
         debugPrint('Firestore trivia_quizzes sync notice: $err');
       });
@@ -822,6 +874,7 @@ class FellowshipState extends ChangeNotifier
     _triviaLeaderboardSubscription?.cancel();
     _attendanceSessionsSubscription?.cancel();
     _triviaQuizzesSubscription?.cancel();
+    _ministriesSubscription?.cancel();
     _pinTimer?.cancel();
     _countdownTimer?.cancel();
     pinCountdownNotifier.dispose();

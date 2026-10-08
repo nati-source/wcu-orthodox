@@ -97,6 +97,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final formattedBatch = _batchController.text.trim().isEmpty ? '2024' : _batchController.text.trim();
 
     try {
+      final bool isAdmin = AppAdminConstants.isAdminEmail(_emailController.text);
       await _authService.signUpWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
@@ -109,6 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         batchYear: formattedBatch,
         campus: 'Main Campus (ዋናው ግቢ)',
         gender: _selectedGender,
+        initialRole: isAdmin ? UserRole.admin : UserRole.student,
       );
 
       // Immediately sync state with the new registrant's data
@@ -119,7 +121,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         department: _selectedDepartment,
         academicYear: _selectedAcademicYear,
         batchYear: formattedBatch,
-        role: UserRole.student,
+        role: isAdmin ? UserRole.admin : UserRole.student,
+        isApproved: isAdmin ? true : false,
         gender: _selectedGender,
       );
 
@@ -161,9 +164,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           side: BorderSide(color: AppTheme.gold.withOpacity(0.5), width: 1.5),
         ),
         contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             Container(
               width: 72,
               height: 72,
@@ -255,10 +259,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Your account has been created successfully. Tap below to enter the fellowship.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
+            // Pending approval notice
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF59E0B).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.5)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.hourglass_top_rounded, color: Color(0xFFF59E0B), size: 18),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Your account is pending admin approval. You\'ll gain full access once reviewed.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFF59E0B), height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             SizedBox(
@@ -278,15 +298,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'ወደ ዋናው ገጽ ግባ / Enter Fellowship',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    Flexible(
+                      child: Text(
+                        'View Approval Status',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, size: 18),
+                    Icon(Icons.hourglass_top_rounded, size: 18),
                   ],
                 ),
               ),
@@ -294,7 +317,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   @override
@@ -562,6 +586,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
                                     Icons.male,
@@ -569,12 +594,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     color: _selectedGender == 'male' ? const Color(0xFF070F1E) : AppTheme.textPrimary,
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    'Male (ወንድ)',
-                                    style: TextStyle(
-                                      color: _selectedGender == 'male' ? const Color(0xFF070F1E) : AppTheme.textPrimary,
-                                      fontWeight: _selectedGender == 'male' ? FontWeight.bold : FontWeight.w500,
-                                      fontSize: 13,
+                                  Flexible(
+                                    child: Text(
+                                      'Male (ወንድ)',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: _selectedGender == 'male' ? const Color(0xFF070F1E) : AppTheme.textPrimary,
+                                        fontWeight: _selectedGender == 'male' ? FontWeight.bold : FontWeight.w500,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -599,6 +627,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(
                                     Icons.female,
@@ -606,12 +635,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     color: _selectedGender == 'female' ? const Color(0xFF070F1E) : AppTheme.textPrimary,
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    'Female (ሴት)',
-                                    style: TextStyle(
-                                      color: _selectedGender == 'female' ? const Color(0xFF070F1E) : AppTheme.textPrimary,
-                                      fontWeight: _selectedGender == 'female' ? FontWeight.bold : FontWeight.w500,
-                                      fontSize: 13,
+                                  Flexible(
+                                    child: Text(
+                                      'Female (ሴት)',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: _selectedGender == 'female' ? const Color(0xFF070F1E) : AppTheme.textPrimary,
+                                        fontWeight: _selectedGender == 'female' ? FontWeight.bold : FontWeight.w500,
+                                        fontSize: 13,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -732,10 +764,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             )
                           : const Row(
                               mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  'Complete Registration / ምዝገባውን ጨርስ',
-                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                                Flexible(
+                                  child: Text(
+                                    'Complete Registration / ምዝገባውን ጨርስ',
+                                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                                 SizedBox(width: 8),
                                 Icon(Icons.arrow_forward, size: 18),
@@ -745,8 +781,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 20),
 
                     // Already have an account back link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 4,
                       children: [
                         const Text(
                           'Already registered? ',
@@ -918,20 +956,26 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Row(
-                  children: [
-                    Icon(Icons.school, color: AppTheme.gold, size: 22),
-                    SizedBox(width: 10),
-                    Text(
-                      'WCU Academic Departments',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                const Expanded(
+                  child: Row(
+                    children: [
+                      Icon(Icons.school, color: AppTheme.gold, size: 22),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'WCU Academic Departments',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(

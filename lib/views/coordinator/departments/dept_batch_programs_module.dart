@@ -1176,7 +1176,17 @@ extension DeptBatchProgramsModuleExt on _CoordinatorHubScreenState {
                             id: 'reg-${DateTime.now().millisecondsSinceEpoch}',
                             tripId: trip.id,
                             tripTitle: trip.title,
-                            studentId: selectedStudent?.id ?? 'stud-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+                            studentId: selectedStudent?.id ?? () {
+                              final inPhone = phoneCtrl.text.trim().replaceAll(RegExp(r'[^0-9]'), '');
+                              final inName = name.toLowerCase();
+                              for (final s in state.allStudents) {
+                                final sP = s.phoneNumber.trim().replaceAll(RegExp(r'[^0-9]'), '');
+                                if ((inPhone.isNotEmpty && sP.isNotEmpty && (inPhone == sP || (inPhone.length >= 9 && sP.length >= 9 && inPhone.substring(inPhone.length - 9) == sP.substring(sP.length - 9)))) || (s.fullName.trim().toLowerCase() == inName)) {
+                                  return s.id;
+                                }
+                              }
+                              return 'stud-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+                            }(),
                             studentName: name,
                             studentBaptismalName: baptismalCtrl.text.trim().isEmpty ? 'Walda Maryam' : baptismalCtrl.text.trim(),
                             studentPhone: phoneCtrl.text.trim().isEmpty ? '0911002233' : phoneCtrl.text.trim(),

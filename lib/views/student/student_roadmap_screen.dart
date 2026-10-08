@@ -614,8 +614,9 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
           SizedBox(
             width: 48,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Node Circle
+                // Node Circle — centered in the 48px column
                 Container(
                   width: 42,
                   height: 42,
@@ -638,7 +639,7 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                   ),
                   child: Icon(indicatorIcon, color: indicatorColor, size: 18),
                 ),
-                // Connector Line
+                // Connector Line — centered via Column's crossAxisAlignment.center
                 if (!isLast)
                   Expanded(
                     child: Container(

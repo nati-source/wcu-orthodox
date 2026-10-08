@@ -179,6 +179,8 @@ class _CoordinatorHubScreenState extends State<CoordinatorHubScreen> with Single
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           indicatorColor: primaryAccent,
           labelColor: primaryAccent,
           unselectedLabelColor: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,

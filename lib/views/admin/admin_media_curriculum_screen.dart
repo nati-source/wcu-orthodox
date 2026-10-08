@@ -640,6 +640,9 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
       builder: (ctx) => AlertDialog(
         backgroundColor: cardBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actionsOverflowButtonSpacing: 8,
+        actionsOverflowDirection: VerticalDirection.down,
+        actionsAlignment: MainAxisAlignment.end,
         title: Row(
           children: [
             Container(
@@ -664,10 +667,11 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Text(
               'Are you sure you want to permanently remove this material from the Digital Library?',
               style: TextStyle(fontSize: 13, color: textMuted),
@@ -706,7 +710,8 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
             ),
           ],
         ),
-        actions: [
+      ),
+      actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Keep Material', style: TextStyle(color: textMuted)),
@@ -1367,11 +1372,15 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
                                           context: context,
                                           builder: (ctx) => AlertDialog(
                                             backgroundColor: cardBg,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                            actionsOverflowButtonSpacing: 8,
+                                            actionsOverflowDirection: VerticalDirection.down,
+                                            actionsAlignment: MainAxisAlignment.end,
                                             title: const Row(
                                               children: [
                                                 Icon(Icons.delete_forever, color: AppTheme.crimson, size: 22),
                                                 SizedBox(width: 8),
-                                                Text('Delete Broadcast?'),
+                                                Expanded(child: Text('Delete Broadcast?', overflow: TextOverflow.ellipsis)),
                                               ],
                                             ),
                                             content: Text(

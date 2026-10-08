@@ -587,6 +587,9 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
             return AlertDialog(
               backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              actionsOverflowButtonSpacing: 8,
+              actionsOverflowDirection: VerticalDirection.down,
+              actionsAlignment: MainAxisAlignment.end,
               title: Text('Book with ${father.fullName}', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
               content: SingleChildScrollView(
                 child: Column(
@@ -618,13 +621,14 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                     const SizedBox(height: 4),
                     DropdownButtonFormField<String>(
                       value: selectedTopic,
+                      isExpanded: true,
                       dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                       items: [
                         'General Confession (ምሥጢረ ንስሐ)',
                         'Communion Preparation (የቁርባን ዝግጅት)',
                         'Spiritual Counseling (የመንፈሳዊ ሕይወት ምክር)',
                         'Campus Moral Challenges (የግቢ ኑሮ ፈተናዎች)',
-                      ].map((t) => DropdownMenuItem(value: t, child: Text(t, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface)))).toList(),
+                      ].map((t) => DropdownMenuItem(value: t, child: Text(t, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface), overflow: TextOverflow.ellipsis))).toList(),
                       onChanged: (val) => setDialogState(() => selectedTopic = val!),
                     ),
                     const SizedBox(height: 12),
@@ -632,8 +636,9 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                     const SizedBox(height: 4),
                     DropdownButtonFormField<String>(
                       value: selectedSlot,
+                      isExpanded: true,
                       dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
-                      items: father.availableTimeSlots.map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface)))).toList(),
+                      items: father.availableTimeSlots.map((s) => DropdownMenuItem(value: s, child: Text(s, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface), overflow: TextOverflow.ellipsis))).toList(),
                       onChanged: (val) => setDialogState(() => selectedSlot = val!),
                     ),
                     const SizedBox(height: 12),
@@ -694,33 +699,39 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
             return AlertDialog(
               backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              actionsOverflowButtonSpacing: 8,
+              actionsOverflowDirection: VerticalDirection.down,
+              actionsAlignment: MainAxisAlignment.end,
               title: Text('Ask Confidential Question', style: TextStyle(fontFamily: 'serif', fontSize: 16, color: primaryAccent, fontWeight: FontWeight.bold)),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Your identity and name are never revealed. The question will be reviewed by the fellowship clergy committee.',
-                    style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: category,
-                    dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
-                    items: ['Campus Life & Morals', 'Fasting & Prayer Rules', 'Theology & Dogma', 'Sacraments & Canon']
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface))))
-                        .toList(),
-                    onChanged: (val) => setDialogState(() => category = val!),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: qController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Your Question',
-                      hintText: 'Type your spiritual or doctrinal question here...',
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Your identity and name are never revealed. The question will be reviewed by the fellowship clergy committee.',
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: category,
+                      isExpanded: true,
+                      dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                      items: ['Campus Life & Morals', 'Fasting & Prayer Rules', 'Theology & Dogma', 'Sacraments & Canon']
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface), overflow: TextOverflow.ellipsis)))
+                          .toList(),
+                      onChanged: (val) => setDialogState(() => category = val!),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: qController,
+                      maxLines: 4,
+                      decoration: const InputDecoration(
+                        labelText: 'Your Question',
+                        hintText: 'Type your spiritual or doctrinal question here...',
+                      ),
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(

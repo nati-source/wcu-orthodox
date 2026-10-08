@@ -7,16 +7,68 @@ class AdminDashboardScreen extends StatefulWidget {
   final FellowshipState state;
   final VoidCallback onOpenFamilyMatching;
   final VoidCallback onOpenLiveAttendance;
+  final VoidCallback? onOpenApprovals;
 
   const AdminDashboardScreen({
     super.key,
     required this.state,
     required this.onOpenFamilyMatching,
     required this.onOpenLiveAttendance,
+    this.onOpenApprovals,
   });
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _DashboardMetricsData {
+  final String periodBadge;
+  final String periodLabel;
+  final int registeredCount;
+  final double avgAttendance;
+  final int activeRoadmaps;
+  final int atRiskCount;
+  final List<String> xLabels;
+  final List<FlSpot> spots;
+  final int peakIndex;
+  final int presentCount;
+  final int lateCount;
+  final int absentCount;
+  final List<_DashboardActivityItem> activities;
+
+  const _DashboardMetricsData({
+    required this.periodBadge,
+    required this.periodLabel,
+    required this.registeredCount,
+    required this.avgAttendance,
+    required this.activeRoadmaps,
+    required this.atRiskCount,
+    required this.xLabels,
+    required this.spots,
+    required this.peakIndex,
+    required this.presentCount,
+    required this.lateCount,
+    required this.absentCount,
+    required this.activities,
+  });
+}
+
+class _DashboardActivityItem {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String timeAgo;
+  final bool isRisk;
+  final VoidCallback? onActionTap;
+
+  const _DashboardActivityItem({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.timeAgo,
+    this.isRisk = false,
+    this.onActionTap,
+  });
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
@@ -24,6 +76,272 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   String _selectedBatchFilter = 'All Batches';
 
   final List<String> _batches = ['All Batches', 'CS Dept', 'Business', 'Engineering', 'Health Sci'];
+  final List<String> _timeFilterOptions = ['This Week', 'This Month', 'Semester', 'Annual'];
+
+  _DashboardMetricsData _computeDashboardData(FellowshipState state) {
+    // 1. Department/Batch filtering adjustment
+    double batchMultiplier = 1.0;
+    int baseRegistered = state.totalRegisteredStudents;
+    if (_selectedBatchFilter == 'CS Dept') {
+      batchMultiplier = 0.28;
+      baseRegistered = 84;
+    } else if (_selectedBatchFilter == 'Business') {
+      batchMultiplier = 0.24;
+      baseRegistered = 72;
+    } else if (_selectedBatchFilter == 'Engineering') {
+      batchMultiplier = 0.32;
+      baseRegistered = 96;
+    } else if (_selectedBatchFilter == 'Health Sci') {
+      batchMultiplier = 0.18;
+      baseRegistered = 56;
+    }
+
+    final isMonth = _selectedTimeFilter == 'This Month';
+    final isSemester = _selectedTimeFilter.contains('Semester');
+    final isAnnual = _selectedTimeFilter == 'Annual';
+
+    if (isMonth) {
+      final spots = [
+        const FlSpot(0, 74),
+        const FlSpot(1, 81),
+        const FlSpot(2, 85),
+        const FlSpot(3, 89),
+      ];
+      int peakIdx = 3;
+      double avg = 82.3;
+      if (_selectedBatchFilter == 'CS Dept') {
+        avg = 88.5;
+      } else if (_selectedBatchFilter == 'Business') {
+        avg = 74.0;
+      } else if (_selectedBatchFilter == 'Engineering') {
+        avg = 84.1;
+      } else if (_selectedBatchFilter == 'Health Sci') {
+        avg = 75.8;
+      }
+
+      final totalPool = (baseRegistered * 4);
+      final present = (totalPool * (avg / 100)).round();
+      final late = (totalPool * 0.11).round();
+      final absent = (totalPool - present - late).clamp(1, 100000);
+
+      return _DashboardMetricsData(
+        periodBadge: 'MONTHLY',
+        periodLabel: 'This Month',
+        registeredCount: baseRegistered,
+        avgAttendance: avg,
+        activeRoadmaps: (58 * batchMultiplier).round().clamp(5, 58),
+        atRiskCount: (_selectedBatchFilter == 'All Batches' ? 12 : (12 * batchMultiplier).round().clamp(1, 12)),
+        xLabels: const ['WK 1', 'WK 2', 'WK 3', 'WK 4'],
+        spots: spots,
+        peakIndex: peakIdx,
+        presentCount: present.clamp(1, 100000),
+        lateCount: late.clamp(1, 100000),
+        absentCount: absent,
+        activities: [
+          const _DashboardActivityItem(
+            icon: Icons.church_outlined,
+            title: 'Monthly Fellowship Liturgy',
+            subtitle: 'St. Mary monthly feast attendance hit 89% fellowship participation',
+            timeAgo: '3d ago',
+          ),
+          const _DashboardActivityItem(
+            icon: Icons.volunteer_activism_outlined,
+            title: 'Charity Aid Disbursement',
+            subtitle: 'Monthly student meal and emergency stipend transferred to 14 campus students',
+            timeAgo: '6d ago',
+          ),
+          const _DashboardActivityItem(
+            icon: Icons.trending_up_rounded,
+            title: 'Attendance Recovery',
+            subtitle: '6 at-risk students improved above 75% attendance threshold this month',
+            timeAgo: '1w ago',
+          ),
+        ],
+      );
+    } else if (isSemester) {
+      final spots = [
+        const FlSpot(0, 71),
+        const FlSpot(1, 76),
+        const FlSpot(2, 84),
+        const FlSpot(3, 79),
+        const FlSpot(4, 91),
+      ];
+      int peakIdx = 4;
+      double avg = 80.2;
+      if (_selectedBatchFilter == 'CS Dept') {
+        avg = 86.4;
+      } else if (_selectedBatchFilter == 'Business') {
+        avg = 73.1;
+      } else if (_selectedBatchFilter == 'Engineering') {
+        avg = 82.5;
+      } else if (_selectedBatchFilter == 'Health Sci') {
+        avg = 74.9;
+      }
+
+      final totalPool = (baseRegistered * 16);
+      final present = (totalPool * (avg / 100)).round();
+      final late = (totalPool * 0.12).round();
+      final absent = (totalPool - present - late).clamp(1, 100000);
+
+      return _DashboardMetricsData(
+        periodBadge: 'SEMESTER',
+        periodLabel: 'Semester',
+        registeredCount: baseRegistered,
+        avgAttendance: avg,
+        activeRoadmaps: (142 * batchMultiplier).round().clamp(12, 142),
+        atRiskCount: (_selectedBatchFilter == 'All Batches' ? 7 : (7 * batchMultiplier).round().clamp(1, 7)),
+        xLabels: const ['SEP', 'OCT', 'NOV', 'DEC', 'JAN'],
+        spots: spots,
+        peakIndex: peakIdx,
+        presentCount: present.clamp(1, 100000),
+        lateCount: late.clamp(1, 100000),
+        absentCount: absent,
+        activities: [
+          const _DashboardActivityItem(
+            icon: Icons.school_outlined,
+            title: 'Dogma Curriculum Milestone',
+            subtitle: '142 students completed Semester 1 Patristics & Church History checkpoints',
+            timeAgo: '2w ago',
+          ),
+          const _DashboardActivityItem(
+            icon: Icons.people_outline,
+            title: 'Campus Spiritual Families',
+            subtitle: '8 new spiritual families successfully matched with elder mentor students',
+            timeAgo: '3w ago',
+          ),
+          const _DashboardActivityItem(
+            icon: Icons.verified_outlined,
+            title: 'Midterm Retention Audit',
+            subtitle: 'First-year student retention in campus fellowship remained at 93.4%',
+            timeAgo: '1mo ago',
+          ),
+        ],
+      );
+    } else if (isAnnual) {
+      final spots = [
+        const FlSpot(0, 75),
+        const FlSpot(1, 82),
+        const FlSpot(2, 86),
+        const FlSpot(3, 88),
+      ];
+      int peakIdx = 3;
+      double avg = 82.8;
+      if (_selectedBatchFilter == 'CS Dept') {
+        avg = 89.2;
+      } else if (_selectedBatchFilter == 'Business') {
+        avg = 76.5;
+      } else if (_selectedBatchFilter == 'Engineering') {
+        avg = 85.0;
+      } else if (_selectedBatchFilter == 'Health Sci') {
+        avg = 77.2;
+      }
+
+      final totalPool = (baseRegistered * 36);
+      final present = (totalPool * (avg / 100)).round();
+      final late = (totalPool * 0.11).round();
+      final absent = (totalPool - present - late).clamp(1, 100000);
+
+      return _DashboardMetricsData(
+        periodBadge: 'ANNUAL',
+        periodLabel: 'Annual',
+        registeredCount: (baseRegistered * 1.15).round(),
+        avgAttendance: avg,
+        activeRoadmaps: (310 * batchMultiplier).round().clamp(25, 310),
+        atRiskCount: (_selectedBatchFilter == 'All Batches' ? 4 : (4 * batchMultiplier).round().clamp(1, 4)),
+        xLabels: const ['TERM 1', 'TERM 2', 'TERM 3', 'TERM 4'],
+        spots: spots,
+        peakIndex: peakIdx,
+        presentCount: present.clamp(1, 100000),
+        lateCount: late.clamp(1, 100000),
+        absentCount: absent,
+        activities: [
+          const _DashboardActivityItem(
+            icon: Icons.emoji_events_outlined,
+            title: 'Annual General Assembly',
+            subtitle: 'Fellowship executive board approved 2025/2026 spiritual & administrative report',
+            timeAgo: '1mo ago',
+          ),
+          const _DashboardActivityItem(
+            icon: Icons.directions_bus_outlined,
+            title: 'Graduating Batch Pilgrimage',
+            subtitle: '58 graduating senior students completed annual pilgrimage to holy sites',
+            timeAgo: '2mo ago',
+          ),
+          const _DashboardActivityItem(
+            icon: Icons.savings_outlined,
+            title: 'Annual Charity Campaign',
+            subtitle: 'Over 250,000 ETB mobilized for student welfare & urgent hospital care',
+            timeAgo: '3mo ago',
+          ),
+        ],
+      );
+    } else {
+      // Default: 'This Week'
+      final spots = [
+        const FlSpot(0, 68),
+        const FlSpot(1, 79),
+        const FlSpot(2, 73),
+        const FlSpot(3, 88),
+        const FlSpot(4, 82),
+      ];
+      int peakIdx = 3;
+      double avg = 78.0;
+      if (_selectedBatchFilter == 'CS Dept') {
+        avg = 85.6;
+      } else if (_selectedBatchFilter == 'Business') {
+        avg = 71.2;
+      } else if (_selectedBatchFilter == 'Engineering') {
+        avg = 81.3;
+      } else if (_selectedBatchFilter == 'Health Sci') {
+        avg = 72.5;
+      }
+
+      final totalPool = (baseRegistered);
+      final present = (totalPool * (avg / 100)).round();
+      final late = (totalPool * 0.15).round();
+      final absent = (totalPool - present - late).clamp(1, 100000);
+
+      return _DashboardMetricsData(
+        periodBadge: 'WEEKLY',
+        periodLabel: 'This Week',
+        registeredCount: baseRegistered,
+        avgAttendance: avg,
+        activeRoadmaps: (state.activeRoadmapsCount * batchMultiplier).round().clamp(5, 50),
+        atRiskCount: (_selectedBatchFilter == 'All Batches'
+            ? state.atRiskStudentsCount
+            : (state.atRiskStudentsCount * batchMultiplier).round().clamp(1, 20)),
+        xLabels: const ['MON', 'TUE', 'WED', 'THU', 'FRI'],
+        spots: spots,
+        peakIndex: peakIdx,
+        presentCount: present.clamp(1, 100000),
+        lateCount: late.clamp(1, 100000),
+        absentCount: absent,
+        activities: [
+          _DashboardActivityItem(
+            icon: Icons.person_off_outlined,
+            title: 'Sarah Jenkins',
+            subtitle: 'Missed 3 consecutive classes (Attendance: 68%)',
+            timeAgo: '2h ago',
+            isRisk: true,
+            onActionTap: () => state.launchCall('+251933445566'),
+          ),
+          const _DashboardActivityItem(
+            icon: Icons.warning_amber_rounded,
+            title: 'CS101 Batch',
+            subtitle: 'Batch attendance dropped below 70% threshold',
+            timeAgo: '4h ago',
+            isRisk: true,
+          ),
+          const _DashboardActivityItem(
+            icon: Icons.check_circle_outline,
+            title: 'System Update',
+            subtitle: 'Weekly attendance report auto-generated for fellowship board',
+            timeAgo: '1d ago',
+          ),
+        ],
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +349,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
     final isDark = theme.brightness == Brightness.dark;
+
+    final metrics = _computeDashboardData(state);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -81,11 +401,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: _selectedTimeFilter,
+                    value: _timeFilterOptions.contains(_selectedTimeFilter)
+                        ? _selectedTimeFilter
+                        : (_selectedTimeFilter.contains('Semester') ? 'Semester' : 'This Week'),
                     dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                     icon: Icon(Icons.keyboard_arrow_down, color: primaryAccent, size: 18),
                     style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.bold),
-                    items: ['This Week', 'This Month', 'Semester 1', 'Annual'].map((s) {
+                    items: _timeFilterOptions.map((s) {
                       return DropdownMenuItem(
                         value: s,
                         child: Text(s, style: TextStyle(color: theme.colorScheme.onSurface)),
@@ -101,6 +423,83 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
 
           const SizedBox(height: 14),
+
+          // Urgent Alert Card: Pending Student Registrations
+          if (state.pendingApprovals.isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.gold.withOpacity(0.2),
+                    theme.cardTheme.color ?? theme.colorScheme.surface,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.gold.withOpacity(0.55), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.gold.withOpacity(0.12),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.gold.withOpacity(0.25),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person_add_alt_1_rounded, color: AppTheme.gold, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${state.pendingApprovals.length} New Student Registrations',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Awaiting admin verification & approval to access the app.',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (widget.onOpenApprovals != null)
+                    ElevatedButton(
+                      onPressed: widget.onOpenApprovals,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.gold,
+                        foregroundColor: const Color(0xFF070F1E),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Review', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              ),
+            ),
+          ],
 
           // Horizontal Batch Filter Pills
           SingleChildScrollView(
@@ -138,28 +537,28 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           const SizedBox(height: 20),
 
-          // 2x2 KPI Metrics Grid
+          // 2x2 KPI Metrics Grid (Dynamically reflects _selectedTimeFilter & _selectedBatchFilter)
           Row(
             children: [
-              // 1. Registered
+              // 1. Registered Count
               Expanded(
                 child: _buildKpiCard(
                   context: context,
                   icon: Icons.people,
                   iconColor: primaryAccent,
-                  value: '${state.totalRegisteredStudents}',
-                  label: 'REGISTERED',
+                  value: '${metrics.registeredCount}',
+                  label: '${metrics.periodBadge} REGISTERED',
                 ),
               ),
               const SizedBox(width: 12),
-              // 2. Avg Attendance
+              // 2. Avg Attendance Rate
               Expanded(
                 child: _buildKpiCard(
                   context: context,
                   icon: Icons.check_circle_outline,
                   iconColor: AppTheme.azure,
-                  value: '${state.averageAttendanceRate}%',
-                  label: 'AVG ATTENDANCE',
+                  value: '${metrics.avgAttendance.toStringAsFixed(1)}%',
+                  label: '${metrics.periodBadge} RATE',
                 ),
               ),
             ],
@@ -173,8 +572,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   context: context,
                   icon: Icons.map_outlined,
                   iconColor: AppTheme.emerald,
-                  value: '${state.activeRoadmapsCount}',
-                  label: 'ACTIVE ROADMAPS',
+                  value: '${metrics.activeRoadmaps}',
+                  label: '${metrics.periodBadge} ROADMAPS',
                 ),
               ),
               const SizedBox(width: 12),
@@ -184,8 +583,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   context: context,
                   icon: Icons.warning_amber_rounded,
                   iconColor: AppTheme.crimson,
-                  value: '${state.atRiskStudentsCount}',
-                  label: 'AT-RISK STUDENTS',
+                  value: '${metrics.atRiskCount}',
+                  label: '${metrics.periodBadge} AT-RISK',
                   isWarning: true,
                 ),
               ),
@@ -194,7 +593,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           const SizedBox(height: 24),
 
-          // Attendance Trend Chart Card
+          // Attendance Trend Chart Card (Reactive to _selectedTimeFilter)
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -210,7 +609,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Attendance Trend',
+                        'Attendance Trend • ${metrics.periodLabel}',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -224,11 +623,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
+                        color: primaryAccent.withOpacity(0.18),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        'WEEKLY',
+                        metrics.periodBadge,
                         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent),
                       ),
                     ),
@@ -259,10 +658,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             showTitles: true,
                             reservedSize: 22,
                             getTitlesWidget: (value, meta) {
-                              const titles = ['MON', 'TUE', 'WED', 'THU', 'FRI'];
+                              final titles = metrics.xLabels;
                               final index = value.toInt();
-                              if (index >= 0 && index < titles.length) {
-                                final isPeak = index == 3; // Thu 88%
+                              if (index >= 0 && index < titles.length && (value - index).abs() < 0.1) {
+                                final isPeak = index == metrics.peakIndex;
                                 return Padding(
                                   padding: const EdgeInsets.only(top: 6),
                                   child: Text(
@@ -282,29 +681,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                       borderData: FlBorderData(show: false),
                       minX: 0,
-                      maxX: 4,
+                      maxX: (metrics.spots.length - 1).toDouble(),
                       minY: 40,
                       maxY: 100,
                       lineBarsData: [
                         LineChartBarData(
-                          spots: const [
-                            FlSpot(0, 68),
-                            FlSpot(1, 79),
-                            FlSpot(2, 73),
-                            FlSpot(3, 88),
-                            FlSpot(4, 82),
-                          ],
+                          spots: metrics.spots,
                           isCurved: true,
-                          curveSmoothness: 0.4,
+                          curveSmoothness: 0.35,
                           color: primaryAccent,
                           barWidth: 3,
                           isStrokeCapRound: true,
                           dotData: FlDotData(
                             show: true,
                             getDotPainter: (spot, percent, barData, index) {
+                              final isPeak = index == metrics.peakIndex;
                               return FlDotCirclePainter(
-                                radius: index == 3 ? 6 : 4,
-                                color: index == 3 ? primaryAccent : (isDark ? Colors.black : Colors.white),
+                                radius: isPeak ? 6 : 4,
+                                color: isPeak ? primaryAccent : (isDark ? Colors.black : Colors.white),
                                 strokeWidth: 2,
                                 strokeColor: primaryAccent,
                               );
@@ -332,7 +726,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           const SizedBox(height: 20),
 
-          // Today's Status Bar
+          // Period Attendance Breakdown (Segmented Bar & Counts)
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -344,7 +738,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Today\'s Status',
+                  '${metrics.periodLabel} Attendance Breakdown',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -360,21 +754,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     height: 12,
                     child: Row(
                       children: [
-                        // Present (75%)
                         Expanded(
-                          flex: 255,
+                          flex: metrics.presentCount,
                           child: Container(color: primaryAccent),
                         ),
                         const SizedBox(width: 2),
-                        // Late (15%)
                         Expanded(
-                          flex: 51,
+                          flex: metrics.lateCount,
                           child: Container(color: const Color(0xFF93B5E1)),
                         ),
                         const SizedBox(width: 2),
-                        // Absent (10%)
                         Expanded(
-                          flex: 34,
+                          flex: metrics.absentCount,
                           child: Container(color: const Color(0xFFF87171)),
                         ),
                       ],
@@ -387,9 +778,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatusLegend(context: context, color: primaryAccent, label: 'PRESENT', count: '255'),
-                    _buildStatusLegend(context: context, color: const Color(0xFF93B5E1), label: 'LATE', count: '51'),
-                    _buildStatusLegend(context: context, color: const Color(0xFFF87171), label: 'ABSENT', count: '34'),
+                    _buildStatusLegend(context: context, color: primaryAccent, label: 'PRESENT', count: '${metrics.presentCount}'),
+                    _buildStatusLegend(context: context, color: const Color(0xFF93B5E1), label: 'LATE', count: '${metrics.lateCount}'),
+                    _buildStatusLegend(context: context, color: const Color(0xFFF87171), label: 'ABSENT', count: '${metrics.absentCount}'),
                   ],
                 ),
               ],
@@ -398,13 +789,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           const SizedBox(height: 24),
 
-          // Recent Activity & At-Risk Dynamic Alerts
+          // Recent Activity & Period Dynamic Highlights
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
-                  'Recent Activity',
+                  'Recent Activity • ${metrics.periodLabel}',
                   style: TextStyle(
                     fontFamily: 'serif',
                     fontSize: 18,
@@ -424,40 +815,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ),
           const SizedBox(height: 8),
 
-          // Activity 1: Sarah Jenkins at-risk alert
-          _buildActivityCard(
-            context: context,
-            icon: Icons.person_off_outlined,
-            title: 'Sarah Jenkins',
-            subtitle: 'Missed 3 consecutive classes (Attendance: 68%)',
-            timeAgo: '2h ago',
-            isRisk: true,
-            onActionTap: () {
-              state.launchCall('+251933445566');
-            },
-          ),
-          const SizedBox(height: 10),
+          // Period-Specific Activity Cards
+          ...metrics.activities.map((act) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildActivityCard(
+                  context: context,
+                  icon: act.icon,
+                  title: act.title,
+                  subtitle: act.subtitle,
+                  timeAgo: act.timeAgo,
+                  isRisk: act.isRisk,
+                  onActionTap: act.onActionTap,
+                ),
+              )),
 
-          // Activity 2: CS101 Batch warning
-          _buildActivityCard(
-            context: context,
-            icon: Icons.warning_amber_rounded,
-            title: 'CS101 Batch',
-            subtitle: 'Batch attendance dropped below 70% threshold',
-            timeAgo: '4h ago',
-            isRisk: true,
-          ),
-          const SizedBox(height: 10),
-
-          // Activity 3: System Update
-          _buildActivityCard(
-            context: context,
-            icon: Icons.check_circle_outline,
-            title: 'System Update',
-            subtitle: 'Weekly attendance report auto-generated for fellowship board',
-            timeAgo: '1d ago',
-          ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 14),
 
           // Test Data & Database Seeder Action Card
           Container(

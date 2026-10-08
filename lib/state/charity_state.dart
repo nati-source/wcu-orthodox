@@ -64,6 +64,7 @@ mixin CharityStateMixin on ChangeNotifier {
   }
 
   void removeCharityCampaign(String campaignId) {
+    if (!canManageCharityAndAid && !isAdmin) return;
     _charityCampaigns.removeWhere((c) => c.id == campaignId);
     notifyListeners();
 
@@ -75,6 +76,7 @@ mixin CharityStateMixin on ChangeNotifier {
   }
 
   void deleteDuesPayment(String paymentId) {
+    if (!canVerifyFinances && !canManageCharityAndAid && !isAdmin) return;
     _duesPayments.removeWhere((d) => d.id == paymentId);
     notifyListeners();
 

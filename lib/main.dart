@@ -18,9 +18,14 @@ import 'views/admin/admin_media_curriculum_screen.dart';
 import 'views/coordinator/coordinator_hub_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'views/auth/login_screen.dart';
+import 'views/auth/pending_approval_screen.dart';
+import 'views/help/user_guide_screen.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +33,18 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Register top-level FCM background handler
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+
+    // Enable Firestore offline persistence so the app works on poor networks
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+
+    // Initialize Push Notifications (permissions, device token & topics)
+    await NotificationService.instance.initialize();
   } catch (e) {
     debugPrint('Firebase initialization notice: $e');
   }
@@ -42,22 +59,59 @@ class WcuOrthodoxApp extends StatefulWidget {
 }
 
 class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final FellowshipState _fellowshipState = FellowshipState();
   final AuthService _authService = AuthService();
   bool _isDemoMode = false;
   String? _syncedUid;
+  bool _isSyncingProfile = false;
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationService.instance.onForegroundMessageReceived = (message) {
+      final ctx = _navigatorKey.currentContext;
+      if (ctx != null) {
+        NotificationService.showForegroundInAppBanner(ctx, message);
+      }
+    };
+  }
 
   @override
   void dispose() {
+    NotificationService.instance.dispose();
     _fellowshipState.dispose();
     super.dispose();
   }
 
   void _syncUserProfile(dynamic user) async {
-    if (user == null || _syncedUid == user.uid) return;
+    if (user == null) return;
+    final bool isAdminEmail = AppAdminConstants.isAdminEmail(user.email);
+
+    // If designated admin, IMMEDIATELY initialize state with admin privileges and approval
+    if (isAdminEmail) {
+      if (_fellowshipState.currentUser.role != UserRole.admin || !_fellowshipState.currentUser.isApproved) {
+        _fellowshipState.updateCurrentUserProfile(
+          id: user.uid,
+          fullName: (user.displayName != null && (user.displayName as String).trim().isNotEmpty)
+              ? (user.displayName as String).trim()
+              : 'Nati (Admin)',
+          role: UserRole.admin,
+          isApproved: true,
+        );
+      }
+    }
+
+    if (_syncedUid == user.uid && !isAdminEmail) return;
     _syncedUid = user.uid;
 
-    if (user.displayName != null && (user.displayName as String).trim().isNotEmpty) {
+    if (mounted && !isAdminEmail) {
+      setState(() {
+        _isSyncingProfile = true;
+      });
+    }
+
+    if (!isAdminEmail && user.displayName != null && (user.displayName as String).trim().isNotEmpty) {
       _fellowshipState.updateCurrentUserProfile(
         id: user.uid,
         fullName: (user.displayName as String).trim(),
@@ -66,10 +120,29 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
 
     try {
       final profile = await _authService.getUserProfile(user.uid);
+
+      if (isAdminEmail) {
+        // Self-heal and ensure admin Firestore document exists and has admin privileges
+        if (profile == null || profile['role'] != 'admin' || profile['isApproved'] != true) {
+          try {
+            await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+              'id': user.uid,
+              'email': AppAdminConstants.adminEmail,
+              'fullName': user.displayName ?? 'Nati (Admin)',
+              'role': 'admin',
+              'isApproved': true,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+          } catch (e) {
+            debugPrint('Failed to self-heal admin Firestore doc: $e');
+          }
+        }
+      }
+
       if (profile != null && mounted) {
         final roleStr = profile['role'] as String?;
-        UserRole role = UserRole.student;
-        if (roleStr != null) {
+        UserRole role = isAdminEmail ? UserRole.admin : UserRole.student;
+        if (!isAdminEmail && roleStr != null) {
           for (final r in UserRole.values) {
             if (r.name == roleStr) {
               role = r;
@@ -77,21 +150,41 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
             }
           }
         }
+        final isApproved = isAdminEmail
+            ? true
+            : (profile['isApproved'] is bool
+                ? (profile['isApproved'] as bool)
+                : (role == UserRole.admin || role == UserRole.volunteerCoordinator || role == UserRole.spiritualParent));
+
         _fellowshipState.updateCurrentUserProfile(
           id: user.uid,
-          fullName: profile['fullName'] ?? user.displayName ?? 'Student Fellow',
+          fullName: profile['fullName'] ?? user.displayName ?? (isAdminEmail ? 'Nati (Admin)' : 'Student Fellow'),
           baptismalName: profile['baptismalName'],
           phoneNumber: profile['phoneNumber'],
           department: profile['department'],
           academicYear: profile['academicYear'] is int ? profile['academicYear'] : int.tryParse(profile['academicYear']?.toString() ?? '1'),
           batchYear: profile['batchYear']?.toString(),
           role: role,
+          isApproved: isApproved,
           assignedFamilyId: profile['assignedFamilyId'] ?? profile['familyId'] ?? profile['family'] ?? profile['assignedFamily'],
         );
-        _fellowshipState.autoSeedIfEmpty();
+
+        // Sync FCM device token & role-based topic subscriptions for push notifications
+        NotificationService.instance.syncUserFcmToken(
+          userId: user.uid,
+          role: role.name,
+          assignedFamilyId: profile['assignedFamilyId'] ?? profile['familyId'] ?? profile['family'] ?? profile['assignedFamily'],
+          departmentId: profile['department']?.toString(),
+        );
       }
     } catch (e) {
       debugPrint('Error syncing user profile: $e');
+    } finally {
+      if (mounted && !isAdminEmail) {
+        setState(() {
+          _isSyncingProfile = false;
+        });
+      }
     }
   }
 
@@ -101,6 +194,7 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
       animation: _fellowshipState,
       builder: (context, _) {
         return MaterialApp(
+          navigatorKey: _navigatorKey,
           title: 'WCU Orthodox Fellowship',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.getTheme(_fellowshipState.currentThemePalette),
@@ -108,8 +202,54 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
             stream: _authService.authStateChanges,
             builder: (context, snapshot) {
               final user = snapshot.data;
+
+              // Reset session state when user signs out
+              if (user == null) {
+                if (_isDemoMode || _syncedUid != null) {
+                  _isDemoMode = false;
+                  _syncedUid = null;
+                  _isSyncingProfile = false;
+                }
+              }
+
               if (user != null) {
+                final bool isAdmin = AppAdminConstants.isAdminEmail(user.email) ||
+                                     _fellowshipState.currentUser.role == UserRole.admin;
+
                 _syncUserProfile(user);
+
+                // Show safe loader while initial profile sync is happening ONLY for regular students
+                if (!isAdmin && _isSyncingProfile && _fellowshipState.currentUser.id != user.uid) {
+                  return const Scaffold(
+                    backgroundColor: Color(0xFF070F1E),
+                    body: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(color: AppTheme.gold),
+                          SizedBox(height: 16),
+                          Text(
+                            'Loading profile...',
+                            style: TextStyle(color: Colors.white70, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                // Show pending screen ONLY for unapproved non-admin accounts
+                if (!isAdmin && !_fellowshipState.currentUser.isApproved) {
+                  return PendingApprovalScreen(
+                    fullName: _fellowshipState.currentUser.fullName,
+                    email: user.email,
+                    onCheckStatus: () {
+                      _syncedUid = null;
+                      _syncUserProfile(user);
+                    },
+                  );
+                }
+
                 return MainFellowshipScaffold(state: _fellowshipState);
               }
               if (_isDemoMode) {
@@ -332,6 +472,31 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                   ),
                 ),
               ],
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 14),
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => UserGuideScreen(state: widget.state, onOpenScanner: _openQrScanner),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.menu_book_rounded, color: AppTheme.gold, size: 18),
+                  label: const Text(
+                    'User Guide & Manual • የተጠቃሚ መመሪያ',
+                    style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    side: BorderSide(color: AppTheme.gold.withOpacity(0.5)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
             ],
           ),
@@ -369,7 +534,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
                   ? 'Admin Portal • ${state.activeRole.displayName}'
                   : isCoordinator
                       ? '${state.currentUser.coordinatorProfile?.departmentNameAmharic ?? "Department Coordinator"}'
-                      : 'Welcome, ${state.currentUser.fullName.split(' ').first}',
+                      : 'Welcome, ${state.currentUser.fullName.trim().isEmpty ? "Fellow" : state.currentUser.fullName.trim().split(' ').first}',
               showQrIcon: true,
               onQrTap: _openQrScanner,
               onNotificationTap: () => _openNotificationsModal(context, isAdmin),
@@ -519,6 +684,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
           state: widget.state,
           onOpenFamilyMatching: () => setState(() => _adminTabIndex = 1),
           onOpenLiveAttendance: () => setState(() => _adminTabIndex = 2),
+          onOpenApprovals: () => setState(() => _adminTabIndex = 3),
         );
       case 1:
         return AdminFamilyMatchingScreen(
@@ -545,6 +711,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
           state: widget.state,
           onOpenFamilyMatching: () => setState(() => _adminTabIndex = 1),
           onOpenLiveAttendance: () => setState(() => _adminTabIndex = 2),
+          onOpenApprovals: () => setState(() => _adminTabIndex = 3),
         );
     }
   }

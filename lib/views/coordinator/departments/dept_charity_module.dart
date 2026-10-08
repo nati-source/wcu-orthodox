@@ -768,8 +768,9 @@ extension DeptCharityModuleExt on _CoordinatorHubScreenState {
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       value: category,
+                      isExpanded: true,
                       items: ['Student Mutual Aid', 'Orphanage Outreach', 'Hospital Visits', 'Church Construction', 'Emergency Food Aid']
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis)))
                           .toList(),
                       onChanged: (val) {
                         if (val != null) setMState(() => category = val);
@@ -904,8 +905,9 @@ extension DeptCharityModuleExt on _CoordinatorHubScreenState {
                     const SizedBox(height: 10),
                     DropdownButtonFormField<PaymentMethodType>(
                       value: method,
+                      isExpanded: true,
                       items: [PaymentMethodType.telebirr, PaymentMethodType.cbeBirr, PaymentMethodType.cash]
-                          .map((m) => DropdownMenuItem(value: m, child: Text(m.displayName)))
+                          .map((m) => DropdownMenuItem(value: m, child: Text(m.displayName, overflow: TextOverflow.ellipsis)))
                           .toList(),
                       onChanged: (val) {
                         if (val != null) setMState(() => method = val);

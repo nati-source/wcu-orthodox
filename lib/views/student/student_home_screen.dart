@@ -12,6 +12,7 @@ import 'student_charity_screen.dart';
 import 'student_mentorship_screen.dart';
 import 'student_trivia_screen.dart';
 import 'student_ministry_screen.dart';
+import '../help/user_guide_screen.dart';
 
 class StudentHomeScreen extends StatefulWidget {
   final FellowshipState state;
@@ -33,6 +34,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   bool _reminderEnabled = true;
 
   String _formatDuration(Duration d) {
+    if (d.inSeconds <= 0) return '00:00:00';
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     final hours = twoDigits(d.inHours);
     final minutes = twoDigits(d.inMinutes.remainder(60));
@@ -66,7 +68,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         children: [
           // Greeting Subtitle
           Text(
-            'Welcome, ${state.currentUser.fullName.split(' ').first}',
+            'Welcome, ${state.currentUser.fullName.trim().isEmpty ? "Fellow Student" : state.currentUser.fullName.trim().split(' ').first}',
             style: TextStyle(
               fontSize: 14,
               color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
@@ -154,12 +156,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                       children: [
                         Icon(Icons.location_on_outlined, size: 14, color: primaryAccent),
                         const SizedBox(width: 4),
-                        Text(
-                          state.latestEmergencyBroadcast!.churchName,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: primaryAccent,
+                        Expanded(
+                          child: Text(
+                            state.latestEmergencyBroadcast!.churchName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: primaryAccent,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -175,8 +180,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       TextButton.icon(
                         icon: const Icon(Icons.check, size: 16),
@@ -188,7 +196,6 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         ),
                       ),
                       if (state.isAdmin || state.activeRole == UserRole.admin) ...[
-                        const SizedBox(width: 8),
                         ElevatedButton.icon(
                           icon: const Icon(Icons.delete_forever, size: 16, color: Colors.white),
                           label: const Text('Delete from DB', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
@@ -417,14 +424,18 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 ValueListenableBuilder<Duration>(
                   valueListenable: state.liturgyCountdownNotifier,
                   builder: (context, duration, _) {
-                    return Text(
-                      _formatDuration(duration),
-                      style: TextStyle(
-                        fontFamily: 'serif',
-                        fontSize: 42,
-                        fontWeight: FontWeight.w800,
-                        color: primaryAccent,
-                        letterSpacing: 2.0,
+                    return FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _formatDuration(duration),
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: 42,
+                          fontWeight: FontWeight.w800,
+                          color: primaryAccent,
+                          letterSpacing: 2.0,
+                        ),
                       ),
                     );
                   },
@@ -535,7 +546,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
           const SizedBox(height: 10),
 
-          // Tertiary Quick Action 2-Card Row (10 Departments & Liturgical Calendar)
+          // Tertiary Quick Action 3-Card Row (Ministries, Calendar, and User Guide)
           Row(
             children: [
               // 7. 10 Departments & Volunteer Serving
@@ -554,8 +565,19 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 child: _buildQuickActionCard(
                   icon: Icons.calendar_month_outlined,
                   iconColor: const Color(0xFFEC4899),
-                  title: 'Liturgical\nCalendar & Feasts',
+                  title: 'Liturgical\nCalendar',
                   onTap: () => _navigateTo(StudentLiturgicalCalendarScreen(state: state)),
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              // 9. User Guide & Help Manual
+              Expanded(
+                child: _buildQuickActionCard(
+                  icon: Icons.menu_book_rounded,
+                  iconColor: AppTheme.gold,
+                  title: 'User Guide\n& Manual',
+                  onTap: () => _navigateTo(UserGuideScreen(state: state, onOpenScanner: widget.onOpenScanner)),
                 ),
               ),
             ],
@@ -563,116 +585,234 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
 
           const SizedBox(height: 24),
 
-          // Weekly Christian Education Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: theme.cardTheme.color ?? theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: theme.dividerColor),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Column(
+          // Weekly Christian Education Card — driven by real roadmap state
+          Builder(builder: (context) {
+            final roadmaps = state.roadmaps;
+            final inProgress = roadmaps.where((r) => r.status == RoadmapStatus.inProgress).toList();
+            final completed = roadmaps.where((r) => r.status == RoadmapStatus.completed).toList();
+            final total = roadmaps.length;
+            final progressPhase = inProgress.isNotEmpty ? inProgress.first : null;
+
+            // Overall progress = (completed count / total) clamped, with in-progress partial contribution
+            double overallProgress = total > 0
+                ? ((completed.length + (progressPhase != null ? progressPhase.progress : 0)) / total).clamp(0.0, 1.0)
+                : 0.0;
+            final progressPct = (overallProgress * 100).toInt();
+
+            String continueText;
+            if (progressPhase != null) {
+              continueText = 'Continue: "${progressPhase.title}"';
+              if (progressPhase.weeklyLessons.isNotEmpty) {
+                // Estimate current lesson from progress percentage
+                final lessonCount = progressPhase.weeklyLessons.length;
+                final currentIdx = (progressPhase.progress * lessonCount).floor().clamp(0, lessonCount - 1);
+                continueText += ' — ${progressPhase.weeklyLessons[currentIdx].title}';
+              }
+            } else if (completed.length == total && total > 0) {
+              continueText = 'All curriculum phases completed. Glory to God!';
+            } else if (total == 0) {
+              continueText = 'Your spiritual roadmap will appear here once assigned.';
+            } else {
+              continueText = 'Begin your first phase: "${roadmaps.first.title}"';
+            }
+
+            return Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: theme.dividerColor),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: primaryAccent.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.menu_book, color: primaryAccent, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Weekly Christian\nEducation',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                                height: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        '$progressPct%',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: primaryAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Progress Bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: LinearProgressIndicator(
+                      value: overallProgress,
+                      minHeight: 8,
+                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  Text(
+                    continueText,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 14),
+
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      widget.onNavigateTab(2); // Tab 2 = Roadmap
+                    },
+                    child: Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Open Spiritual Roadmap',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: primaryAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_forward, color: primaryAccent, size: 16),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+
+          const SizedBox(height: 24),
+
+          // Live Batch & Ministry Announcements
+          Builder(builder: (context) {
+            final myBatchStr = state.currentUser.academicYear.toString();
+            final batchBroadcasts = state.getBroadcastsForBatch(myBatchStr);
+            if (batchBroadcasts.isEmpty) return const SizedBox.shrink();
+
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: primaryAccent.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(Icons.menu_book, color: primaryAccent, size: 24),
-                    ),
-                    const SizedBox(width: 14),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Weekly Christian\nEducation',
-                            style: TextStyle(
-                              fontFamily: 'serif',
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSurface,
-                              height: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '75%',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: primaryAccent,
+                      child: Text(
+                        'YEAR $myBatchStr ANNOUNCEMENTS • የ${myBatchStr}ኛ ዓመት ማስታወቂያዎች',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: primaryAccent,
+                          letterSpacing: 1.2,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-
-                // Progress Bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: 0.75,
-                    minHeight: 8,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    valueColor: AlwaysStoppedAnimation<Color>(primaryAccent),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                Text(
-                  'Continue reading: "The Early Church Fathers" (Chapter 4 - Asceticism & Grace)',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    widget.onNavigateTab(2); // Tab 2 = Roadmap
-                  },
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          'Open Spiritual Roadmap',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: primaryAccent,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 1,
+                const SizedBox(height: 8),
+                ...batchBroadcasts.take(3).map((b) {
+                  final isUrgent = b.urgency == 'urgent';
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isUrgent ? const Color(0xFFEF4444).withOpacity(0.08) : (theme.cardTheme.color ?? theme.colorScheme.surface),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isUrgent ? const Color(0xFFEF4444).withOpacity(0.4) : theme.dividerColor,
+                        width: isUrgent ? 1.2 : 1.0,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: primaryAccent.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                b.targetAudienceLabel ?? (b.targetBatch == 'all' ? 'All Batches' : 'Year ${b.targetBatch}'),
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent),
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${b.sentAt.month}/${b.sentAt.day}',
+                              style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          b.title,
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          b.body,
+                          style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, height: 1.3),
+                          maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward, color: primaryAccent, size: 16),
-                    ],
-                  ),
-                ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 16),
               ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
+            );
+          }),
 
           // Church Feasts & Announcements
           Row(

@@ -44,13 +44,22 @@ mixin AuthStateMixin on ChangeNotifier {
   UserRole _assignedRole = UserRole.student;
   UserRole get assignedRole => _assignedRole;
 
+  UserRole _authenticatedRole = UserRole.student;
+  UserRole get authenticatedRole => _authenticatedRole;
+
   /// Returns the roles this user is authorized to access and switch between.
   /// - Admin: All 4 access points (Admin, Volunteer Coordinator, Spiritual Parent, Student).
   /// - Volunteer Coordinator: 2 access points (Volunteer Coordinator, Student).
   /// - Spiritual Parent: 2 access points (Spiritual Parent, Student).
   /// - Student: Student only (unless developer mode is explicitly enabled by Admin).
   List<UserRole> get availableRoles {
-    if (_showDevRoleSwitcher || _assignedRole == UserRole.admin || _currentUser.role == UserRole.admin || _activeRole == UserRole.admin) {
+    final baseRole = _authenticatedRole != UserRole.student ? _authenticatedRole : _assignedRole;
+    if (_showDevRoleSwitcher ||
+        baseRole == UserRole.admin ||
+        _authenticatedRole == UserRole.admin ||
+        _assignedRole == UserRole.admin ||
+        _currentUser.role == UserRole.admin ||
+        _activeRole == UserRole.admin) {
       return [
         UserRole.admin,
         UserRole.volunteerCoordinator,
@@ -58,7 +67,9 @@ mixin AuthStateMixin on ChangeNotifier {
         UserRole.student,
       ];
     }
-    if (_assignedRole == UserRole.volunteerCoordinator ||
+    if (baseRole == UserRole.volunteerCoordinator ||
+        _authenticatedRole == UserRole.volunteerCoordinator ||
+        _assignedRole == UserRole.volunteerCoordinator ||
         _currentUser.role == UserRole.volunteerCoordinator ||
         _currentUser.coordinatorProfile != null ||
         _activeRole == UserRole.volunteerCoordinator) {
@@ -67,7 +78,9 @@ mixin AuthStateMixin on ChangeNotifier {
         UserRole.student,
       ];
     }
-    if (_assignedRole == UserRole.spiritualParent ||
+    if (baseRole == UserRole.spiritualParent ||
+        _authenticatedRole == UserRole.spiritualParent ||
+        _assignedRole == UserRole.spiritualParent ||
         _currentUser.role == UserRole.spiritualParent ||
         _activeRole == UserRole.spiritualParent) {
       return [
@@ -78,7 +91,11 @@ mixin AuthStateMixin on ChangeNotifier {
     return [UserRole.student];
   }
 
-  bool get canSwitchRoles => availableRoles.length > 1;
+  bool get canSwitchRoles =>
+      _authenticatedRole == UserRole.admin ||
+      _assignedRole == UserRole.admin ||
+      _showDevRoleSwitcher ||
+      availableRoles.length > 1;
 
   bool _showDevRoleSwitcher = false;
   bool get showDevRoleSwitcher => _showDevRoleSwitcher;
@@ -492,25 +509,26 @@ mixin AuthStateMixin on ChangeNotifier {
   }
 
   UserModel _currentUser = UserModel(
-    id: 'usr-current',
-    fullName: 'Teklehaimanot Girma',
-    baptismalName: 'Haile Meskel',
-    phoneNumber: '+251912345678',
+    id: 'usr-pending',
+    fullName: 'Fellowship Student',
+    baptismalName: '',
+    phoneNumber: '',
     batchYear: '2024',
-    department: 'Computer Science',
-    academicYear: 3,
+    department: 'General',
+    academicYear: 1,
     role: UserRole.student,
-    isApproved: true,
-    badges: ['Faith Foundations Level 1', 'Patristics Scholar', 'Active Servitor'],
-    ministryStatus: 'Yaredic Choir Member',
+    isApproved: false,
+    badges: const [],
+    ministryStatus: 'New Member',
     assignedFamilyId: 'fam-st-george',
-    attendancePercentage: 88.5,
+    attendancePercentage: 0.0,
   );
 
   UserModel get currentUser => _currentUser;
 
   void setCurrentUser(UserModel user) {
     _currentUser = user;
+    _authenticatedRole = user.role;
     _assignedRole = user.role;
     _activeRole = user.role;
     final idx = _allStudents.indexWhere((u) => u.id == user.id || u.fullName.toLowerCase() == user.fullName.toLowerCase());
@@ -531,6 +549,7 @@ mixin AuthStateMixin on ChangeNotifier {
     int? academicYear,
     String? batchYear,
     UserRole? role,
+    bool? isApproved,
     String? assignedFamilyId,
     String? ministryStatus,
     List<String>? badges,
@@ -548,6 +567,7 @@ mixin AuthStateMixin on ChangeNotifier {
       academicYear: academicYear ?? _currentUser.academicYear,
       batchYear: batchYear ?? _currentUser.batchYear,
       role: role ?? _currentUser.role,
+      isApproved: isApproved ?? _currentUser.isApproved,
       assignedFamilyId: assignedFamilyId ?? _currentUser.assignedFamilyId,
       ministryStatus: ministryStatus ?? _currentUser.ministryStatus,
       badges: badges ?? _currentUser.badges,
@@ -558,6 +578,8 @@ mixin AuthStateMixin on ChangeNotifier {
     );
     if (role != null) {
       _activeRole = role;
+      _authenticatedRole = role;
+      _assignedRole = role;
     }
     final idx = _allStudents.indexWhere((u) => u.id == _currentUser.id || u.id == 'usr-current' || u.fullName.toLowerCase() == _currentUser.fullName.toLowerCase());
     if (idx >= 0) {
@@ -585,10 +607,6 @@ mixin AuthStateMixin on ChangeNotifier {
   }
 
   void switchRole(UserRole newRole, {String? coordinatorDeptId}) {
-    if (newRole != UserRole.student) {
-      _assignedRole = newRole;
-    }
-
     _activeRole = newRole;
     CoordinatorProfileModel? coordProfile = _currentUser.coordinatorProfile;
 
@@ -610,7 +628,7 @@ mixin AuthStateMixin on ChangeNotifier {
     }
 
     _currentUser = _currentUser.copyWith(
-      role: _assignedRole,
+      role: newRole,
       coordinatorProfile: coordProfile ?? _currentUser.coordinatorProfile,
       assignedFamilyId: newRole == UserRole.spiritualParent ? 'fam-st-george' : _currentUser.assignedFamilyId,
     );
@@ -683,14 +701,17 @@ mixin AuthStateMixin on ChangeNotifier {
     _currentUser = newStudent;
     notifyListeners();
 
-    try {
-      FirebaseFirestore.instance.collection('users').doc(newStudent.id).set(
-        newStudent.toMap(),
-        SetOptions(merge: true),
-      );
-    } catch (e) {
-      debugPrint('Firestore registerStudent notice: $e');
-    }
+    // Write to Firestore asynchronously; surface errors to log
+    FirebaseFirestore.instance.collection('users').doc(newStudent.id).set(
+      newStudent.toMap(),
+      SetOptions(merge: true),
+    ).then((_) {
+      debugPrint('registerStudent: Firestore write succeeded for ${newStudent.id}');
+    }).catchError((e) {
+      debugPrint('Firestore registerStudent error (offline or permission): $e');
+      // Data is already saved locally via _pendingApprovals & _currentUser.
+      // The next time the user comes online, the Firestore stream will re-sync.
+    });
   }
 
   void approveStudent(String studentId, {UserRole role = UserRole.student}) {

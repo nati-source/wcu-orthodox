@@ -936,12 +936,16 @@ class StudentFamilyScreen extends StatelessWidget {
             ),
           ],
         ),
+        actionsOverflowButtonSpacing: 8,
+        actionsOverflowDirection: VerticalDirection.down,
+        actionsAlignment: MainAxisAlignment.end,
         content: Form(
           key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Text(
                 'Set or update the Telegram group invite link for ${family.name}. Spiritual children will tap "Join Telegram Group" to enter your family chat.',
                 style: TextStyle(
@@ -975,7 +979,8 @@ class StudentFamilyScreen extends StatelessWidget {
             ],
           ),
         ),
-        actions: [
+      ),
+      actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),

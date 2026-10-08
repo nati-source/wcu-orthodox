@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wcu_orthodox/main.dart';
 import 'package:wcu_orthodox/models/app_models.dart';
 import 'package:wcu_orthodox/state/fellowship_state.dart';
 import 'package:wcu_orthodox/theme/app_theme.dart';
@@ -19,7 +18,7 @@ void main() {
   });
 
   testWidgets('WCU Orthodox App smoke & role switcher test', (WidgetTester tester) async {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.darkTheme,
@@ -71,7 +70,7 @@ void main() {
   });
 
   test('Scoped RBAC: Department Coordinator & Audit Inspection permissions test', () {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // 1. Normal Student: Denied coordinator actions
     state.switchRole(UserRole.student);
@@ -123,7 +122,7 @@ void main() {
   });
 
   test('Scoped RBAC: Volunteer Application Approval & Rejection Mutation Guards', () {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // Submit an application for Music Department
     state.submitMinistryApplication(
@@ -160,7 +159,7 @@ void main() {
   });
 
   test('Spiritual Parent: Scoped Roadmap Access Guard test', () {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // Family of St. George has member IDs: ['usr-current', 'usr-1', 'usr-2', 'usr-3', 'usr-4']
     // Family of St. Teklehaimanot has member IDs: ['usr-5', 'usr-6', 'usr-7']
@@ -195,7 +194,7 @@ void main() {
   });
 
   test('FellowshipState logic test: constrained matching and rolling pin check-in', () async {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     expect(state.allStudents.isNotEmpty, true);
     expect(state.families.isNotEmpty, true);
@@ -226,7 +225,7 @@ void main() {
   });
 
   test('Domain tests: Liturgical Calendar, Prayer Book, Pilgrimage & Mentorship', () {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // 1. Liturgical Calendar
     expect(state.calendarWeek.isNotEmpty, true);
@@ -336,7 +335,7 @@ void main() {
   });
 
   test('Department Capabilities: Broadcast Engine & Guest Teacher Notice Test', () {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // 1. Send broadcast as Education Coordinator (DEPT_EDUCATION)
     state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptEducation);
@@ -379,7 +378,7 @@ void main() {
   });
 
   test('Department Capabilities: Development Fundraising Proposals & Admin Review Test', () {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // 1. Submit proposal as Development Coordinator (DEPT_DEVELOPMENT)
     state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptDevelopment);
@@ -450,7 +449,7 @@ void main() {
   });
 
   test('Department Capabilities: Dual Choir Wings (Mezmur & Fine Arts) & Multilingual Gated Applications', () {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // 1. Submit application to Choir & Fine Arts with Fine Arts Wing
     state.submitMinistryApplication(
@@ -489,7 +488,7 @@ void main() {
   });
 
   test('Department Capabilities: Batch Programs Pilgrimage Suite & Charity Mutual Aid Suite Test', () {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // 1. Pilgrimage Suite: Coordinator privileges (DEPT_BATCH_PROGRAMS)
     state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptBatchPrograms);
@@ -586,7 +585,7 @@ void main() {
   });
 
   testWidgets('Coordinator Hub: Batch Programs Pilgrimage & Charity interactive features test', (tester) async {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
     // Set to Batch & Programs coordinator
     state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptBatchPrograms);
 
@@ -702,7 +701,7 @@ void main() {
   });
 
   testWidgets('Spiritual Parent: Children Progress Tracking in Family and Roadmap screens test', (WidgetTester tester) async {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
     state.switchRole(UserRole.spiritualParent);
 
     final children = state.spiritualChildren;
@@ -747,7 +746,7 @@ void main() {
   });
 
   testWidgets('Education & Apostolic Coordinator Hub: Batch targeting, announcements & special programs test', (WidgetTester tester) async {
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
     state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptEducation);
 
     // 1. Verify batch-specific broadcast dispatch
@@ -816,7 +815,7 @@ void main() {
 
   testWidgets('Coordinator Hub: Development & Fundraising Module UI and Actions Test', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 1600));
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
     state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptDevelopment);
 
     await tester.pumpWidget(
@@ -869,7 +868,7 @@ void main() {
   testWidgets('Coordinator Hub: Mobile Screen Responsiveness & Zero Right Overflow in Education and Development', (tester) async {
     // Set small mobile screen size (360 x 740)
     await tester.binding.setSurfaceSize(const Size(360, 740));
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // 1. Verify Education module on narrow screen
     state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: FellowshipDepartmentConstants.deptEducation);
@@ -905,7 +904,7 @@ void main() {
 
   testWidgets('Admin Approvals: Proposals Tab, Interactive Approval, Revision Request, and Coordinator Reflection Test', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1000, 1600));
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
     state.switchRole(UserRole.admin);
 
     await tester.pumpWidget(
@@ -1014,7 +1013,7 @@ void main() {
 
   testWidgets('Integration: Home Screen 10 Departments Quick Action and Library Category Chips Test', (tester) async {
     await tester.binding.setSurfaceSize(const Size(450, 900));
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -1064,7 +1063,7 @@ void main() {
 
   testWidgets('Scanner RBAC: Student Attendance mode vs Coordinator Pilgrim Pass Camera mode test', (tester) async {
     await tester.binding.setSurfaceSize(const Size(450, 900));
-    final state = FellowshipState();
+    final state = FellowshipState(isDemoMode: true);
 
     // 1. As Normal Student: Only Attendance mode visible, Pilgrim Pass mode hidden
     state.switchRole(UserRole.student);

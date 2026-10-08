@@ -19,6 +19,7 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
   bool _isAnswerRevealed = false;
   int _score = 0;
   bool _isQuizFinished = false;
+  String? _selectedQuizId;
 
   void _selectOption(int index) {
     if (_isAnswerRevealed) return;
@@ -28,7 +29,7 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
   }
 
   void _submitCurrentAnswer(TriviaQuestionModel question) {
-    if (_selectedOptionIndex == null) return;
+    if (_selectedOptionIndex == null || _isAnswerRevealed) return;
     setState(() {
       _isAnswerRevealed = true;
       if (_selectedOptionIndex == question.correctOptionIndex) {
@@ -38,6 +39,7 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
   }
 
   void _nextQuestion(int totalQuestions, String quizId) {
+    if (_isQuizFinished) return;
     if (_currentQuestionIndex < totalQuestions - 1) {
       setState(() {
         _currentQuestionIndex++;
@@ -75,7 +77,14 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
     final borderCol = theme.dividerColor;
 
     final state = widget.state;
-    final quiz = state.triviaQuizzes.first;
+    TriviaQuizModel? activeQuiz;
+    if (_selectedQuizId != null && state.triviaQuizzes.isNotEmpty) {
+      try {
+        activeQuiz = state.triviaQuizzes.firstWhere((q) => q.id == _selectedQuizId);
+      } catch (_) {
+        activeQuiz = null;
+      }
+    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -123,7 +132,9 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
 
           Expanded(
             child: _activeTab == 0
-                ? _buildQuizContent(context, quiz)
+                ? (activeQuiz != null
+                    ? _buildQuizContent(context, activeQuiz)
+                    : _buildChallengeList(context, state))
                 : _buildLeaderboardContent(context, state),
           ),
         ],
@@ -194,14 +205,46 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
     final borderCol = theme.dividerColor;
     final isDark = theme.brightness == Brightness.dark;
 
-    final question = quiz.questions[_currentQuestionIndex];
-    final progress = (_currentQuestionIndex + 1) / quiz.questions.length;
+    if (quiz.questions.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('No questions added to this challenge yet.', style: TextStyle(fontSize: 14)),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () => setState(() => _selectedQuizId = null),
+                child: const Text('Back to Challenges'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    final safeIdx = _currentQuestionIndex.clamp(0, quiz.questions.length - 1);
+    final question = quiz.questions[safeIdx];
+    final progress = (safeIdx + 1) / quiz.questions.length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: () => setState(() {
+                  _selectedQuizId = null;
+                  _isQuizFinished = false;
+                }),
+                icon: const Icon(Icons.arrow_back, size: 16),
+                label: const Text('All Challenges • ዝርዝር', style: TextStyle(fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           // Header Stats Card
           Container(
             padding: const EdgeInsets.all(16),
@@ -511,10 +554,157 @@ class _StudentTriviaScreenState extends State<StudentTriviaScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => setState(() {
+                    _selectedQuizId = null;
+                    _isQuizFinished = false;
+                  }),
+                  icon: const Icon(Icons.list_alt, size: 16),
+                  label: const Text('View All Challenges • ሁሉም ውድድሮች'),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: borderCol),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildChallengeList(BuildContext context, FellowshipState state) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final borderCol = theme.dividerColor;
+    final isDark = theme.brightness == Brightness.dark;
+
+    if (state.triviaQuizzes.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.quiz_outlined, size: 60, color: primaryAccent.withOpacity(0.5)),
+              const SizedBox(height: 16),
+              Text(
+                'No Active Faith Challenges',
+                style: TextStyle(fontFamily: 'serif', fontSize: 18, fontWeight: FontWeight.bold, color: textCol),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Weekly theological faith challenges published by the Apostolic Education department will appear here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: textMuted),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      itemCount: state.triviaQuizzes.length,
+      itemBuilder: (ctx, index) {
+        final quiz = state.triviaQuizzes[index];
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: borderCol),
+            boxShadow: [
+              BoxShadow(
+                color: isDark ? Colors.black.withOpacity(0.3) : Colors.black.withOpacity(0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: primaryAccent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Week ${quiz.weekNumber} • ሳምንት ${quiz.weekNumber}',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: primaryAccent),
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.timer_outlined, size: 14, color: textMuted),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${quiz.timeLimitMinutes} min',
+                    style: TextStyle(fontSize: 11, color: textMuted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                quiz.title,
+                style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: textCol),
+              ),
+              if (quiz.description.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  quiz.description,
+                  style: TextStyle(fontSize: 12, color: textMuted),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${quiz.questions.length} Question${quiz.questions.length == 1 ? '' : 's'}',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textCol),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedQuizId = quiz.id;
+                        _currentQuestionIndex = 0;
+                        _selectedOptionIndex = null;
+                        _isAnswerRevealed = false;
+                        _score = 0;
+                        _isQuizFinished = false;
+                      });
+                    },
+                    icon: const Icon(Icons.play_arrow, size: 16),
+                    label: const Text('Start Challenge • ጀምር', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryAccent,
+                      foregroundColor: isDark ? Colors.black : Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

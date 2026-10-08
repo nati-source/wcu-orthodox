@@ -19,12 +19,12 @@ class StudentRegistrationScreen extends StatefulWidget {
 
 class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController(text: 'Teklehaimanot Girma');
-  final _baptismalNameController = TextEditingController(text: 'Haile Meskel');
-  final _phoneController = TextEditingController(text: '+251912345678');
-  final _batchYearController = TextEditingController(text: '2024');
+  final _fullNameController = TextEditingController();
+  final _baptismalNameController = TextEditingController();
+  final _phoneController = TextEditingController(text: '+251');
+  final _batchYearController = TextEditingController();
 
-  int _selectedAcademicYear = 3;
+  int _selectedAcademicYear = 1;
   String _selectedDepartment = 'Computer Science';
   String _selectedGender = 'male';
 
@@ -90,9 +90,10 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
           side: BorderSide(color: primaryAccent.withOpacity(0.5), width: 1.5),
         ),
         contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // Glowing Emblem
             Container(
               width: 68,
@@ -217,12 +218,15 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      'ወደ ዋናው ገጽ ግባ / Go to Home',
-                      style: TextStyle(
-                        color: isDark ? Colors.black : Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    Flexible(
+                      child: Text(
+                        'ወደ ዋናው ገጽ ግባ / Go to Home',
+                        style: TextStyle(
+                          color: isDark ? Colors.black : Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -234,7 +238,8 @@ class _StudentRegistrationScreenState extends State<StudentRegistrationScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   @override
@@ -798,21 +803,27 @@ class _DepartmentSearchModalState extends State<_DepartmentSearchModal> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(Icons.school, color: primaryAccent, size: 24),
-                    const SizedBox(width: 10),
-                    Text(
-                      'WCU Departments',
-                      style: TextStyle(
-                        fontFamily: 'serif',
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: textCol,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(Icons.school, color: primaryAccent, size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'WCU Departments',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: textCol,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
