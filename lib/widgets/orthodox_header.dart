@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/app_models.dart';
 import '../state/fellowship_state.dart';
 import '../theme/app_theme.dart';
@@ -141,65 +142,147 @@ class OrthodoxHeader extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
           child: Row(
             children: [
-              // Orthodox Fellowship Icon Emblem (Long-press toggles Dev Role Switcher for debugging)
-              GestureDetector(
-                onLongPress: () {
-                  // Only allow toggling dev role switcher if user is Admin
-                  if (state.authenticatedRole != UserRole.admin && state.currentUser.role != UserRole.admin && state.activeRole != UserRole.admin && !state.showDevRoleSwitcher) {
-                    return;
-                  }
-                  state.toggleDevRoleSwitcher();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: state.showDevRoleSwitcher ? AppTheme.gold : AppTheme.surfaceElevated,
-                      content: Row(
-                        children: [
-                          Icon(
-                            state.showDevRoleSwitcher ? Icons.build_circle : Icons.lock_outline,
-                            color: state.showDevRoleSwitcher ? const Color(0xFF070F1E) : Colors.white,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              state.showDevRoleSwitcher
-                                  ? '🛠️ Developer Mode ON: Role Switcher unlocked'
-                                  : '🔒 Developer Mode OFF: Role Switcher hidden',
-                              style: TextStyle(
-                                color: state.showDevRoleSwitcher ? const Color(0xFF070F1E) : Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+              // Orthodox Fellowship Theme & Emblem Toggle (Tap switches Day/Night theme; Long-press toggles Dev Role Switcher for Admin)
+              Tooltip(
+                message: state.currentThemePalette.isDark
+                    ? 'ቀን / Light Mode (ብራና እና ዕጣን)'
+                    : 'ሌሊት / Dark Mode (የሌሊት ማኅበር)',
+                child: GestureDetector(
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    final isDark = state.currentThemePalette.isDark;
+                    final nextPalette = isDark
+                        ? AppThemePalette.parchmentIncense
+                        : AppThemePalette.midnightFellowship;
+                    state.setThemePalette(nextPalette);
+
+                    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        behavior: SnackBarBehavior.floating,
+                        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        backgroundColor: nextPalette.cardBg,
+                        content: Row(
+                          children: [
+                            Icon(
+                              nextPalette.isDark ? Icons.nightlight_round : Icons.wb_sunny_rounded,
+                              color: nextPalette.primaryAccent,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    nextPalette.isDark
+                                        ? '🌙 Night Mode Activated'
+                                        : '☀️ Day Mode Activated',
+                                    style: TextStyle(
+                                      color: nextPalette.textPrimary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    nextPalette.amharicName,
+                                    style: TextStyle(
+                                      color: nextPalette.textSecondary,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
+                          ],
+                        ),
+                        duration: const Duration(milliseconds: 1800),
+                      ),
+                    );
+                  },
+                  onLongPress: () {
+                    // Only allow toggling dev role switcher if user is Admin
+                    if (state.authenticatedRole != UserRole.admin &&
+                        state.currentUser.role != UserRole.admin &&
+                        state.activeRole != UserRole.admin &&
+                        !state.showDevRoleSwitcher) {
+                      return;
+                    }
+                    state.toggleDevRoleSwitcher();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor:
+                            state.showDevRoleSwitcher ? AppTheme.gold : AppTheme.surfaceElevated,
+                        content: Row(
+                          children: [
+                            Icon(
+                              state.showDevRoleSwitcher ? Icons.build_circle : Icons.lock_outline,
+                              color: state.showDevRoleSwitcher
+                                  ? const Color(0xFF070F1E)
+                                  : Colors.white,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                state.showDevRoleSwitcher
+                                    ? '🛠️ Developer Mode ON: Role Switcher unlocked'
+                                    : '🔒 Developer Mode OFF: Role Switcher hidden',
+                                style: TextStyle(
+                                  color: state.showDevRoleSwitcher
+                                      ? const Color(0xFF070F1E)
+                                      : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          primaryColor.withOpacity(0.35),
+                          theme.cardTheme.color ?? theme.colorScheme.surface,
                         ],
                       ),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      colors: [
-                        primaryColor.withOpacity(0.35),
-                        theme.cardTheme.color ?? theme.colorScheme.surface,
+                      border: Border.all(color: primaryColor.withOpacity(0.6), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: primaryColor.withOpacity(0.25),
+                          blurRadius: 10,
+                          spreadRadius: 1,
+                        ),
                       ],
                     ),
-                    border: Border.all(color: primaryColor.withOpacity(0.6), width: 1.5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: primaryColor.withOpacity(0.25),
-                        blurRadius: 10,
-                        spreadRadius: 1,
+                    child: Center(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 350),
+                        transitionBuilder: (child, animation) => RotationTransition(
+                          turns: Tween<double>(begin: 0.75, end: 1.0).animate(animation),
+                          child: ScaleTransition(scale: animation, child: child),
+                        ),
+                        child: Icon(
+                          state.currentThemePalette.isDark
+                              ? Icons.wb_sunny_rounded
+                              : Icons.nightlight_round,
+                          key: ValueKey(state.currentThemePalette.isDark),
+                          color: primaryColor,
+                          size: 22,
+                        ),
                       ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Icon(Icons.wb_sunny_outlined, color: primaryColor, size: 22),
+                    ),
                   ),
                 ),
               ),
@@ -235,6 +318,41 @@ class OrthodoxHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              // Quick Return to Admin Button when Admin is previewing Student or Coordinator
+              if (state.isAuthorizedAdmin && state.activeRole != UserRole.admin)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: InkWell(
+                    onTap: () {
+                      HapticFeedback.mediumImpact();
+                      state.switchRole(UserRole.admin);
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.gold.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.gold, width: 1.2),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.arrow_back_rounded, color: AppTheme.gold, size: 14),
+                          SizedBox(width: 4),
+                          Text(
+                            'Admin',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.gold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               if (showQrIcon && onQrTap != null)
                 IconButton(
                   icon: Container(

@@ -371,7 +371,6 @@ extension MockDataSeeder on FellowshipState {
         telegramUrl: 'https://t.me/WCU_Orthodox_Library/101',
         sourceUrl: 'https://t.me/WCU_Orthodox_Library',
         readTime: '45 mins reading',
-        coverAssetPath: 'asset/screen5 - Copy.png',
       ),
       LibraryItemModel(
         id: 'lib-2',

@@ -1,26 +1,44 @@
-# ProGuard / R8 rules for Flutter and Mobile Scanner
+# ============================================================================
+# WCU Orthodox Fellowship — ProGuard / R8 Rules
+# ============================================================================
 
--keep class io.flutter.app.** { *; }
--keep class io.flutter.plugin.** { *; }
--keep class io.flutter.util.** { *; }
--keep class io.flutter.view.** { *; }
+# --- Flutter / Dart bridge --------------------------------------------------
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
+-dontwarn io.flutter.**
 
-# Mobile Scanner
--keep class dev.steenbakker.mobile_scanner.** { *; }
--keepclassmembers class dev.steenbakker.mobile_scanner.** { *; }
--dontwarn dev.steenbakker.mobile_scanner.**
-
-# Google ML Kit & Google Play Services
--keep class com.google.mlkit.** { *; }
+# --- Firebase / Google Play Services ----------------------------------------
+-keep class com.google.firebase.** { *; }
 -keep class com.google.android.gms.** { *; }
--dontwarn com.google.mlkit.**
+-dontwarn com.google.firebase.**
 -dontwarn com.google.android.gms.**
 
-# CameraX & AndroidX
--keep class androidx.camera.** { *; }
--keepclassmembers class androidx.camera.** { *; }
--dontwarn androidx.camera.**
--keep class androidx.core.** { *; }
--keep class androidx.lifecycle.** { *; }
+# --- Firebase Crashlytics ---------------------------------------------------
+-keepattributes SourceFile,LineNumberTable
+-keep public class * extends java.lang.Exception
+-keep class com.google.firebase.crashlytics.** { *; }
+-dontwarn com.google.firebase.crashlytics.**
+
+# --- Firebase Performance Monitoring ----------------------------------------
+-keep class com.google.firebase.perf.** { *; }
+-dontwarn com.google.firebase.perf.**
+
+# --- Firebase App Check -----------------------------------------------------
+-keep class com.google.firebase.appcheck.** { *; }
+-dontwarn com.google.firebase.appcheck.**
+
+# --- Kotlin Serialisation & Coroutines --------------------------------------
+-keep class kotlin.Metadata { *; }
+-dontwarn kotlin.**
+-keepclassmembers class **$WhenMappings { <fields>; }
+-keepclassmembers class kotlin.Lazy { *; }
+
+# --- OkHttp / Retrofit (used by Firebase internally) -----------------------
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# --- Suppress warnings for reflection-only APIs used inside AAR libraries ---
+-dontwarn javax.annotation.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**

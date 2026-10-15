@@ -82,7 +82,6 @@ class FellowshipState extends ChangeNotifier
     if (isDemoMode) {
       _seedDemoData();
     }
-    _startPinRotation();
     _startCountdownTicker();
     _initCloudStreams();
   }
@@ -259,6 +258,7 @@ class FellowshipState extends ChangeNotifier
   StreamSubscription? _announcementsSubscription;
   StreamSubscription? _triviaLeaderboardSubscription;
   StreamSubscription? _attendanceSessionsSubscription;
+  StreamSubscription? _attendanceScansSubscription;
   StreamSubscription? _triviaQuizzesSubscription;
   StreamSubscription? _ministriesSubscription;
 
@@ -338,12 +338,21 @@ class FellowshipState extends ChangeNotifier
                 (_currentUser.fullName.trim().isNotEmpty &&
                  _currentUser.fullName.trim().toLowerCase() == user.fullName.trim().toLowerCase())) {
               if (isAdminDoc) {
-                _currentUser = user.copyWith(role: UserRole.admin, isApproved: true);
-                _activeRole = UserRole.admin;
+                _isOriginalAdmin = true;
+                _currentUser = user.copyWith(
+                  role: _activeRole != UserRole.admin ? _activeRole : UserRole.admin,
+                  isApproved: true,
+                );
                 _authenticatedRole = UserRole.admin;
                 _assignedRole = UserRole.admin;
               } else {
-                _currentUser = user;
+                if (_isOriginalAdmin || _authenticatedRole == UserRole.admin) {
+                  _currentUser = user.copyWith(
+                    role: _activeRole != UserRole.admin ? _activeRole : user.role,
+                  );
+                } else {
+                  _currentUser = user;
+                }
               }
             }
           }
@@ -806,28 +815,78 @@ class FellowshipState extends ChangeNotifier
       _attendanceSessionsSubscription?.cancel();
       _attendanceSessionsSubscription = FirebaseFirestore.instance
           .collection('attendance_sessions')
-          .where('isActive', isEqualTo: true)
+          .doc(_activeSession.sessionId)
           .snapshots()
           .listen((snapshot) {
-        if (snapshot.docs.isNotEmpty) {
-          final doc = snapshot.docs.first;
-          final data = doc.data();
-          final cloudPin = data['rollingPin'] as String?;
-          final cloudCode = data['code'] as String?;
-          if (cloudPin != null && cloudPin.isNotEmpty &&
-              cloudPin != _activeSession.rollingPin) {
-            _activeSession = _activeSession.copyWith(
-              rollingPin: cloudPin,
-              code: cloudCode ?? _activeSession.code,
-            );
-            notifyListeners();
+        if (snapshot.exists && snapshot.data() != null) {
+          final data = snapshot.data()!;
+          final cloudPin = data['rollingPin'] as String? ?? '----';
+          final cloudCode = data['code'] as String? ?? 'ORTH-301-STANDBY';
+          final isActive = data['isActive'] as bool? ?? false;
+          final isExpired = data['isExpired'] as bool? ?? false;
+          final courseName = data['courseName'] as String?;
+          final courseCode = data['courseCode'] as String?;
+          final faculty = data['faculty'] as String?;
+
+          DateTime? expDate;
+          if (data['expiresAt'] != null) {
+            if (data['expiresAt'] is Timestamp) {
+              expDate = (data['expiresAt'] as Timestamp).toDate();
+            } else if (data['expiresAt'] is String) {
+              expDate = DateTime.tryParse(data['expiresAt']);
+            }
           }
+
+          if (isActive && expDate != null) {
+            final remainingSeconds = expDate.difference(DateTime.now()).inSeconds;
+            if (remainingSeconds > 0) {
+              pinCountdownNotifier.value = remainingSeconds.clamp(0, 30);
+            }
+          }
+
+          _activeSession = _activeSession.copyWith(
+            rollingPin: cloudPin,
+            code: cloudCode,
+            isActive: isActive,
+            isExpired: isExpired,
+            expiresAt: expDate,
+            courseName: courseName,
+            courseCode: courseCode,
+            faculty: faculty,
+          );
+          notifyListeners();
         }
       }, onError: (err) {
         debugPrint('Firestore attendance active sync: $err');
       });
     } catch (e) {
       debugPrint('Firestore attendance sessions setup: $e');
+    }
+
+    _listenToAttendanceScans();
+  }
+
+  void _listenToAttendanceScans() {
+    try {
+      _attendanceScansSubscription?.cancel();
+      _attendanceScansSubscription = FirebaseFirestore.instance
+          .collection('attendance_sessions')
+          .doc(_activeSession.sessionId)
+          .collection('scans')
+          .orderBy('timestamp', descending: true)
+          .snapshots()
+          .listen((snapshot) {
+        final fetchedScans = snapshot.docs.map((doc) {
+          return AttendanceRecordModel.fromMap(doc.data(), doc.id);
+        }).toList();
+
+        _activeSession = _activeSession.copyWith(scans: fetchedScans);
+        notifyListeners();
+      }, onError: (err) {
+        debugPrint('Firestore attendance scans sync: $err');
+      });
+    } catch (e) {
+      debugPrint('Firestore attendance scans setup: $e');
     }
   }
 
@@ -873,6 +932,7 @@ class FellowshipState extends ChangeNotifier
     _announcementsSubscription?.cancel();
     _triviaLeaderboardSubscription?.cancel();
     _attendanceSessionsSubscription?.cancel();
+    _attendanceScansSubscription?.cancel();
     _triviaQuizzesSubscription?.cancel();
     _ministriesSubscription?.cancel();
     _pinTimer?.cancel();

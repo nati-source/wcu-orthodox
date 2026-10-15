@@ -44,9 +44,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    if (_activeScannerTab == 1 && _canScanPilgrims) {
-      _startCamera();
-    }
+    _startCamera();
   }
 
   @override
@@ -81,26 +79,23 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     setState(() {
       _activeScannerTab = newIndex;
       _statusMessage = null;
-      if (newIndex == 1 && _canScanPilgrims) {
-        _startCamera();
-      } else {
-        _stopCamera();
-      }
     });
+    if (_cameraController == null) {
+      _startCamera();
+    }
   }
 
   void _toggleTorch() {
     setState(() {
       _isTorchOn = !_isTorchOn;
     });
-    if (_activeScannerTab == 1 && _cameraController != null) {
+    if (_cameraController != null) {
       _cameraController!.toggleTorch();
     }
     HapticFeedback.selectionClick();
   }
 
   void _handleBarcodeDetection(BarcodeCapture capture) {
-    if (_activeScannerTab != 1) return;
     final now = DateTime.now();
     if (_lastScanTime != null && now.difference(_lastScanTime!).inMilliseconds < 1500) {
       return;
@@ -110,7 +105,11 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
       final code = barcode.rawValue ?? barcode.displayValue;
       if (code != null && code.trim().isNotEmpty) {
         _lastScanTime = now;
-        _verifyPilgrimPassScan(code.trim());
+        if (_activeScannerTab == 0) {
+          _verifyAttendanceCheckIn(code.trim(), AttendanceCheckInMethod.qr);
+        } else {
+          _verifyPilgrimPassScan(code.trim());
+        }
         break;
       }
     }
@@ -126,6 +125,36 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
   }
 
   void _verifyAttendanceCheckIn(String pinOrCode, AttendanceCheckInMethod method) {
+    final session = widget.state.activeSession;
+    if (!session.isActive || session.isExpired) {
+      setState(() {
+        _isSuccess = false;
+        _statusMessage = 'Attendance window has expired or is not active yet.\nPlease wait for the admin to start the 30-second round.\n(ክፍለ ጊዜው አልቋል ወይም አልተጀመረም። እባክዎ አስተዳዳሪው የ30 ሰከንድ ዙር እስኪጀምር ይጠብቁ)';
+      });
+      HapticFeedback.heavyImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppTheme.crimson,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          content: const Row(
+            children: [
+              Icon(Icons.lock_clock, color: Colors.white, size: 20),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Window Expired / ጊዜው አልቋል\nPlease wait for the instructor to start the 30-second window.',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     final success = widget.state.checkInStudent(
       studentId: widget.state.currentUser.id,
       enteredPinOrCode: pinOrCode,
@@ -418,13 +447,31 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppTheme.emeraldBg,
+                            color: activeSession.isActive && !activeSession.isExpired
+                                ? AppTheme.emeraldBg
+                                : (activeSession.isExpired
+                                    ? Colors.red.withOpacity(0.15)
+                                    : Colors.grey.withOpacity(0.15)),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: AppTheme.emerald.withOpacity(0.4)),
+                            border: Border.all(
+                              color: activeSession.isActive && !activeSession.isExpired
+                                  ? AppTheme.emerald.withOpacity(0.4)
+                                  : (activeSession.isExpired
+                                      ? Colors.red.withOpacity(0.4)
+                                      : Colors.grey.withOpacity(0.4)),
+                            ),
                           ),
-                          child: const Text(
-                            'SESSION ACTIVE',
-                            style: TextStyle(fontSize: 10, color: AppTheme.emerald, fontWeight: FontWeight.bold),
+                          child: Text(
+                            activeSession.isActive && !activeSession.isExpired
+                                ? 'SESSION ACTIVE (ክፍት)'
+                                : (activeSession.isExpired ? 'WINDOW EXPIRED (ተዘግቷል)' : 'STANDBY (ዝግጁ)'),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: activeSession.isActive && !activeSession.isExpired
+                                  ? AppTheme.emerald
+                                  : (activeSession.isExpired ? Colors.redAccent : Colors.grey),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -530,8 +577,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                   borderRadius: BorderRadius.circular(26),
                   child: Stack(
                     children: [
-                      // Mode 1: Real Camera Feed for Pilgrim Pass
-                      if (_activeScannerTab == 1 && _cameraController != null)
+                      // Camera Feed for both Attendance (Tab 0) and Pilgrim Pass (Tab 1)
+                      if (_cameraController != null)
                         Positioned.fill(
                           child: MobileScanner(
                             controller: _cameraController!,
@@ -540,10 +587,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                               final isDenied = error.errorCode == MobileScannerErrorCode.permissionDenied;
                               final isUnsupported = error.errorCode == MobileScannerErrorCode.unsupported;
                               final message = isDenied
-                                  ? 'Camera permission denied.\nPlease enable Camera permission in device settings or tap Retry.'
+                                  ? 'Camera permission denied.\nPlease enable Camera permission in device settings or use PIN below.'
                                   : isUnsupported
-                                      ? 'Camera feed unavailable on this platform/device (Windows/Emulator).\nPlease use manual ticket code below or tap Simulate.'
-                                      : 'Camera feed unavailable: ${error.errorDetails?.message ?? error.errorCode.name}\nPlease retry or enter ticket code below.';
+                                      ? 'Camera feed unavailable on this platform/device (Windows/Emulator).\nPlease use manual PIN/ticket below or tap viewfinder.'
+                                      : 'Camera feed unavailable: ${error.errorDetails?.message ?? error.errorCode.name}\nPlease retry or use manual PIN below.';
 
                               return Container(
                                 color: const Color(0xFF0F172A),
@@ -574,11 +621,12 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                                             icon: const Icon(Icons.refresh, size: 16, color: Colors.amber),
                                             label: const Text('Retry Camera', style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold)),
                                           ),
-                                          TextButton.icon(
-                                            onPressed: _simulatePilgrimScan,
-                                            icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF10B981)),
-                                            label: const Text('Simulate Scan', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
-                                          ),
+                                          if (_activeScannerTab == 1)
+                                            TextButton.icon(
+                                              onPressed: _simulatePilgrimScan,
+                                              icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF10B981)),
+                                              label: const Text('Simulate Scan', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                            ),
                                         ],
                                       ),
                                     ],
@@ -589,32 +637,11 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                           ),
                         )
                       else
-                        // Mode 0: Fast Simulated Viewfinder for Course Attendance
                         Positioned.fill(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20.0),
-                            child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.qr_code_scanner,
-                                    size: 84,
-                                    color: Colors.white.withOpacity(0.25),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    'Align Session Attendance QR',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Tap viewfinder to trigger instant scan',
-                                    style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10),
-                                  ),
-                                ],
-                              ),
+                          child: Container(
+                            color: const Color(0xFF0F172A),
+                            child: const Center(
+                              child: CircularProgressIndicator(color: AppTheme.gold),
                             ),
                           ),
                         ),

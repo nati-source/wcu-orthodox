@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'models/app_models.dart';
 import 'state/fellowship_state.dart';
@@ -19,6 +20,10 @@ import 'views/coordinator/coordinator_hub_screen.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_performance/firebase_performance.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'views/auth/login_screen.dart';
@@ -26,6 +31,7 @@ import 'views/auth/pending_approval_screen.dart';
 import 'views/help/user_guide_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/connectivity_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,17 +40,47 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // Register top-level FCM background handler
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    // ── Crash Reporting ─────────────────────────────────────────────────────
+    // Route all uncaught Flutter framework errors to Crashlytics.
+    // In debug mode Crashlytics collection is disabled (set via build.gradle).
+    FlutterError.onError = (errorDetails) {
+      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    };
+    // Catch errors that happen outside of the Flutter framework (Dart isolate).
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+    // Disable Crashlytics in debug so the Firebase console stays clean.
+    await FirebaseCrashlytics.instance
+        .setCrashlyticsCollectionEnabled(!kDebugMode);
 
-    // Enable Firestore offline persistence so the app works on poor networks
+    // ── App Check ───────────────────────────────────────────────────────────
+    // Blocks non-app clients from abusing your Firestore/Auth endpoints.
+    // Uses Play Integrity on Android (robust), debug provider in debug builds.
+    await FirebaseAppCheck.instance.activate(
+      androidProvider:
+          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+    );
+
+    // ── Analytics & Performance ─────────────────────────────────────────────
+    await FirebaseAnalytics.instance
+        .setAnalyticsCollectionEnabled(!kDebugMode);
+    await FirebasePerformance.instance
+        .setPerformanceCollectionEnabled(!kDebugMode);
+
+    // ── Firestore Offline Persistence ───────────────────────────────────────
     FirebaseFirestore.instance.settings = const Settings(
       persistenceEnabled: true,
       cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
     );
 
-    // Initialize Push Notifications (permissions, device token & topics)
+    // ── Push Notifications ──────────────────────────────────────────────────
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     await NotificationService.instance.initialize();
+
+    // ── Connectivity Monitoring ─────────────────────────────────────────────
+    await ConnectivityService.instance.initialize();
   } catch (e) {
     debugPrint('Firebase initialization notice: $e');
   }
@@ -88,9 +124,15 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
     if (user == null) return;
     final bool isAdminEmail = AppAdminConstants.isAdminEmail(user.email);
 
-    // If designated admin, IMMEDIATELY initialize state with admin privileges and approval
+    // Only run profile sync once per authenticated user session unless explicitly reset.
+    // This allows admins to switch their active perspective (Student, Coordinator, etc.) without getting bounced back!
+    if (_syncedUid == user.uid) return;
+    _syncedUid = user.uid;
+
+    // If designated admin, IMMEDIATELY initialize state with admin privileges and approval on initial load
     if (isAdminEmail) {
-      if (_fellowshipState.currentUser.role != UserRole.admin || !_fellowshipState.currentUser.isApproved) {
+      _fellowshipState.markAsOriginalAdmin();
+      if (_fellowshipState.currentUser.id != user.uid || !_fellowshipState.currentUser.isApproved) {
         _fellowshipState.updateCurrentUserProfile(
           id: user.uid,
           fullName: (user.displayName != null && (user.displayName as String).trim().isNotEmpty)
@@ -100,22 +142,33 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
           isApproved: true,
         );
       }
+    } else {
+      // For regular students, immediately seed basic profile so ID matches and UI is responsive
+      if (_fellowshipState.currentUser.id != user.uid) {
+        _fellowshipState.updateCurrentUserProfile(
+          id: user.uid,
+          fullName: (user.displayName != null && (user.displayName as String).trim().isNotEmpty)
+              ? (user.displayName as String).trim()
+              : (user.email != null && (user.email as String).contains('@')
+                  ? (user.email as String).split('@').first
+                  : 'Student Fellow'),
+          role: UserRole.student,
+        );
+      }
     }
-
-    if (_syncedUid == user.uid && !isAdminEmail) return;
-    _syncedUid = user.uid;
 
     if (mounted && !isAdminEmail) {
       setState(() {
         _isSyncingProfile = true;
       });
-    }
-
-    if (!isAdminEmail && user.displayName != null && (user.displayName as String).trim().isNotEmpty) {
-      _fellowshipState.updateCurrentUserProfile(
-        id: user.uid,
-        fullName: (user.displayName as String).trim(),
-      );
+      // Safety watchdog: ensure loading spinner is dismissed within 4 seconds under any network condition
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted && _isSyncingProfile) {
+          setState(() {
+            _isSyncingProfile = false;
+          });
+        }
+      });
     }
 
     try {
@@ -156,6 +209,9 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
                 ? (profile['isApproved'] as bool)
                 : (role == UserRole.admin || role == UserRole.volunteerCoordinator || role == UserRole.spiritualParent));
 
+        // Preserve current activeRole in case user switched roles during async fetch
+        final currentActiveRole = _fellowshipState.activeRole;
+
         _fellowshipState.updateCurrentUserProfile(
           id: user.uid,
           fullName: profile['fullName'] ?? user.displayName ?? (isAdminEmail ? 'Nati (Admin)' : 'Student Fellow'),
@@ -168,6 +224,10 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
           isApproved: isApproved,
           assignedFamilyId: profile['assignedFamilyId'] ?? profile['familyId'] ?? profile['family'] ?? profile['assignedFamily'],
         );
+
+        if (currentActiveRole != role && _fellowshipState.canSwitchRoles) {
+          _fellowshipState.switchRole(currentActiveRole);
+        }
 
         // Sync FCM device token & role-based topic subscriptions for push notifications
         NotificationService.instance.syncUserFcmToken(
@@ -198,6 +258,9 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
           title: 'WCU Orthodox Fellowship',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.getTheme(_fellowshipState.currentThemePalette),
+          builder: (context, child) {
+            return OfflineAwareBanner(child: child ?? const SizedBox.shrink());
+          },
           home: StreamBuilder(
             stream: _authService.authStateChanges,
             builder: (context, snapshot) {
@@ -214,23 +277,36 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
 
               if (user != null) {
                 final bool isAdmin = AppAdminConstants.isAdminEmail(user.email) ||
+                                     _fellowshipState.isAuthorizedAdmin ||
                                      _fellowshipState.currentUser.role == UserRole.admin;
 
                 _syncUserProfile(user);
 
-                // Show safe loader while initial profile sync is happening ONLY for regular students
+                // Show safe loader while initial profile sync is happening ONLY if id is completely unmatched
                 if (!isAdmin && _isSyncingProfile && _fellowshipState.currentUser.id != user.uid) {
-                  return const Scaffold(
-                    backgroundColor: Color(0xFF070F1E),
+                  return Scaffold(
+                    backgroundColor: const Color(0xFF070F1E),
                     body: Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          CircularProgressIndicator(color: AppTheme.gold),
-                          SizedBox(height: 16),
-                          Text(
-                            'Loading profile...',
+                          const CircularProgressIndicator(color: AppTheme.gold),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Loading profile... / በመጫን ላይ...',
                             style: TextStyle(color: Colors.white70, fontSize: 13),
+                          ),
+                          const SizedBox(height: 20),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _isSyncingProfile = false;
+                              });
+                            },
+                            child: const Text(
+                              'Skip & Continue / በቀጥታ ግባ',
+                              style: TextStyle(color: AppTheme.gold, fontSize: 12),
+                            ),
                           ),
                         ],
                       ),

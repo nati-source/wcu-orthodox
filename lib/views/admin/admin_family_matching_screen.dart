@@ -66,6 +66,7 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
           (s) => s.id == studentId,
           orElse: () => widget.state.currentUser,
         );
+        if (widget.state.families.isEmpty) return;
         final familyA = widget.state.families.firstWhere(
           (f) => f.id == _sourceFamilyId,
           orElse: () => widget.state.families.first,

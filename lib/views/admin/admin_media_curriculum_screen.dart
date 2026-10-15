@@ -19,9 +19,9 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
   LibraryCategory? _selectedCategoryFilter;
 
   // Emergency Broadcast Controllers
-  final _broadcastTitleController = TextEditingController(text: 'Urgent Liturgy Venue Update');
-  final _broadcastChurchController = TextEditingController(text: 'St. Mary\'s Orthodox Church');
-  final _broadcastDescController = TextEditingController(text: 'Morning Kidase will start at 6:30 AM in the Main Sanctuary due to university semester examinations.');
+  final _broadcastTitleController = TextEditingController();
+  final _broadcastChurchController = TextEditingController();
+  final _broadcastDescController = TextEditingController();
 
   @override
   void dispose() {
@@ -37,9 +37,9 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
   void _openAddBookDialog() {
     final titleCtrl = TextEditingController();
     final subCtrl = TextEditingController();
-    final telegramCtrl = TextEditingController(text: 'https://t.me/WCU_Orthodox_Library/');
+    final telegramCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final tagsCtrl = TextEditingController(text: 'Patristics, Amharic');
+    final tagsCtrl = TextEditingController();
     LibraryCategory selectedCat = LibraryCategory.patristics;
 
     showModalBottomSheet(

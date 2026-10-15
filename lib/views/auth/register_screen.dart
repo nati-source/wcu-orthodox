@@ -136,7 +136,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           if (errStr.contains('email-already-in-use')) {
             _errorMessage = 'This email address is already registered. Please sign in instead.';
           } else if (errStr.contains('weak-password')) {
-            _errorMessage = 'The password is too weak. Please use at least 6 characters.';
+            _errorMessage = 'The password is too weak. Please use at least 8 characters including letters and numbers.';
           } else if (errStr.contains('invalid-email')) {
             _errorMessage = 'Please enter a valid email address.';
           } else {
@@ -684,7 +684,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       obscureText: _obscurePassword,
                       style: const TextStyle(color: AppTheme.textPrimary),
                       decoration: InputDecoration(
-                        labelText: 'Password (min 6 characters)*',
+                        labelText: 'Password (min 8 chars, letters & numbers)*',
                         labelStyle: const TextStyle(color: AppTheme.textSecondary),
                         prefixIcon: const Icon(Icons.lock_outline, color: AppTheme.gold),
                         suffixIcon: IconButton(
@@ -706,7 +706,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           borderSide: const BorderSide(color: AppTheme.gold, width: 2),
                         ),
                       ),
-                      validator: (v) => v != null && v.length >= 6 ? null : 'Password must be at least 6 characters',
+                      validator: (v) {
+                        if (v == null || v.isEmpty) return 'Password is required / የይለፍ ቃል ያስፈልጋል';
+                        if (v.length < 8) return 'Password must be at least 8 characters / ቢያንስ 8 ፊደላት መሆን አለበት';
+                        if (!RegExp(r'[a-zA-Z]').hasMatch(v) || !RegExp(r'[0-9]').hasMatch(v)) {
+                          return 'Include both letters and numbers / ፊደላትና ቁጥሮችን ያካትቱ';
+                        }
+                        return null;
+                      },
                     ),
                     const SizedBox(height: 14),
 

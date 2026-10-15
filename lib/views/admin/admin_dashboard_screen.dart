@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
 
@@ -75,272 +77,194 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   String _selectedTimeFilter = 'This Week';
   String _selectedBatchFilter = 'All Batches';
 
-  final List<String> _batches = ['All Batches', 'CS Dept', 'Business', 'Engineering', 'Health Sci'];
+  List<String> _getAvailableBatches(FellowshipState state) {
+    final depts = state.allStudents
+        .map((s) => s.department.trim())
+        .where((d) => d.isNotEmpty && d != 'General')
+        .toSet()
+        .toList();
+    depts.sort();
+    return ['All Batches', ...depts];
+  }
+
   final List<String> _timeFilterOptions = ['This Week', 'This Month', 'Semester', 'Annual'];
 
   _DashboardMetricsData _computeDashboardData(FellowshipState state) {
-    // 1. Department/Batch filtering adjustment
-    double batchMultiplier = 1.0;
-    int baseRegistered = state.totalRegisteredStudents;
-    if (_selectedBatchFilter == 'CS Dept') {
-      batchMultiplier = 0.28;
-      baseRegistered = 84;
-    } else if (_selectedBatchFilter == 'Business') {
-      batchMultiplier = 0.24;
-      baseRegistered = 72;
-    } else if (_selectedBatchFilter == 'Engineering') {
-      batchMultiplier = 0.32;
-      baseRegistered = 96;
-    } else if (_selectedBatchFilter == 'Health Sci') {
-      batchMultiplier = 0.18;
-      baseRegistered = 56;
+    // 1. Filter students according to selected department/batch
+    final allStudents = state.allStudents;
+    final List<UserModel> students;
+    if (_selectedBatchFilter == 'All Batches') {
+      students = allStudents;
+    } else {
+      students = allStudents
+          .where((s) => s.department.trim().toLowerCase() == _selectedBatchFilter.trim().toLowerCase())
+          .toList();
     }
 
+    final int registeredCount = students.length;
+
+    // 2. Compute true average attendance mathematically from actual student records
+    final double avgAttendance = registeredCount == 0
+        ? 0.0
+        : double.parse((students.fold<double>(0.0, (sum, s) => sum + s.attendancePercentage) / registeredCount).toStringAsFixed(1));
+
+    // 3. Compute at-risk students & counts
+    final atRiskList = students.where((s) => s.attendancePercentage < 75.0).toList();
+    final int atRiskCount = atRiskList.length;
+
+    // 4. Active roadmaps from state
+    final int activeRoadmaps = state.roadmaps.length;
+
+    // 5. Attendance status counts (Present, Late, Absent)
+    final int presentCount = students.where((s) => s.attendancePercentage >= 75.0).length;
+    final int lateCount = students.where((s) => s.attendancePercentage >= 50.0 && s.attendancePercentage < 75.0).length;
+    final int absentCount = students.where((s) => s.attendancePercentage < 50.0).length;
+
+    // 6. Time period labels
     final isMonth = _selectedTimeFilter == 'This Month';
     final isSemester = _selectedTimeFilter.contains('Semester');
     final isAnnual = _selectedTimeFilter == 'Annual';
 
-    if (isMonth) {
-      final spots = [
-        const FlSpot(0, 74),
-        const FlSpot(1, 81),
-        const FlSpot(2, 85),
-        const FlSpot(3, 89),
-      ];
-      int peakIdx = 3;
-      double avg = 82.3;
-      if (_selectedBatchFilter == 'CS Dept') {
-        avg = 88.5;
-      } else if (_selectedBatchFilter == 'Business') {
-        avg = 74.0;
-      } else if (_selectedBatchFilter == 'Engineering') {
-        avg = 84.1;
-      } else if (_selectedBatchFilter == 'Health Sci') {
-        avg = 75.8;
-      }
+    final String periodBadge = isMonth ? 'MONTHLY' : (isSemester ? 'SEMESTER' : (isAnnual ? 'ANNUAL' : 'WEEKLY'));
+    final String periodLabel = isMonth ? 'This Month' : (isSemester ? 'Semester' : (isAnnual ? 'Annual' : 'This Week'));
 
-      final totalPool = (baseRegistered * 4);
-      final present = (totalPool * (avg / 100)).round();
-      final late = (totalPool * 0.11).round();
-      final absent = (totalPool - present - late).clamp(1, 100000);
+    // 7. Dynamic Trend Chart Spots
+    List<FlSpot> spots = [];
+    List<String> xLabels = [];
+    int peakIndex = 0;
 
-      return _DashboardMetricsData(
-        periodBadge: 'MONTHLY',
-        periodLabel: 'This Month',
-        registeredCount: baseRegistered,
-        avgAttendance: avg,
-        activeRoadmaps: (58 * batchMultiplier).round().clamp(5, 58),
-        atRiskCount: (_selectedBatchFilter == 'All Batches' ? 12 : (12 * batchMultiplier).round().clamp(1, 12)),
-        xLabels: const ['WK 1', 'WK 2', 'WK 3', 'WK 4'],
-        spots: spots,
-        peakIndex: peakIdx,
-        presentCount: present.clamp(1, 100000),
-        lateCount: late.clamp(1, 100000),
-        absentCount: absent,
-        activities: [
-          const _DashboardActivityItem(
-            icon: Icons.church_outlined,
-            title: 'Monthly Fellowship Liturgy',
-            subtitle: 'St. Mary monthly feast attendance hit 89% fellowship participation',
-            timeAgo: '3d ago',
-          ),
-          const _DashboardActivityItem(
-            icon: Icons.volunteer_activism_outlined,
-            title: 'Charity Aid Disbursement',
-            subtitle: 'Monthly student meal and emergency stipend transferred to 14 campus students',
-            timeAgo: '6d ago',
-          ),
-          const _DashboardActivityItem(
-            icon: Icons.trending_up_rounded,
-            title: 'Attendance Recovery',
-            subtitle: '6 at-risk students improved above 75% attendance threshold this month',
-            timeAgo: '1w ago',
-          ),
-        ],
-      );
-    } else if (isSemester) {
-      final spots = [
-        const FlSpot(0, 71),
-        const FlSpot(1, 76),
-        const FlSpot(2, 84),
-        const FlSpot(3, 79),
-        const FlSpot(4, 91),
-      ];
-      int peakIdx = 4;
-      double avg = 80.2;
-      if (_selectedBatchFilter == 'CS Dept') {
-        avg = 86.4;
-      } else if (_selectedBatchFilter == 'Business') {
-        avg = 73.1;
-      } else if (_selectedBatchFilter == 'Engineering') {
-        avg = 82.5;
-      } else if (_selectedBatchFilter == 'Health Sci') {
-        avg = 74.9;
-      }
-
-      final totalPool = (baseRegistered * 16);
-      final present = (totalPool * (avg / 100)).round();
-      final late = (totalPool * 0.12).round();
-      final absent = (totalPool - present - late).clamp(1, 100000);
-
-      return _DashboardMetricsData(
-        periodBadge: 'SEMESTER',
-        periodLabel: 'Semester',
-        registeredCount: baseRegistered,
-        avgAttendance: avg,
-        activeRoadmaps: (142 * batchMultiplier).round().clamp(12, 142),
-        atRiskCount: (_selectedBatchFilter == 'All Batches' ? 7 : (7 * batchMultiplier).round().clamp(1, 7)),
-        xLabels: const ['SEP', 'OCT', 'NOV', 'DEC', 'JAN'],
-        spots: spots,
-        peakIndex: peakIdx,
-        presentCount: present.clamp(1, 100000),
-        lateCount: late.clamp(1, 100000),
-        absentCount: absent,
-        activities: [
-          const _DashboardActivityItem(
-            icon: Icons.school_outlined,
-            title: 'Dogma Curriculum Milestone',
-            subtitle: '142 students completed Semester 1 Patristics & Church History checkpoints',
-            timeAgo: '2w ago',
-          ),
-          const _DashboardActivityItem(
-            icon: Icons.people_outline,
-            title: 'Campus Spiritual Families',
-            subtitle: '8 new spiritual families successfully matched with elder mentor students',
-            timeAgo: '3w ago',
-          ),
-          const _DashboardActivityItem(
-            icon: Icons.verified_outlined,
-            title: 'Midterm Retention Audit',
-            subtitle: 'First-year student retention in campus fellowship remained at 93.4%',
-            timeAgo: '1mo ago',
-          ),
-        ],
-      );
-    } else if (isAnnual) {
-      final spots = [
-        const FlSpot(0, 75),
-        const FlSpot(1, 82),
-        const FlSpot(2, 86),
-        const FlSpot(3, 88),
-      ];
-      int peakIdx = 3;
-      double avg = 82.8;
-      if (_selectedBatchFilter == 'CS Dept') {
-        avg = 89.2;
-      } else if (_selectedBatchFilter == 'Business') {
-        avg = 76.5;
-      } else if (_selectedBatchFilter == 'Engineering') {
-        avg = 85.0;
-      } else if (_selectedBatchFilter == 'Health Sci') {
-        avg = 77.2;
-      }
-
-      final totalPool = (baseRegistered * 36);
-      final present = (totalPool * (avg / 100)).round();
-      final late = (totalPool * 0.11).round();
-      final absent = (totalPool - present - late).clamp(1, 100000);
-
-      return _DashboardMetricsData(
-        periodBadge: 'ANNUAL',
-        periodLabel: 'Annual',
-        registeredCount: (baseRegistered * 1.15).round(),
-        avgAttendance: avg,
-        activeRoadmaps: (310 * batchMultiplier).round().clamp(25, 310),
-        atRiskCount: (_selectedBatchFilter == 'All Batches' ? 4 : (4 * batchMultiplier).round().clamp(1, 4)),
-        xLabels: const ['TERM 1', 'TERM 2', 'TERM 3', 'TERM 4'],
-        spots: spots,
-        peakIndex: peakIdx,
-        presentCount: present.clamp(1, 100000),
-        lateCount: late.clamp(1, 100000),
-        absentCount: absent,
-        activities: [
-          const _DashboardActivityItem(
-            icon: Icons.emoji_events_outlined,
-            title: 'Annual General Assembly',
-            subtitle: 'Fellowship executive board approved 2025/2026 spiritual & administrative report',
-            timeAgo: '1mo ago',
-          ),
-          const _DashboardActivityItem(
-            icon: Icons.directions_bus_outlined,
-            title: 'Graduating Batch Pilgrimage',
-            subtitle: '58 graduating senior students completed annual pilgrimage to holy sites',
-            timeAgo: '2mo ago',
-          ),
-          const _DashboardActivityItem(
-            icon: Icons.savings_outlined,
-            title: 'Annual Charity Campaign',
-            subtitle: 'Over 250,000 ETB mobilized for student welfare & urgent hospital care',
-            timeAgo: '3mo ago',
-          ),
-        ],
-      );
+    if (registeredCount == 0) {
+      spots = [];
+      xLabels = [];
+      peakIndex = 0;
     } else {
-      // Default: 'This Week'
-      final spots = [
-        const FlSpot(0, 68),
-        const FlSpot(1, 79),
-        const FlSpot(2, 73),
-        const FlSpot(3, 88),
-        const FlSpot(4, 82),
-      ];
-      int peakIdx = 3;
-      double avg = 78.0;
-      if (_selectedBatchFilter == 'CS Dept') {
-        avg = 85.6;
-      } else if (_selectedBatchFilter == 'Business') {
-        avg = 71.2;
-      } else if (_selectedBatchFilter == 'Engineering') {
-        avg = 81.3;
-      } else if (_selectedBatchFilter == 'Health Sci') {
-        avg = 72.5;
+      if (students.length >= 2) {
+        double maxRate = -1;
+        for (int i = 0; i < students.length && i < 6; i++) {
+          final s = students[i];
+          final namePart = s.fullName.trim().split(' ').first;
+          final label = namePart.length > 5 ? namePart.substring(0, 5) : namePart;
+          xLabels.add(label);
+          final rate = s.attendancePercentage.clamp(0.0, 100.0);
+          spots.add(FlSpot(i.toDouble(), rate));
+          if (rate > maxRate) {
+            maxRate = rate;
+            peakIndex = i;
+          }
+        }
+      } else {
+        xLabels = isMonth
+            ? ['WK 1', 'WK 2', 'WK 3', 'WK 4']
+            : (isSemester
+                ? ['SEP', 'OCT', 'NOV', 'DEC', 'JAN']
+                : (isAnnual ? ['Q1', 'Q2', 'Q3', 'Q4'] : ['MON', 'TUE', 'WED', 'THU', 'FRI']));
+        for (int i = 0; i < xLabels.length; i++) {
+          spots.add(FlSpot(i.toDouble(), avgAttendance));
+        }
+        peakIndex = (xLabels.length / 2).floor();
       }
+    }
 
-      final totalPool = (baseRegistered);
-      final present = (totalPool * (avg / 100)).round();
-      final late = (totalPool * 0.15).round();
-      final absent = (totalPool - present - late).clamp(1, 100000);
+    // 8. Real System Activity Items (No fake mock entries)
+    final List<_DashboardActivityItem> activities = [];
 
-      return _DashboardMetricsData(
-        periodBadge: 'WEEKLY',
-        periodLabel: 'This Week',
-        registeredCount: baseRegistered,
-        avgAttendance: avg,
-        activeRoadmaps: (state.activeRoadmapsCount * batchMultiplier).round().clamp(5, 50),
-        atRiskCount: (_selectedBatchFilter == 'All Batches'
-            ? state.atRiskStudentsCount
-            : (state.atRiskStudentsCount * batchMultiplier).round().clamp(1, 20)),
-        xLabels: const ['MON', 'TUE', 'WED', 'THU', 'FRI'],
-        spots: spots,
-        peakIndex: peakIdx,
-        presentCount: present.clamp(1, 100000),
-        lateCount: late.clamp(1, 100000),
-        absentCount: absent,
-        activities: [
-          _DashboardActivityItem(
-            icon: Icons.person_off_outlined,
-            title: 'Sarah Jenkins',
-            subtitle: 'Missed 3 consecutive classes (Attendance: 68%)',
-            timeAgo: '2h ago',
-            isRisk: true,
-            onActionTap: () => state.launchCall('+251933445566'),
-          ),
-          const _DashboardActivityItem(
-            icon: Icons.warning_amber_rounded,
-            title: 'CS101 Batch',
-            subtitle: 'Batch attendance dropped below 70% threshold',
-            timeAgo: '4h ago',
-            isRisk: true,
-          ),
-          const _DashboardActivityItem(
-            icon: Icons.check_circle_outline,
-            title: 'System Update',
-            subtitle: 'Weekly attendance report auto-generated for fellowship board',
-            timeAgo: '1d ago',
-          ),
-        ],
+    // Pending registrations
+    if (state.pendingApprovals.isNotEmpty) {
+      activities.add(
+        _DashboardActivityItem(
+          icon: Icons.person_add_alt_1_rounded,
+          title: '${state.pendingApprovals.length} Pending Registration(s)',
+          subtitle: 'Awaiting admin verification: ${state.pendingApprovals.take(3).map((u) => u.fullName).join(", ")}',
+          timeAgo: 'Pending',
+          isRisk: true,
+          onActionTap: widget.onOpenApprovals,
+        ),
       );
     }
+
+    // Real At-Risk Students requiring pastoral follow-up
+    for (final atRisk in atRiskList.take(3)) {
+      activities.add(
+        _DashboardActivityItem(
+          icon: Icons.warning_amber_rounded,
+          title: '${atRisk.fullName} (${atRisk.department.isNotEmpty ? atRisk.department : "Fellowship"})',
+          subtitle: 'Attendance at ${atRisk.attendancePercentage.toStringAsFixed(1)}% (Below 75% threshold)',
+          timeAgo: 'Current',
+          isRisk: true,
+          onActionTap: atRisk.phoneNumber.isNotEmpty ? () => state.launchCall(atRisk.phoneNumber) : null,
+        ),
+      );
+    }
+
+    // Active Live Attendance Session
+    if (state.activeSession.scans.isNotEmpty) {
+      activities.add(
+        _DashboardActivityItem(
+          icon: Icons.qr_code_scanner,
+          title: 'Live Attendance Session',
+          subtitle: '${state.activeSession.scans.length} of $registeredCount student(s) checked in',
+          timeAgo: 'Active',
+          onActionTap: widget.onOpenLiveAttendance,
+        ),
+      );
+    }
+
+    // Pending Emergency Aid Requests
+    final pendingAid = state.emergencyAidRequests.where((a) => a.status == 'pending').toList();
+    if (pendingAid.isNotEmpty) {
+      activities.add(
+        _DashboardActivityItem(
+          icon: Icons.emergency_outlined,
+          title: '${pendingAid.length} Emergency Aid Request(s)',
+          subtitle: 'Student assistance applications pending review',
+          timeAgo: 'Review',
+          isRisk: true,
+          onActionTap: widget.onOpenApprovals,
+        ),
+      );
+    }
+
+    // Pending Volunteer Applications
+    final pendingVolunteers = state.volunteerApplications.where((a) => a.status == ApplicationStatus.pending).toList();
+    if (pendingVolunteers.isNotEmpty) {
+      activities.add(
+        _DashboardActivityItem(
+          icon: Icons.volunteer_activism_outlined,
+          title: '${pendingVolunteers.length} Department Application(s)',
+          subtitle: 'Students applied to join fellowship service departments',
+          timeAgo: 'Review',
+          onActionTap: widget.onOpenApprovals,
+        ),
+      );
+    }
+
+    // Broadcasts
+    if (state.latestEmergencyBroadcast != null) {
+      activities.add(
+        _DashboardActivityItem(
+          icon: Icons.campaign_rounded,
+          title: state.latestEmergencyBroadcast!.title,
+          subtitle: state.latestEmergencyBroadcast!.description,
+          timeAgo: 'Broadcast',
+        ),
+      );
+    }
+
+    return _DashboardMetricsData(
+      periodBadge: periodBadge,
+      periodLabel: periodLabel,
+      registeredCount: registeredCount,
+      avgAttendance: avgAttendance,
+      activeRoadmaps: activeRoadmaps,
+      atRiskCount: atRiskCount,
+      xLabels: xLabels,
+      spots: spots,
+      peakIndex: peakIndex,
+      presentCount: presentCount,
+      lateCount: lateCount,
+      absentCount: absentCount,
+      activities: activities,
+    );
   }
 
   @override
@@ -424,6 +348,118 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           const SizedBox(height: 14),
 
+          // Role Switcher Card for instant 1-tap toggling
+          if (state.canSwitchRoles) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    primaryAccent.withOpacity(0.12),
+                    theme.cardTheme.color ?? theme.colorScheme.surface,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: primaryAccent.withOpacity(0.35)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.swap_horiz_rounded, color: primaryAccent, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Switch Perspective / Toggle Roles',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.gold.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppTheme.gold.withOpacity(0.5)),
+                        ),
+                        child: const Text(
+                          'Live Sandbox',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.gold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Experience the app from any role perspective. You can return to Admin anytime via the top banner or Profile tab.',
+                    style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            state.switchRole(UserRole.student);
+                          },
+                          icon: const Icon(Icons.school, size: 16),
+                          label: const Text('Student', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: UserRole.student.badgeColor,
+                            side: BorderSide(color: UserRole.student.badgeColor.withOpacity(0.5)),
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            state.switchRole(UserRole.volunteerCoordinator);
+                          },
+                          icon: const Icon(Icons.verified_user, size: 16),
+                          label: const Text('Coordinator', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: UserRole.volunteerCoordinator.badgeColor,
+                            side: BorderSide(color: UserRole.volunteerCoordinator.badgeColor.withOpacity(0.5)),
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            HapticFeedback.selectionClick();
+                            state.switchRole(UserRole.spiritualParent);
+                          },
+                          icon: const Icon(Icons.family_restroom, size: 16),
+                          label: const Text('Parent', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: UserRole.spiritualParent.badgeColor,
+                            side: BorderSide(color: UserRole.spiritualParent.badgeColor.withOpacity(0.5)),
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           // Urgent Alert Card: Pending Student Registrations
           if (state.pendingApprovals.isNotEmpty) ...[
             Container(
@@ -501,38 +537,47 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ],
 
-          // Horizontal Batch Filter Pills
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _batches.map((batch) {
-                final isSelected = _selectedBatchFilter == batch;
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedBatchFilter = batch),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? primaryAccent.withOpacity(0.18) : (theme.cardTheme.color ?? theme.colorScheme.surface),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected ? primaryAccent : theme.dividerColor,
-                        width: isSelected ? 1.5 : 1,
-                      ),
-                    ),
-                    child: Text(
-                      batch.toUpperCase(),
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5,
-                        color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
-                      ),
-                    ),
+          // Horizontal Batch Filter Pills (Only shown if multiple departments are registered)
+          Builder(
+            builder: (context) {
+              final batches = _getAvailableBatches(state);
+              if (batches.length <= 1) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: batches.map((batch) {
+                      final isSelected = _selectedBatchFilter == batch;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedBatchFilter = batch),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? primaryAccent.withOpacity(0.18) : (theme.cardTheme.color ?? theme.colorScheme.surface),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected ? primaryAccent : theme.dividerColor,
+                              width: isSelected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Text(
+                            batch.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                              color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                );
-              }).toList(),
-            ),
+                ),
+              );
+            },
           ),
 
           const SizedBox(height: 20),
@@ -635,91 +680,114 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // fl_chart Line/Area Curve
-                SizedBox(
-                  height: 170,
-                  child: LineChart(
-                    LineChartData(
-                      gridData: FlGridData(
-                        show: true,
-                        drawVerticalLine: false,
-                        getDrawingHorizontalLine: (value) => FlLine(
-                          color: theme.dividerColor.withOpacity(0.5),
-                          strokeWidth: 1,
-                          dashArray: [4, 4],
+                // Attendance Trend Visualization (Clean real data or intuitive empty placeholder)
+                if (metrics.spots.isEmpty || metrics.registeredCount == 0)
+                  Container(
+                    height: 160,
+                    alignment: Alignment.center,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.query_stats_rounded, size: 36, color: primaryAccent.withOpacity(0.4)),
+                        const SizedBox(height: 10),
+                        Text(
+                          'No Attendance Sessions Recorded Yet',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface),
                         ),
-                      ),
-                      titlesData: FlTitlesData(
-                        leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                        bottomTitles: AxisTitles(
-                          sideTitles: SideTitles(
-                            showTitles: true,
-                            reservedSize: 22,
-                            getTitlesWidget: (value, meta) {
-                              final titles = metrics.xLabels;
-                              final index = value.toInt();
-                              if (index >= 0 && index < titles.length && (value - index).abs() < 0.1) {
-                                final isPeak = index == metrics.peakIndex;
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: Text(
-                                    titles[index],
-                                    style: TextStyle(
-                                      color: isPeak ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textTertiary),
-                                      fontWeight: isPeak ? FontWeight.bold : FontWeight.normal,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                );
-                              }
-                              return const Text('');
-                            },
-                          ),
-                        ),
-                      ),
-                      borderData: FlBorderData(show: false),
-                      minX: 0,
-                      maxX: (metrics.spots.length - 1).toDouble(),
-                      minY: 40,
-                      maxY: 100,
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: metrics.spots,
-                          isCurved: true,
-                          curveSmoothness: 0.35,
-                          color: primaryAccent,
-                          barWidth: 3,
-                          isStrokeCapRound: true,
-                          dotData: FlDotData(
-                            show: true,
-                            getDotPainter: (spot, percent, barData, index) {
-                              final isPeak = index == metrics.peakIndex;
-                              return FlDotCirclePainter(
-                                radius: isPeak ? 6 : 4,
-                                color: isPeak ? primaryAccent : (isDark ? Colors.black : Colors.white),
-                                strokeWidth: 2,
-                                strokeColor: primaryAccent,
-                              );
-                            },
-                          ),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            gradient: LinearGradient(
-                              colors: [
-                                primaryAccent.withOpacity(0.35),
-                                primaryAccent.withOpacity(0.0),
-                              ],
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                            ),
-                          ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Live attendance curves will appear here as students check in via QR code or PIN.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
                         ),
                       ],
                     ),
+                  )
+                else
+                  SizedBox(
+                    height: 170,
+                    child: LineChart(
+                      LineChartData(
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: theme.dividerColor.withOpacity(0.5),
+                            strokeWidth: 1,
+                            dashArray: [4, 4],
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 22,
+                              getTitlesWidget: (value, meta) {
+                                final titles = metrics.xLabels;
+                                final index = value.toInt();
+                                if (index >= 0 && index < titles.length && (value - index).abs() < 0.1) {
+                                  final isPeak = index == metrics.peakIndex;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: Text(
+                                      titles[index],
+                                      style: TextStyle(
+                                        color: isPeak ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textTertiary),
+                                        fontWeight: isPeak ? FontWeight.bold : FontWeight.normal,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  );
+                                }
+                                return const Text('');
+                              },
+                            ),
+                          ),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        minX: 0,
+                        maxX: (metrics.spots.length > 1 ? (metrics.spots.length - 1).toDouble() : 1.0),
+                        minY: 0,
+                        maxY: 100,
+                        lineBarsData: [
+                          LineChartBarData(
+                            spots: metrics.spots,
+                            isCurved: metrics.spots.length > 2,
+                            curveSmoothness: 0.35,
+                            color: primaryAccent,
+                            barWidth: 3,
+                            isStrokeCapRound: true,
+                            dotData: FlDotData(
+                              show: true,
+                              getDotPainter: (spot, percent, barData, index) {
+                                final isPeak = index == metrics.peakIndex;
+                                return FlDotCirclePainter(
+                                  radius: isPeak ? 6 : 4,
+                                  color: isPeak ? primaryAccent : (isDark ? Colors.black : Colors.white),
+                                  strokeWidth: 2,
+                                  strokeColor: primaryAccent,
+                                );
+                              },
+                            ),
+                            belowBarData: BarAreaData(
+                              show: true,
+                              gradient: LinearGradient(
+                                colors: [
+                                  primaryAccent.withOpacity(0.35),
+                                  primaryAccent.withOpacity(0.0),
+                                ],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -747,31 +815,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
                 const SizedBox(height: 14),
 
-                // Horizontal Segmented Bar
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(
+                // Horizontal Segmented Bar (Guarded against zero flex)
+                if (metrics.registeredCount == 0 || (metrics.presentCount + metrics.lateCount + metrics.absentCount == 0))
+                  Container(
                     height: 12,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: metrics.presentCount,
-                          child: Container(color: primaryAccent),
-                        ),
-                        const SizedBox(width: 2),
-                        Expanded(
-                          flex: metrics.lateCount,
-                          child: Container(color: const Color(0xFF93B5E1)),
-                        ),
-                        const SizedBox(width: 2),
-                        Expanded(
-                          flex: metrics.absentCount,
-                          child: Container(color: const Color(0xFFF87171)),
-                        ),
-                      ],
+                    decoration: BoxDecoration(
+                      color: theme.dividerColor.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  )
+                else
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      height: 12,
+                      child: Row(
+                        children: [
+                          if (metrics.presentCount > 0)
+                            Expanded(
+                              flex: metrics.presentCount,
+                              child: Container(color: primaryAccent),
+                            ),
+                          if (metrics.lateCount > 0) ...[
+                            if (metrics.presentCount > 0) const SizedBox(width: 2),
+                            Expanded(
+                              flex: metrics.lateCount,
+                              child: Container(color: const Color(0xFF93B5E1)),
+                            ),
+                          ],
+                          if (metrics.absentCount > 0) ...[
+                            if (metrics.presentCount > 0 || metrics.lateCount > 0) const SizedBox(width: 2),
+                            Expanded(
+                              flex: metrics.absentCount,
+                              child: Container(color: const Color(0xFFF87171)),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
                 const SizedBox(height: 16),
 
                 // Status Legends
@@ -806,28 +888,57 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              TextButton(
-                onPressed: () {},
-                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                child: Text('VIEW ALL', style: TextStyle(color: primaryAccent, fontSize: 11, fontWeight: FontWeight.bold)),
-              ),
+              if (metrics.activities.isNotEmpty)
+                TextButton(
+                  onPressed: () {},
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  child: Text('VIEW ALL', style: TextStyle(color: primaryAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
             ],
           ),
           const SizedBox(height: 8),
 
-          // Period-Specific Activity Cards
-          ...metrics.activities.map((act) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _buildActivityCard(
-                  context: context,
-                  icon: act.icon,
-                  title: act.title,
-                  subtitle: act.subtitle,
-                  timeAgo: act.timeAgo,
-                  isRisk: act.isRisk,
-                  onActionTap: act.onActionTap,
+          // Real Activity Cards or Friendly Empty State
+          if (metrics.activities.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              decoration: BoxDecoration(
+                color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: theme.dividerColor),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.inbox_outlined, size: 36, color: primaryAccent.withOpacity(0.5)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No Urgent Activities or Alerts',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'All ${metrics.registeredCount} enrolled student(s) are in good standing. New registrations, aid requests, and attendance alerts will appear here as they occur.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                    ),
+                  ],
                 ),
-              )),
+              ),
+            )
+          else
+            ...metrics.activities.map((act) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _buildActivityCard(
+                    context: context,
+                    icon: act.icon,
+                    title: act.title,
+                    subtitle: act.subtitle,
+                    timeAgo: act.timeAgo,
+                    isRisk: act.isRisk,
+                    onActionTap: act.onActionTap,
+                  ),
+                )),
 
           const SizedBox(height: 14),
 

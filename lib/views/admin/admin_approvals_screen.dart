@@ -80,6 +80,32 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
       views.add(_buildRoleAssignmentsTab(context, allStudents));
     }
 
+    if (tabs.isEmpty) {
+      tabs.add(const Tab(text: 'Overview'));
+      views.add(Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.verified_user_outlined, size: 48, color: primaryAccent.withOpacity(0.5)),
+              const SizedBox(height: 16),
+              const Text(
+                'No Pending Approvals for Your Role',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Approvals and oversight actions are scoped to authorized admin and department governance roles.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ));
+    }
+
     return DefaultTabController(
       length: tabs.length,
       child: Scaffold(

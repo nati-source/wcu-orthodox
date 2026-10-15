@@ -248,6 +248,7 @@ class UserModel {
   final double attendancePercentage; // e.g. 88.0
   final CoordinatorProfileModel? coordinatorProfile;
   final String gender; // 'male' or 'female'
+  final String? email;
 
   UserModel({
     required this.id,
@@ -266,6 +267,7 @@ class UserModel {
     this.attendancePercentage = 85.0,
     this.coordinatorProfile,
     this.gender = 'male',
+    this.email,
   });
 
   bool get isMale => gender.toLowerCase() == 'male';
@@ -343,6 +345,7 @@ class UserModel {
     double? attendancePercentage,
     CoordinatorProfileModel? coordinatorProfile,
     String? gender,
+    String? email,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -361,6 +364,7 @@ class UserModel {
       attendancePercentage: attendancePercentage ?? this.attendancePercentage,
       coordinatorProfile: coordinatorProfile ?? this.coordinatorProfile,
       gender: gender ?? this.gender,
+      email: email ?? this.email,
     );
   }
 
@@ -382,6 +386,7 @@ class UserModel {
       'attendancePercentage': attendancePercentage,
       'coordinatorProfile': coordinatorProfile?.toMap(),
       'gender': gender,
+      'email': email,
     };
   }
 
@@ -426,6 +431,7 @@ class UserModel {
           ? CoordinatorProfileModel.fromMap(map['coordinatorProfile'])
           : null,
       gender: finalGender,
+      email: rawEmail,
     );
   }
 }

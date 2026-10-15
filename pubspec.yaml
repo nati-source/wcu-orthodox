@@ -2,7 +2,8 @@ name: wcu_orthodox
 description: "WCU Gibi Gubae — Official Wachemo University Ethiopian Orthodox Tewahedo Church (EOTC) Student Fellowship Management, Spiritual Family Matching, Pilgrimage & Mutual Aid Platform."
 publish_to: 'none'
 
-version: 1.0.0+1
+# Bump build number on every release so Firebase and Android OS can track updates cleanly
+version: 1.2.0+3
 
 environment:
   sdk: ^3.13.1
@@ -23,6 +24,19 @@ dependencies:
   cloud_firestore: ^5.6.5
   firebase_storage: ^12.4.4
   firebase_messaging: ^15.2.10
+  # ─── NFR Additions ─────────────────────────────────────────────────────────
+  # Crash reporting — automatically captures uncaught exceptions in production
+  firebase_crashlytics: ^4.3.6
+  # Usage analytics — screen views, events, retention metrics
+  firebase_analytics: ^11.4.5
+  # Firestore / network performance traces
+  firebase_performance: ^0.10.1+6
+  # App Check — blocks unauthorised Firestore/Auth traffic from non-app clients
+  firebase_app_check: ^0.3.2+5
+  # Connectivity banner — detect and react to network changes gracefully
+  connectivity_plus: ^6.1.4
+  # Network image caching — avoid re-downloading on every screen visit
+  cached_network_image: ^3.4.1
 
 dev_dependencies:
   flutter_test:

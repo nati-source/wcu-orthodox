@@ -47,6 +47,21 @@ mixin AuthStateMixin on ChangeNotifier {
   UserRole _authenticatedRole = UserRole.student;
   UserRole get authenticatedRole => _authenticatedRole;
 
+  bool _isOriginalAdmin = false;
+  bool get isOriginalAdmin => _isOriginalAdmin;
+
+  void markAsOriginalAdmin() {
+    _isOriginalAdmin = true;
+    notifyListeners();
+  }
+
+  bool get isAuthorizedAdmin =>
+      _isOriginalAdmin ||
+      _authenticatedRole == UserRole.admin ||
+      _assignedRole == UserRole.admin ||
+      _currentUser.role == UserRole.admin ||
+      AppAdminConstants.isAdminEmail(_currentUser.email);
+
   /// Returns the roles this user is authorized to access and switch between.
   /// - Admin: All 4 access points (Admin, Volunteer Coordinator, Spiritual Parent, Student).
   /// - Volunteer Coordinator: 2 access points (Volunteer Coordinator, Student).
@@ -55,11 +70,13 @@ mixin AuthStateMixin on ChangeNotifier {
   List<UserRole> get availableRoles {
     final baseRole = _authenticatedRole != UserRole.student ? _authenticatedRole : _assignedRole;
     if (_showDevRoleSwitcher ||
+        _isOriginalAdmin ||
         baseRole == UserRole.admin ||
         _authenticatedRole == UserRole.admin ||
         _assignedRole == UserRole.admin ||
         _currentUser.role == UserRole.admin ||
-        _activeRole == UserRole.admin) {
+        _activeRole == UserRole.admin ||
+        AppAdminConstants.isAdminEmail(_currentUser.email)) {
       return [
         UserRole.admin,
         UserRole.volunteerCoordinator,
@@ -92,8 +109,10 @@ mixin AuthStateMixin on ChangeNotifier {
   }
 
   bool get canSwitchRoles =>
+      _isOriginalAdmin ||
       _authenticatedRole == UserRole.admin ||
       _assignedRole == UserRole.admin ||
+      AppAdminConstants.isAdminEmail(_currentUser.email) ||
       _showDevRoleSwitcher ||
       availableRoles.length > 1;
 
@@ -528,6 +547,9 @@ mixin AuthStateMixin on ChangeNotifier {
 
   void setCurrentUser(UserModel user) {
     _currentUser = user;
+    if (user.role == UserRole.admin || AppAdminConstants.isAdminEmail(user.email)) {
+      _isOriginalAdmin = true;
+    }
     _authenticatedRole = user.role;
     _assignedRole = user.role;
     _activeRole = user.role;
@@ -558,6 +580,11 @@ mixin AuthStateMixin on ChangeNotifier {
     CoordinatorProfileModel? coordinatorProfile,
     String? gender,
   }) {
+    final effectiveRole = role ?? _currentUser.role;
+    if (effectiveRole == UserRole.admin || AppAdminConstants.isAdminEmail(_currentUser.email)) {
+      _isOriginalAdmin = true;
+    }
+
     _currentUser = _currentUser.copyWith(
       id: id ?? _currentUser.id,
       fullName: fullName,
@@ -566,7 +593,7 @@ mixin AuthStateMixin on ChangeNotifier {
       department: department ?? _currentUser.department,
       academicYear: academicYear ?? _currentUser.academicYear,
       batchYear: batchYear ?? _currentUser.batchYear,
-      role: role ?? _currentUser.role,
+      role: effectiveRole,
       isApproved: isApproved ?? _currentUser.isApproved,
       assignedFamilyId: assignedFamilyId ?? _currentUser.assignedFamilyId,
       ministryStatus: ministryStatus ?? _currentUser.ministryStatus,
@@ -576,11 +603,19 @@ mixin AuthStateMixin on ChangeNotifier {
       coordinatorProfile: coordinatorProfile ?? _currentUser.coordinatorProfile,
       gender: gender ?? _currentUser.gender,
     );
+
     if (role != null) {
       _activeRole = role;
-      _authenticatedRole = role;
-      _assignedRole = role;
+      if (role == UserRole.admin) {
+        _isOriginalAdmin = true;
+        _authenticatedRole = UserRole.admin;
+        _assignedRole = UserRole.admin;
+      } else if (!_isOriginalAdmin && _authenticatedRole != UserRole.admin) {
+        _authenticatedRole = role;
+        _assignedRole = role;
+      }
     }
+
     final idx = _allStudents.indexWhere((u) => u.id == _currentUser.id || u.id == 'usr-current' || u.fullName.toLowerCase() == _currentUser.fullName.toLowerCase());
     if (idx >= 0) {
       _allStudents[idx] = _currentUser;
@@ -607,6 +642,13 @@ mixin AuthStateMixin on ChangeNotifier {
   }
 
   void switchRole(UserRole newRole, {String? coordinatorDeptId}) {
+    if (_activeRole == UserRole.admin ||
+        _authenticatedRole == UserRole.admin ||
+        _currentUser.role == UserRole.admin ||
+        AppAdminConstants.isAdminEmail(_currentUser.email)) {
+      _isOriginalAdmin = true;
+    }
+
     _activeRole = newRole;
     CoordinatorProfileModel? coordProfile = _currentUser.coordinatorProfile;
 

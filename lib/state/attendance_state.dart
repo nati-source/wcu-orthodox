@@ -19,12 +19,14 @@ mixin AttendanceStateMixin on ChangeNotifier {
     courseName: 'Patristics & Church History (የነገረ አበው ትምህርት)',
     courseCode: 'ORTH-301: Patristics & Church History',
     faculty: 'Orthodox Fellowship Education Department',
-    code: 'ORTH-301-2026-8421',
-    rollingPin: '8421',
+    code: 'ORTH-301-STANDBY',
+    rollingPin: '----',
     generatedAt: DateTime.now(),
     refreshIntervalSeconds: 30,
     totalEnrolled: 50,
     scans: const [],
+    isActive: false,
+    isExpired: false,
   );
   Timer? _pinTimer;
   final ValueNotifier<int> pinCountdownNotifier = ValueNotifier<int>(30);
@@ -44,44 +46,130 @@ mixin AttendanceStateMixin on ChangeNotifier {
 
   List<UserModel> get atRiskStudents => _allStudents.where((s) => s.attendancePercentage < 75.0).toList();
 
-  void _startPinRotation() {
+  /// Starts the 30-second live attendance window with a fresh PIN and QR code.
+  /// Once the 30 seconds elapse, the session automatically expires and stops
+  /// accepting check-ins until the admin starts the next round.
+  void startAttendanceWindow({int durationSeconds = 30}) {
     _pinTimer?.cancel();
-    pinCountdownNotifier.value = 30;
-    _pinTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (pinCountdownNotifier.value > 1) {
-        pinCountdownNotifier.value = pinCountdownNotifier.value - 1;
-        // Scoped update: Does not trigger full-app rebuilds
-      } else {
-        pinCountdownNotifier.value = 30;
-        _rotateSessionCode();
-      }
-    });
-  }
-
-  void _rotateSessionCode() {
     final nextPin = (1000 + Random.secure().nextInt(9000)).toString();
+    final code = 'ORTH-301-2026-$nextPin';
+    final now = DateTime.now();
+    final expiresAt = now.add(Duration(seconds: durationSeconds));
+
+    pinCountdownNotifier.value = durationSeconds;
     _activeSession = _activeSession.copyWith(
       rollingPin: nextPin,
-      code: 'ORTH-301-2026-$nextPin',
-      generatedAt: DateTime.now(),
+      code: code,
+      generatedAt: now,
+      expiresAt: expiresAt,
+      isActive: true,
+      isExpired: false,
     );
     notifyListeners();
 
-    // Persist the rolling PIN update to Firestore so the admin live screen
-    // and any other devices always see the current active code in real-time.
+    // Persist live state to Firestore for students to receive in real-time
     try {
       FirebaseFirestore.instance
           .collection('attendance_sessions')
           .doc(_activeSession.sessionId)
           .set({
+            'sessionId': _activeSession.sessionId,
+            'courseName': _activeSession.courseName,
+            'courseCode': _activeSession.courseCode,
+            'faculty': _activeSession.faculty,
             'rollingPin': nextPin,
-            'code': _activeSession.code,
-            'generatedAt': DateTime.now().toIso8601String(),
+            'code': code,
+            'generatedAt': now.toIso8601String(),
+            'expiresAt': expiresAt.toIso8601String(),
             'isActive': true,
+            'isExpired': false,
             'updatedAt': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
     } catch (e) {
-      debugPrint('Firestore _rotateSessionCode notice: $e');
+      debugPrint('Firestore startAttendanceWindow error: $e');
+    }
+
+    _pinTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (pinCountdownNotifier.value > 1) {
+        pinCountdownNotifier.value = pinCountdownNotifier.value - 1;
+      } else {
+        timer.cancel();
+        _pinTimer = null;
+        expireAttendanceWindow();
+      }
+    });
+  }
+
+  /// Closes the attendance window when 30s expires or when admin clicks Stop.
+  void expireAttendanceWindow() {
+    _pinTimer?.cancel();
+    _pinTimer = null;
+    pinCountdownNotifier.value = 0;
+    _activeSession = _activeSession.copyWith(
+      isActive: false,
+      isExpired: true,
+    );
+    notifyListeners();
+
+    try {
+      FirebaseFirestore.instance
+          .collection('attendance_sessions')
+          .doc(_activeSession.sessionId)
+          .set({
+            'isActive': false,
+            'isExpired': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore expireAttendanceWindow notice: $e');
+    }
+  }
+
+  /// Resets the session back to standby mode
+  void resetAttendanceSession() {
+    _pinTimer?.cancel();
+    _pinTimer = null;
+    pinCountdownNotifier.value = 30;
+    _activeSession = _activeSession.copyWith(
+      rollingPin: '----',
+      code: 'ORTH-301-STANDBY',
+      isActive: false,
+      isExpired: false,
+    );
+    notifyListeners();
+
+    try {
+      FirebaseFirestore.instance
+          .collection('attendance_sessions')
+          .doc(_activeSession.sessionId)
+          .set({
+            'rollingPin': '----',
+            'code': 'ORTH-301-STANDBY',
+            'isActive': false,
+            'isExpired': false,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Firestore resetAttendanceSession notice: $e');
+    }
+  }
+
+  /// Clears recent scans (for admin testing or beginning a new lecture)
+  Future<void> clearAttendanceScans() async {
+    _activeSession = _activeSession.copyWith(scans: []);
+    notifyListeners();
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('attendance_sessions')
+          .doc(_activeSession.sessionId)
+          .collection('scans')
+          .get();
+      for (final doc in snap.docs) {
+        await doc.reference.delete();
+      }
+    } catch (e) {
+      debugPrint('Firestore clearAttendanceScans notice: $e');
     }
   }
 
@@ -90,6 +178,11 @@ mixin AttendanceStateMixin on ChangeNotifier {
     required String enteredPinOrCode,
     AttendanceCheckInMethod method = AttendanceCheckInMethod.pin,
   }) {
+    // 1. Session must be active and not expired
+    if (!_activeSession.isActive || _activeSession.isExpired) {
+      return false;
+    }
+
     final cleanInput = enteredPinOrCode.trim().toUpperCase();
     final isValidPin = cleanInput == _activeSession.rollingPin;
     final isValidCode = cleanInput == _activeSession.code || cleanInput.contains(_activeSession.rollingPin);
@@ -155,5 +248,5 @@ mixin AttendanceStateMixin on ChangeNotifier {
     }
     return false;
   }
-
 }
+

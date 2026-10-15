@@ -258,7 +258,12 @@ service cloud.firestore {
           isAdmin() ||
           isCoordinator()
         );
-        allow create: if isSignedIn() && scanId == request.auth.uid;
+        // Student can only write their scan if authenticated, recording their own UID,
+        // and the parent session is currently marked active.
+        allow create: if isSignedIn() &&
+          scanId == request.auth.uid &&
+          request.resource.data.studentId == request.auth.uid &&
+          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.isActive == true;
         allow update, delete: if isAdmin() || isCoordinator();
       }
     }

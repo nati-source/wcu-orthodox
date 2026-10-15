@@ -33,15 +33,46 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _obscurePassword = true;
   String? _errorMessage;
+  int _failedAttempts = 0;
+  int _lockoutSecondsRemaining = 0;
+  Timer? _lockoutTimer;
 
   @override
   void dispose() {
+    _lockoutTimer?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  void _startLockoutTimer() {
+    setState(() {
+      _lockoutSecondsRemaining = 30;
+      _errorMessage = 'Too many failed login attempts. Please wait 30 seconds before trying again / በርካታ ያልተሳኩ ሙከራዎች ተደርገዋል: እባክዎ 30 ሰከንድ ይጠብቁ።';
+    });
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_lockoutSecondsRemaining <= 1) {
+        timer.cancel();
+        setState(() {
+          _lockoutSecondsRemaining = 0;
+          _failedAttempts = 0;
+          _errorMessage = null;
+        });
+      } else {
+        setState(() {
+          _lockoutSecondsRemaining--;
+        });
+      }
+    });
+  }
+
   Future<void> _handleLogin() async {
+    if (_lockoutSecondsRemaining > 0 || _isLoading) return;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -51,21 +82,29 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       await _authService.signInWithEmail(
-        email: _emailController.text,
+        email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+      _failedAttempts = 0;
       if (mounted) {
         widget.onLoginSuccess();
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _errorMessage = e.toString().contains('user-not-found')
-              ? 'No user found for that email.'
-              : e.toString().contains('wrong-password')
-                  ? 'Incorrect password.'
-                  : 'Authentication error: ${e.toString().replaceAll(RegExp(r'\[.*?\]'), '').trim()}';
-        });
+        _failedAttempts++;
+        if (_failedAttempts >= 5) {
+          _startLockoutTimer();
+        } else {
+          setState(() {
+            final remainingTries = 5 - _failedAttempts;
+            final baseError = e.toString().contains('user-not-found')
+                ? 'No user found for that email.'
+                : e.toString().contains('wrong-password')
+                    ? 'Incorrect password.'
+                    : 'Authentication error: ${e.toString().replaceAll(RegExp(r'\[.*?\]'), '').trim()}';
+            _errorMessage = '$baseError ($remainingTries attempts remaining / $remainingTries ሙከራዎች ቀርተዋል)';
+          });
+        }
       }
     } finally {
       if (mounted) {
@@ -265,65 +304,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         // Test accounts helper chip - ONLY shown in Debug mode, never in production!
                         if (kDebugMode) ...[
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppTheme.azure.withOpacity(0.08),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: AppTheme.azure.withOpacity(0.25)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(Icons.info_outline, size: 14, color: AppTheme.azure),
-                                    SizedBox(width: 6),
-                                    Text(
-                                      'Test Accounts Credentials:',
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.azure),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'Admin: natisita928@gmail.com • admin12345',
-                                  style: TextStyle(fontSize: 10, color: AppTheme.textSecondary, height: 1.3),
-                                ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 10,
-                                  runSpacing: 6,
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        _emailController.text = 'natisita928@gmail.com';
-                                        _passwordController.text = 'admin12345';
-                                        cooldownTimer?.cancel();
-                                        Navigator.pop(ctx);
-                                      },
-                                      child: const Text(
-                                        '👉 Autofill Admin Sign-In',
-                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.gold, decoration: TextDecoration.underline),
-                                      ),
-                                    ),
-                                    GestureDetector(
-                                      onTap: () {
-                                        _emailController.text = 'student@wcu.test';
-                                        _passwordController.text = 'WcuStudent@2024';
-                                        cooldownTimer?.cancel();
-                                        Navigator.pop(ctx);
-                                      },
-                                      child: const Text(
-                                        '👉 Autofill Student Sign-In',
-                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.gold, decoration: TextDecoration.underline),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
                           const SizedBox(height: 18),
                         ],
 
@@ -347,25 +327,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                       if (email.isEmpty || !email.contains('@')) {
                                         setDialogState(() {
                                           resetError = 'Please enter a valid email address.';
-                                        });
-                                        return;
-                                      }
-
-                                      // Development domain check
-                                      if (email.toLowerCase().endsWith('@wcu.test')) {
-                                        final defaultPass = email.toLowerCase().contains('admin')
-                                            ? 'WcuAdmin@2024'
-                                            : email.toLowerCase().contains('coord')
-                                                ? 'WcuCoord@2024'
-                                                : email.toLowerCase().contains('parent')
-                                                    ? 'WcuParent@2024'
-                                                    : 'WcuStudent@2024';
-                                        _emailController.text = email;
-                                        _passwordController.text = defaultPass;
-                                        setDialogState(() {
-                                          isSending = false;
-                                          resetError = null;
-                                          resetSuccessEmail = email;
                                         });
                                         return;
                                       }
@@ -792,27 +753,39 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 18),
 
                     // Sign In Button
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.gold,
-                        foregroundColor: const Color(0xFF070F1E),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    Semantics(
+                      button: true,
+                      label: _lockoutSecondsRemaining > 0
+                          ? 'Sign In locked for $_lockoutSecondsRemaining seconds'
+                          : 'Sign In button',
+                      child: ElevatedButton(
+                        onPressed: (_isLoading || _lockoutSecondsRemaining > 0) ? null : _handleLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _lockoutSecondsRemaining > 0 ? Colors.grey.shade700 : AppTheme.gold,
+                          foregroundColor: const Color(0xFF070F1E),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 4,
                         ),
-                        elevation: 4,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF070F1E)),
+                              )
+                            : Text(
+                                _lockoutSecondsRemaining > 0
+                                    ? 'Locked (${_lockoutSecondsRemaining}s) / ተቆልፏል'
+                                    : 'Sign In / ግባ',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: _lockoutSecondsRemaining > 0 ? Colors.white60 : const Color(0xFF070F1E),
+                                ),
+                              ),
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2.5, color: Color(0xFF070F1E)),
-                            )
-                          : const Text(
-                              'Sign In / ግባ',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
                     ),
                     const SizedBox(height: 18),
 

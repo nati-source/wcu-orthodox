@@ -157,17 +157,31 @@ class AuthService {
     await _auth.signOut();
   }
 
-  /// Fetch User Profile data from Firestore
+  /// Fetch User Profile data from Firestore with resilient timeout & offline cache fallback
   Future<Map<String, dynamic>?> getUserProfile(String uid) async {
     try {
-      final doc = await _firestore.collection('users').doc(uid).get();
+      // 1. Try server fetch with a fast 4-second timeout
+      final doc = await _firestore
+          .collection('users')
+          .doc(uid)
+          .get(const GetOptions(source: Source.serverAndCache))
+          .timeout(const Duration(seconds: 4));
       if (doc.exists && doc.data() != null) {
         return doc.data();
       }
-      return null;
-    } catch (e) {
-      return null;
+    } catch (_) {
+      // 2. If network is slow or offline, immediately attempt local cache
+      try {
+        final cacheDoc = await _firestore
+            .collection('users')
+            .doc(uid)
+            .get(const GetOptions(source: Source.cache));
+        if (cacheDoc.exists && cacheDoc.data() != null) {
+          return cacheDoc.data();
+        }
+      } catch (_) {}
     }
+    return null;
   }
 
   /// Update User Profile

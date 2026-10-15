@@ -37,6 +37,53 @@ class StudentProfileScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 0. Admin Perspective Preview Banner
+          if (state.isAuthorizedAdmin && state.activeRole != UserRole.admin)
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.gold.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.gold.withOpacity(0.5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.admin_panel_settings, color: AppTheme.gold, size: 24),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Admin Perspective Mode',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.gold),
+                        ),
+                        Text(
+                          'You are viewing the Student interface. Return to the Admin control room whenever ready.',
+                          style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      state.switchRole(UserRole.admin);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.gold,
+                      foregroundColor: const Color(0xFF070F1E),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Return to Admin', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+
           // 1. Digital Fellowship ID Card
           Container(
             padding: const EdgeInsets.all(20),
@@ -911,7 +958,7 @@ class StudentProfileScreen extends StatelessWidget {
           Container(
             width: double.infinity,
             height: 52,
-            margin: const EdgeInsets.only(bottom: 24),
+            margin: const EdgeInsets.only(bottom: 16),
             child: OutlinedButton.icon(
               onPressed: () => _confirmSignOut(context),
               icon: const Icon(Icons.logout, color: AppTheme.crimson, size: 20),
@@ -926,6 +973,21 @@ class StudentProfileScreen extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: AppTheme.crimson.withOpacity(0.5)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 28),
+              child: Text(
+                'WCU Gibi Gubae • v1.2.0+3 (Updated)',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5) ?? AppTheme.textTertiary,
+                  letterSpacing: 0.8,
+                ),
               ),
             ),
           ),
