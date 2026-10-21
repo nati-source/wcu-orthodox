@@ -1,0 +1,7 @@
+# Keystore configuration for production release signing
+# Copy this file to 'key.properties' in the same folder and fill in the secrets.
+# NEVER commit key.properties or *.jks / *.keystore files to version control.
+keyAlias=wcu_orthodox_release_key
+keyPassword=YourStrongKeyPasswordHere
+storeFile=../keystores/wcu_orthodox_release.jks
+storePassword=YourStrongStorePasswordHere

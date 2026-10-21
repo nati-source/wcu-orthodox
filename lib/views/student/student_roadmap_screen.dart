@@ -267,17 +267,25 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                                       decoration: BoxDecoration(
-                                        color: child.attendancePercentage >= 75
-                                            ? AppTheme.emerald.withOpacity(0.2)
-                                            : AppTheme.crimson.withOpacity(0.2),
+                                        color: !child.hasAttendanceData
+                                            ? theme.disabledColor.withOpacity(0.12)
+                                            : child.attendancePercentage >= 75
+                                                ? AppTheme.emerald.withOpacity(0.2)
+                                                : AppTheme.crimson.withOpacity(0.2),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        '${child.attendancePercentage.toInt()}%',
+                                        child.hasAttendanceData
+                                            ? '${child.attendancePercentage.toInt()}%'
+                                            : '—',
                                         style: TextStyle(
                                           fontSize: 9,
                                           fontWeight: FontWeight.bold,
-                                          color: child.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                                          color: !child.hasAttendanceData
+                                              ? theme.disabledColor
+                                              : child.attendancePercentage >= 75
+                                                  ? AppTheme.emerald
+                                                  : AppTheme.crimson,
                                         ),
                                       ),
                                     ),
@@ -338,24 +346,34 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: selectedChild.attendancePercentage >= 75
-                              ? AppTheme.emerald.withOpacity(0.15)
-                              : AppTheme.crimson.withOpacity(0.15),
+                          color: !selectedChild.hasAttendanceData
+                              ? theme.disabledColor.withOpacity(0.12)
+                              : selectedChild.attendancePercentage >= 75
+                                  ? AppTheme.emerald.withOpacity(0.15)
+                                  : AppTheme.crimson.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: selectedChild.attendancePercentage >= 75
-                                ? AppTheme.emerald.withOpacity(0.4)
-                                : AppTheme.crimson.withOpacity(0.4),
+                            color: !selectedChild.hasAttendanceData
+                                ? theme.disabledColor.withOpacity(0.3)
+                                : selectedChild.attendancePercentage >= 75
+                                    ? AppTheme.emerald.withOpacity(0.4)
+                                    : AppTheme.crimson.withOpacity(0.4),
                           ),
                         ),
                         child: Column(
                           children: [
                             Text(
-                              '${selectedChild.attendancePercentage.toInt()}%',
+                              selectedChild.hasAttendanceData
+                                  ? '${selectedChild.attendancePercentage.toInt()}%'
+                                  : '—',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.bold,
-                                color: selectedChild.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                                color: !selectedChild.hasAttendanceData
+                                    ? theme.disabledColor
+                                    : selectedChild.attendancePercentage >= 75
+                                        ? AppTheme.emerald
+                                        : AppTheme.crimson,
                               ),
                             ),
                             Text(
@@ -363,7 +381,11 @@ class _StudentRoadmapScreenState extends State<StudentRoadmapScreen> {
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.w600,
-                                color: selectedChild.attendancePercentage >= 75 ? AppTheme.emerald : AppTheme.crimson,
+                              color: !selectedChild.hasAttendanceData
+                                  ? theme.disabledColor
+                                  : selectedChild.attendancePercentage >= 75
+                                      ? AppTheme.emerald
+                                      : AppTheme.crimson,
                               ),
                             ),
                           ],

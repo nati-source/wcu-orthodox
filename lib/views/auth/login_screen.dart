@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/auth_service.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/wcu_brand_logo.dart';
+import '../onboarding/fellowship_onboarding_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -300,12 +302,73 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 14),
-
                         // Test accounts helper chip - ONLY shown in Debug mode, never in production!
                         if (kDebugMode) ...[
-                          const SizedBox(height: 18),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.surfaceTile,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppTheme.gold.withOpacity(0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Test Accounts Credentials:',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.gold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 6,
+                                  children: [
+                                    InkWell(
+                                      onTap: () {
+                                        emailResetController.text = 'admin@wcuorthodox.org';
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.gold.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: AppTheme.gold.withOpacity(0.4)),
+                                        ),
+                                        child: const Text(
+                                          'Autofill Admin',
+                                          style: TextStyle(fontSize: 11, color: AppTheme.gold, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ),
+                                    InkWell(
+                                      onTap: () {
+                                        emailResetController.text = 'student@wcuorthodox.org';
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.gold.withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: AppTheme.gold.withOpacity(0.4)),
+                                        ),
+                                        child: const Text(
+                                          'Autofill Student',
+                                          style: TextStyle(fontSize: 11, color: AppTheme.gold, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 14),
                         ],
+
 
                         // Action Buttons
                         Row(
@@ -582,34 +645,31 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Orthodox Cross & Branding Icon
-                    Container(
-                      width: 80,
-                      height: 80,
-                      margin: const EdgeInsets.only(bottom: 20),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: AppTheme.goldGradient,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.gold.withValues(alpha: 0.35),
-                            blurRadius: 24,
-                            spreadRadius: 4,
+                    // Interactive Orthodox cross-and-book brand mark.
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: WcuBrandLogo(
+                          markSize: 86,
+                          showName: false,
+                          showAmharic: false,
+                          onTap: () => showAboutDialog(
+                            context: context,
+                            applicationName: 'WCU Gibi Gubae',
+                            applicationVersion: '1.3.6',
+                            applicationLegalese:
+                                'Wachemo University Orthodox Fellowship\nየዋቸሞ ዩኒቨርሲቲ ግቢ ጉባኤ',
+                            children: const [
+                              Text('Faith • Fellowship • Service'),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.church_rounded,
-                          size: 44,
-                          color: Color(0xFF070F1E),
                         ),
                       ),
                     ),
 
                     // Title & Subtitle
                     const Text(
-                      'WCU Orthodox Fellowship',
+                      'WCU Gibi Gubae',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 24,
@@ -787,68 +847,199 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 22),
 
-                    // Register Navigation Link
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        const Text(
-                          "Don't have an account? ",
-                          style: TextStyle(color: AppTheme.textSecondary),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RegisterScreen(
-                                  state: widget.state,
-                                  onRegisterSuccess: widget.onLoginSuccess,
-                                ),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Register / ተመዝገብ',
-                            style: TextStyle(
-                              color: AppTheme.gold,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 28),
-
-                    // Divider
+                    // Divider with 'OR / ወይም'
                     const Row(
                       children: [
                         Expanded(child: Divider(color: AppTheme.borderMuted)),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('OR', style: TextStyle(color: AppTheme.textTertiary, fontSize: 12)),
+                          child: Text(
+                            'OR / ወይም',
+                            style: TextStyle(
+                              color: AppTheme.textTertiary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
                         ),
                         Expanded(child: Divider(color: AppTheme.borderMuted)),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
-                    // Demo / Offline Mode Button
-                    OutlinedButton.icon(
-                      onPressed: widget.onSkipDemo,
-                      icon: const Icon(Icons.offline_bolt_outlined, size: 18, color: AppTheme.slateMuted),
-                      label: const Text(
-                        'Continue in Local / Demo Mode',
-                        style: TextStyle(color: AppTheme.slateMuted, fontSize: 14),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: const BorderSide(color: AppTheme.borderMuted),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    // Prominent Interactive Registration Card & Button
+                    Container(
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppTheme.surfaceElevated,
+                            AppTheme.gold.withValues(alpha: 0.08),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: AppTheme.gold.withValues(alpha: 0.4),
+                          width: 1.4,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppTheme.gold.withValues(alpha: 0.16),
+                                  border: Border.all(color: AppTheme.gold.withValues(alpha: 0.5)),
+                                ),
+                                child: const Icon(
+                                  Icons.person_add_alt_1_rounded,
+                                  color: AppTheme.gold,
+                                  size: 22,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Register First If You Don\'t Have An Account',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.textPrimary,
+                                        height: 1.25,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'አካውንት ከሌለዎት መጀመሪያ ይመዝገቡ • Join our community',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.gold,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            height: 50,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => RegisterScreen(
+                                      state: widget.state,
+                                      onRegisterSuccess: widget.onLoginSuccess,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.app_registration_rounded, size: 20),
+                              label: const Text(
+                                'Register Now • አሁኑኑ ይመዝገቡ',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.gold,
+                                foregroundColor: const Color(0xFF070F1E),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Interactive Sacred Tour & Feature Intro Card (Inspired by reference Bible app)
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFFE5A93C).withOpacity(0.12),
+                            const Color(0xFF10B981).withOpacity(0.08),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppTheme.gold.withOpacity(0.3), width: 1.0),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                        leading: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.gold.withOpacity(0.15),
+                            border: Border.all(color: AppTheme.gold.withOpacity(0.5), width: 1),
+                          ),
+                          child: const Icon(Icons.auto_awesome, color: AppTheme.gold, size: 18),
+                        ),
+                        title: const Text(
+                          'Sacred App Tour & Feature Intro',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.gold),
+                        ),
+                        subtitle: const Text(
+                          'የመተግበሪያውን አገልግሎቶች ይጎብኙ • Explore Church Ministries & Lectionary',
+                          style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 13, color: AppTheme.gold),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FellowshipOnboardingScreen(
+                                state: widget.state ?? FellowshipState(),
+                                onFinish: () {
+                                  Navigator.pop(context);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => RegisterScreen(
+                                        state: widget.state,
+                                        onRegisterSuccess: widget.onLoginSuccess,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                onSignIn: () => Navigator.pop(context),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ],

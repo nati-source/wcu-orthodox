@@ -62,7 +62,7 @@ mixin LibraryStateMixin on ChangeNotifier {
     notifyListeners();
   }
 
-  void addLibraryBookLink({
+  Future<void> addLibraryBookLink({
     required String title,
     required String subtitle,
     required String description,
@@ -71,7 +71,7 @@ mixin LibraryStateMixin on ChangeNotifier {
     required String telegramUrl,
     String? sourceUrl,
     bool isRestricted = false,
-  }) {
+  }) async {
     final newItem = LibraryItemModel(
       id: 'lib-${DateTime.now().millisecondsSinceEpoch}',
       title: title,
@@ -87,16 +87,17 @@ mixin LibraryStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('library_items').doc(newItem.id).set(
+      await FirebaseFirestore.instance.collection('library_items').doc(newItem.id).set(
         newItem.toMap(),
         SetOptions(merge: true),
       );
+      debugPrint('Firestore addLibraryBookLink success: ${newItem.id}');
     } catch (e) {
-      debugPrint('Firestore addLibraryBookLink notice: $e');
+      debugPrint('Firestore addLibraryBookLink error: $e');
     }
   }
 
-  void updateLibraryBook({
+  Future<void> updateLibraryBook({
     required String id,
     required String title,
     required String subtitle,
@@ -106,7 +107,7 @@ mixin LibraryStateMixin on ChangeNotifier {
     required String telegramUrl,
     String? sourceUrl,
     bool? isRestricted,
-  }) {
+  }) async {
     final index = _libraryItems.indexWhere((item) => item.id == id);
     if (index != -1) {
       final existing = _libraryItems[index];
@@ -126,17 +127,18 @@ mixin LibraryStateMixin on ChangeNotifier {
       notifyListeners();
 
       try {
-        FirebaseFirestore.instance.collection('library_items').doc(id).set(
+        await FirebaseFirestore.instance.collection('library_items').doc(id).set(
           _libraryItems[index].toMap(),
           SetOptions(merge: true),
         );
+        debugPrint('Firestore updateLibraryBook success: $id');
       } catch (e) {
-        debugPrint('Firestore updateLibraryBook notice: $e');
+        debugPrint('Firestore updateLibraryBook error: $e');
       }
     }
   }
 
-  void deleteLibraryBook(String bookId) {
+  Future<void> deleteLibraryBook(String bookId) async {
     _libraryItems.removeWhere((item) => item.id == bookId);
     if (_activeAudioMezmur?.id == bookId) {
       _activeAudioMezmur = null;
@@ -145,10 +147,11 @@ mixin LibraryStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
-      _firestoreService.deleteLibraryItem(bookId);
-      FirebaseFirestore.instance.collection('library_items').doc(bookId).delete();
+      await _firestoreService.deleteLibraryItem(bookId);
+      await FirebaseFirestore.instance.collection('library_items').doc(bookId).delete();
+      debugPrint('Firestore deleteLibraryBook success: $bookId');
     } catch (e) {
-      debugPrint('Firestore deleteLibraryBook notice: $e');
+      debugPrint('Firestore deleteLibraryBook error: $e');
     }
   }
 

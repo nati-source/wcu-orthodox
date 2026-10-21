@@ -21,15 +21,22 @@ class SpiritualParentModel {
     required this.roleTitle,
     this.avatarUrl,
     String? gender,
-  }) : gender = gender ??
-            ((roleTitle.toLowerCase().contains('mother') ||
-                    roleTitle.contains('እናት') ||
-                    UserModel.inferGender(fullName, baptismalName) == 'female')
-                ? 'female'
-                : 'male');
+  }) : gender =
+           gender ??
+           ((roleTitle.toLowerCase().contains('mother') ||
+                   roleTitle.contains('እናት') ||
+                   UserModel.inferGender(fullName, baptismalName) == 'female')
+               ? 'female'
+               : 'male');
 
-  bool get isFather => gender == 'male' || roleTitle.toLowerCase().contains('father') || roleTitle.contains('አባት');
-  bool get isMother => gender == 'female' || roleTitle.toLowerCase().contains('mother') || roleTitle.contains('እናት');
+  bool get isFather =>
+      gender == 'male' ||
+      roleTitle.toLowerCase().contains('father') ||
+      roleTitle.contains('አባት');
+  bool get isMother =>
+      gender == 'female' ||
+      roleTitle.toLowerCase().contains('mother') ||
+      roleTitle.contains('እናት');
 
   SpiritualParentModel copyWith({
     String? id,
@@ -69,7 +76,10 @@ class SpiritualParentModel {
     };
   }
 
-  factory SpiritualParentModel.fromMap(Map<String, dynamic> map, [String? docId]) {
+  factory SpiritualParentModel.fromMap(
+    Map<String, dynamic> map, [
+    String? docId,
+  ]) {
     final name = map['fullName']?.toString() ?? '';
     final bap = map['baptismalName']?.toString() ?? '';
     final title = map['roleTitle']?.toString() ?? 'Spiritual Parent';
@@ -77,10 +87,10 @@ class SpiritualParentModel {
     final gender = (parsedGender == 'male' || parsedGender == 'female')
         ? parsedGender!
         : ((title.toLowerCase().contains('mother') ||
-                title.contains('እናት') ||
-                UserModel.inferGender(name, bap) == 'female')
-            ? 'female'
-            : 'male');
+                  title.contains('እናት') ||
+                  UserModel.inferGender(name, bap) == 'female')
+              ? 'female'
+              : 'male');
 
     return SpiritualParentModel(
       id: docId ?? map['id'] ?? '',
@@ -170,36 +180,45 @@ class FamilyModel {
       name: map['name'] ?? 'Orthodox Spiritual Family',
       formedDate: map['formedDate'] ?? '2024 E.C.',
       spiritualFather: map['spiritualFather'] is Map<String, dynamic>
-          ? SpiritualParentModel.fromMap(Map<String, dynamic>.from(map['spiritualFather']))
+          ? SpiritualParentModel.fromMap(
+              Map<String, dynamic>.from(map['spiritualFather']),
+            )
           : SpiritualParentModel(
-              id: 'sp-father',
-              fullName: (map['spiritualFather'] is String && (map['spiritualFather'] as String).isNotEmpty)
+              id: map['fatherId']?.toString() ?? '',
+              fullName:
+                  (map['spiritualFather'] is String &&
+                      (map['spiritualFather'] as String).isNotEmpty)
                   ? map['spiritualFather']
-                  : (map['spiritualFatherName']?.toString() ?? 'Spiritual Father (የመንፈስ አባት)'),
-              baptismalName: map['fatherBaptismalName']?.toString() ?? 'Gebre Kristos',
-              department: map['fatherDepartment']?.toString() ?? 'Theology & Apostolic Ministry',
-              faculty: 'Campus Fellowship',
-              phoneNumber: map['fatherPhone']?.toString() ?? '+251911000000',
+                  : (map['spiritualFatherName']?.toString() ?? ''),
+              baptismalName: map['fatherBaptismalName']?.toString() ?? '',
+              department: map['fatherDepartment']?.toString() ?? '',
+              faculty: map['fatherFaculty']?.toString() ?? '',
+              phoneNumber: map['fatherPhone']?.toString() ?? '',
               roleTitle: 'Spiritual Father',
             ),
       spiritualMother: map['spiritualMother'] is Map<String, dynamic>
-          ? SpiritualParentModel.fromMap(Map<String, dynamic>.from(map['spiritualMother']))
+          ? SpiritualParentModel.fromMap(
+              Map<String, dynamic>.from(map['spiritualMother']),
+            )
           : SpiritualParentModel(
-              id: 'sp-mother',
-              fullName: (map['spiritualMother'] is String && (map['spiritualMother'] as String).isNotEmpty)
+              id: map['motherId']?.toString() ?? '',
+              fullName:
+                  (map['spiritualMother'] is String &&
+                      (map['spiritualMother'] as String).isNotEmpty)
                   ? map['spiritualMother']
-                  : (map['spiritualMotherName']?.toString() ?? 'Spiritual Mother (የመንፈስ እናት)'),
-              baptismalName: map['motherBaptismalName']?.toString() ?? 'Walata Maryam',
-              department: map['motherDepartment']?.toString() ?? 'Member Care & Charity',
-              faculty: 'Campus Fellowship',
-              phoneNumber: map['motherPhone']?.toString() ?? '+251922000000',
+                  : (map['spiritualMotherName']?.toString() ?? ''),
+              baptismalName: map['motherBaptismalName']?.toString() ?? '',
+              department: map['motherDepartment']?.toString() ?? '',
+              faculty: map['motherFaculty']?.toString() ?? '',
+              phoneNumber: map['motherPhone']?.toString() ?? '',
               roleTitle: 'Spiritual Mother',
             ),
       maxCapacity: (map['maxCapacity'] as num?)?.toInt() ?? 10,
       telegramGroupUrl: map['telegramGroupUrl'] ?? '',
       whatsappGroupUrl: map['whatsappGroupUrl'] ?? '',
-      isPublished: map['isPublished'] ?? true,
-      memberIds: (map['memberIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      isPublished: map['isPublished'] == true,
+      memberIds:
+          (map['memberIds'] as List?)?.map((e) => e.toString()).toList() ?? [],
     );
   }
 }

@@ -52,3 +52,11 @@ app.*.map.json
 
 # Local maintenance tools
 tools/
+
+# Firebase Functions dependencies
+functions/node_modules/
+
+# Local scratch and test artifacts
+scratch/
+test/*.png
+test/*.xml

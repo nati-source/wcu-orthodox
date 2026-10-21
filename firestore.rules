@@ -4,7 +4,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // =========================================================================
-    // HELPER FUNCTIONS FOR ROLE-BASED ACCESS CONTROL (RBAC)
+    // HELPER FUNCTIONS FOR ROLE-BASED ACCESS CONTROL (RBAC) & APPROVAL
     // =========================================================================
 
     function isSignedIn() {
@@ -15,10 +15,17 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
-    // Checks custom claims first (server-enforced), then verified user document role
+    // Require an approved user account for application access
+    function isApprovedUser() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        currentUserDoc().isApproved == true;
+    }
+
+    // The current approved user document is the source of truth for RBAC.
+    // This makes role revocation effective even if a previously issued token is stale.
     function isAdmin() {
       return isSignedIn() && (
-        request.auth.token.role == 'admin' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          currentUserDoc().role == 'admin' &&
          currentUserDoc().isApproved == true)
@@ -27,7 +34,6 @@ service cloud.firestore {
 
     function isSpiritualParent() {
       return isSignedIn() && (
-        request.auth.token.role == 'spiritualParent' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          currentUserDoc().role == 'spiritualParent' &&
          currentUserDoc().isApproved == true)
@@ -36,7 +42,6 @@ service cloud.firestore {
 
     function isCoordinator() {
       return isSignedIn() && (
-        request.auth.token.role == 'volunteerCoordinator' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          currentUserDoc().role == 'volunteerCoordinator' &&
          currentUserDoc().isApproved == true)
@@ -46,17 +51,67 @@ service cloud.firestore {
     function isCoordinatorOf(deptId) {
       return isAdmin() || (
         isCoordinator() &&
+        deptId != 'dept-audit' &&
         currentUserDoc().coordinatorProfile != null &&
         currentUserDoc().coordinatorProfile.departmentId == deptId &&
         currentUserDoc().coordinatorProfile.isReadOnlyAudit != true
       );
     }
 
+    // Member Care may update only the family assignment fields of an approved
+    // student, and only when the target family remains an unpublished draft.
+    function isFamilyDraftStudentAssignment(userId) {
+      return isCoordinatorOf('dept-membercare') &&
+        resource.data.role == 'student' &&
+        resource.data.isApproved == true &&
+        request.resource.data.role == 'student' &&
+        request.resource.data.isApproved == true &&
+        request.resource.data.assignedFamilyId is string &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'assignedFamilyId',
+          'updatedAt'
+        ]) &&
+        existsAfter(/databases/$(database)/documents/families/$(request.resource.data.assignedFamilyId)) &&
+        getAfter(/databases/$(database)/documents/families/$(request.resource.data.assignedFamilyId)).data.isPublished == false &&
+        getAfter(/databases/$(database)/documents/families/$(request.resource.data.assignedFamilyId)).data.maxCapacity is int &&
+        getAfter(/databases/$(database)/documents/families/$(request.resource.data.assignedFamilyId)).data.memberIds is list &&
+        getAfter(/databases/$(database)/documents/families/$(request.resource.data.assignedFamilyId)).data.memberIds.hasAny([userId]) &&
+        getAfter(/databases/$(database)/documents/families/$(request.resource.data.assignedFamilyId)).data.memberIds.size() <=
+          getAfter(/databases/$(database)/documents/families/$(request.resource.data.assignedFamilyId)).data.maxCapacity;
+    }
+
+    function isValidFamilyRecord(familyData) {
+      return familyData.maxCapacity is int &&
+        familyData.maxCapacity > 0 &&
+        familyData.memberIds is list &&
+        familyData.memberIds.size() <= familyData.maxCapacity &&
+        familyData.spiritualFather is map &&
+        familyData.spiritualFather.id is string &&
+        familyData.spiritualFather.id.size() > 0 &&
+        familyData.spiritualFather.fullName is string &&
+        familyData.spiritualFather.fullName.size() > 0 &&
+        familyData.spiritualFather.gender == 'male' &&
+        familyData.spiritualMother is map &&
+        familyData.spiritualMother.id is string &&
+        familyData.spiritualMother.id.size() > 0 &&
+        familyData.spiritualMother.fullName is string &&
+        familyData.spiritualMother.fullName.size() > 0 &&
+        familyData.spiritualMother.gender == 'female';
+    }
+
     // =========================================================================
-    // 1. USERS COLLECTION (Strict privilege escalation protection)
+    // 1. USERS COLLECTION (Strict privilege escalation & field allowlist)
     // =========================================================================
     match /users/{userId} {
-      allow read: if isSignedIn();
+      // Users can read their own profile. Admins and scoped spiritual/member-care roles can read profiles.
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        isAdmin() ||
+        isCoordinatorOf('dept-membercare') ||
+        (isSpiritualParent() &&
+          currentUserDoc().assignedFamilyId is string &&
+          resource.data.assignedFamilyId == currentUserDoc().assignedFamilyId)
+      );
 
       // Students can register their own initial document ONLY with 'student' role and unapproved status
       allow create: if isSignedIn() && (
@@ -67,13 +122,27 @@ service cloud.firestore {
         )
       );
 
-      // Users can update their own profile fields, but CANNOT modify their own role, approval status, or coordinatorProfile
+      // Users can update their own profile fields ONLY within an explicit allowlist.
+      // Roles and approval status are Admin-only. Member Care has a separate,
+      // field-limited rule for approved student family assignments.
       allow update: if isSignedIn() && (
-        isAdmin() || (
+        isAdmin() || isFamilyDraftStudentAssignment(userId) || (
           request.auth.uid == userId &&
-          request.resource.data.role == resource.data.role &&
-          request.resource.data.isApproved == resource.data.isApproved &&
-          request.resource.data.get('coordinatorProfile', null) == resource.data.get('coordinatorProfile', null)
+          isApprovedUser() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'fullName',
+            'baptismalName',
+            'phoneNumber',
+            'department',
+            'academicYear',
+            'batchYear',
+            'gender',
+            'updatedAt',
+            'fcmToken',
+            'fcmTokens',
+            'fcmPlatform',
+            'lastTokenUpdated'
+          ])
         )
       );
 
@@ -84,135 +153,280 @@ service cloud.firestore {
     // 2. SPIRITUAL FAMILIES & CONFIGURATION
     // =========================================================================
     match /families/{familyId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isSpiritualParent() || isCoordinatorOf('dept-membercare');
+      allow read: if isApprovedUser() && (
+        isAdmin() ||
+        isCoordinatorOf('dept-membercare') ||
+        (resource.data.memberIds is list && resource.data.memberIds.hasAny([request.auth.uid])) ||
+        resource.data.spiritualFather.id == request.auth.uid ||
+        resource.data.spiritualMother.id == request.auth.uid
+      );
+      allow create: if isAdmin() || (
+        isCoordinatorOf('dept-membercare') && isValidFamilyRecord(request.resource.data)
+      );
+      allow delete: if isAdmin() || isCoordinatorOf('dept-membercare');
+      allow update: if isAdmin() || (
+        isCoordinatorOf('dept-membercare') && isValidFamilyRecord(request.resource.data)
+      ) || (
+        isSpiritualParent() &&
+        (resource.data.spiritualFather.id == request.auth.uid ||
+         resource.data.spiritualMother.id == request.auth.uid) &&
+        request.resource.data.spiritualFather.id == resource.data.spiritualFather.id &&
+        request.resource.data.spiritualMother.id == resource.data.spiritualMother.id &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'telegramGroupUrl',
+          'updatedAt'
+        ])
+      );
     }
 
     match /app_config/{configId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isCoordinatorOf('dept-membercare');
+      allow read: if isApprovedUser();
+      allow write: if isAdmin() || (
+        configId == 'family_roster' && isCoordinatorOf('dept-membercare')
+      );
     }
 
     // =========================================================================
     // 3. PILGRIMAGE TRIPS & BUS REGISTRATIONS (DEPT_BATCH_PROGRAMS)
     // =========================================================================
     match /pilgrimage_trips/{tripId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isCoordinatorOf('dept-programs');
+      allow read: if isApprovedUser();
+      allow create, delete: if isAdmin() || isCoordinatorOf('dept-programs');
+      allow update: if isAdmin() || isCoordinatorOf('dept-programs') || (
+        isApprovedUser() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bookedSeats']) &&
+        request.resource.data.bookedSeats is int &&
+        request.resource.data.bookedSeats == resource.data.bookedSeats + 1 &&
+        request.resource.data.bookedSeats <= resource.data.totalSeats &&
+        existsAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)) &&
+        getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.tripId == tripId &&
+        getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.studentId == request.auth.uid &&
+        getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.seatNumber == resource.data.bookedSeats + 1
+      );
     }
 
     match /trip_registrations/{regId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && (
-        request.resource.data.studentId == request.auth.uid ||
+      // Scoped read: students can only read their own registration, while admins/programs coordinators see all
+      allow read: if isApprovedUser() && (
+        regId.matches('^[^/]+_' + request.auth.uid + '$') ||
+        resource.data.studentId == request.auth.uid ||
         isAdmin() ||
         isCoordinatorOf('dept-programs')
       );
-      // Only Admin or Batch & Programs Coordinator can verify trip payments or mark boarded
-      allow update, delete: if isAdmin() || isCoordinatorOf('dept-programs');
+
+      // Initial registration by student must be pendingVerification or free, and cannot claim boarded status
+      allow create: if isApprovedUser() && (
+        isAdmin() ||
+        isCoordinatorOf('dept-programs') || (
+          request.resource.data.studentId == request.auth.uid &&
+          regId == request.resource.data.tripId + '_' + request.auth.uid &&
+          request.resource.data.tripId is string &&
+          request.resource.data.studentName == currentUserDoc().fullName &&
+          request.resource.data.paymentStatus in ['pendingVerification', 'free'] &&
+          request.resource.data.feeAmount is number &&
+          request.resource.data.feeAmount >= 0 &&
+          exists(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)) &&
+          getAfter(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.bookedSeats ==
+            get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.bookedSeats + 1 &&
+          request.resource.data.seatNumber == get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.bookedSeats + 1 &&
+          request.resource.data.isBoarded == false &&
+          (!('boardedAt' in request.resource.data) || request.resource.data.boardedAt == null)
+        )
+      );
+
+      // A student may resubmit payment information only for a previously rejected booking.
+      // Seat allocation and identity fields remain immutable on this path.
+      allow update: if isAdmin() || isCoordinatorOf('dept-programs') ||
+        isCoordinatorOf('dept-charity') || isCoordinatorOf('dept-accounting') || (
+          isApprovedUser() &&
+          resource.data.studentId == request.auth.uid &&
+          resource.data.paymentStatus == 'rejected' &&
+          request.resource.data.paymentStatus in ['pendingVerification', 'free'] &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'paymentMethod', 'transactionReference', 'paymentStatus', 'rejectionReason', 'registeredAt'
+          ])
+        );
+      allow delete: if isAdmin() || isCoordinatorOf('dept-programs');
     }
 
     // =========================================================================
     // 4. CHARITY CAMPAIGNS, DUES & EMERGENCY AID
     // =========================================================================
     match /charity_campaigns/{campaignId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isCoordinatorOf('dept-charity');
+      allow read: if isApprovedUser();
+      // Campaign edits and aggregate changes are validated in Cloud Functions.
+      allow write: if false;
     }
 
     match /financial_dues/{duesId} {
-      allow read: if isSignedIn() && (
+      allow read: if isApprovedUser() && (
         resource.data.studentId == request.auth.uid ||
         isAdmin() ||
         isCoordinatorOf('dept-charity') ||
-        isCoordinatorOf('dept-accounting') ||
-        isCoordinator()
+        isCoordinatorOf('dept-accounting')
       );
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      // Only Admin, Charity, or Finance/Accounting can verify/modify financial records
-      allow update, delete: if isAdmin() || isCoordinatorOf('dept-charity') || isCoordinatorOf('dept-accounting');
+
+      // Student can submit dues/donation, but status MUST be pendingVerification or Pending
+      allow create: if isApprovedUser() &&
+        request.resource.data.studentId == request.auth.uid &&
+        (request.resource.data.status in ['Pending', 'Pending Verification', 'pendingVerification', 'pending']) &&
+        request.resource.data.amount is number &&
+        request.resource.data.amount > 0 &&
+        request.resource.data.studentName == currentUserDoc().fullName &&
+        request.resource.data.transactionReference is string &&
+        request.resource.data.transactionReference.size() > 0;
+
+      // Only transition a pending record's verification fields. Amount, owner,
+      // reference, and purpose are immutable after submission.
+      // Verification is a trusted operation because it updates campaign totals.
+      allow update: if false;
+      // Preserve reviewed ledger entries; Admin may remove only unreviewed submissions.
+      allow delete: if isAdmin() &&
+        resource.data.status in ['Pending', 'Pending Verification', 'pendingVerification', 'pending'];
     }
 
     match /charity_disbursements/{disbId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isCoordinatorOf('dept-charity') || isCoordinatorOf('dept-membercare') || isCoordinatorOf('dept-accounting');
+      // Scoped read: only beneficiary student, Admin, Charity, Member Care, or Accounting can read disbursements
+      allow read: if isApprovedUser() && (
+        (resource.data.beneficiaryId != null && resource.data.beneficiaryId == request.auth.uid) ||
+        isAdmin() ||
+        isCoordinatorOf('dept-charity') ||
+        isCoordinatorOf('dept-membercare') ||
+        isCoordinatorOf('dept-accounting')
+      );
+      // Disbursement records are written only in validated server transactions.
+      allow write: if false;
+    }
+
+    match /charity_voucher_refs/{voucherHash} {
+      // Voucher uniqueness tracking hashes are server-only.
+      allow read, write: if false;
     }
 
     match /emergency_aid_requests/{reqId} {
-      // Confidential: only the requesting student, Admin, Member Care, or Charity can view
-      allow read: if isSignedIn() && (
+      // Confidential: only the requesting student, Admin, or Member Care Coordinator can view
+      allow read: if isApprovedUser() && (
         resource.data.studentId == request.auth.uid ||
         isAdmin() ||
         isCoordinatorOf('dept-membercare') ||
-        isCoordinatorOf('dept-charity')
+        isCoordinatorOf('dept-charity') ||
+        isCoordinatorOf('dept-accounting')
       );
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update, delete: if isAdmin() || isCoordinatorOf('dept-membercare') || isCoordinatorOf('dept-charity');
+      // Student can submit aid request only in initial review status
+      allow create: if isApprovedUser() &&
+        currentUserDoc().role == 'student' &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.keys().hasOnly([
+          'studentId', 'studentName', 'studentBaptismalName', 'studentPhone',
+          'department', 'academicYear', 'category', 'description',
+          'amountRequested', 'status', 'submittedAt', 'adminNote'
+        ]) &&
+        request.resource.data.studentName == currentUserDoc().fullName &&
+        request.resource.data.studentBaptismalName == currentUserDoc().baptismalName &&
+        request.resource.data.studentPhone == currentUserDoc().phoneNumber &&
+        request.resource.data.category in ['medical', 'foodCafeteria', 'academicSupplies', 'emergencyTransport', 'other'] &&
+        request.resource.data.description is string &&
+        request.resource.data.description.size() > 0 &&
+        request.resource.data.description.size() <= 2000 &&
+        request.resource.data.amountRequested is number &&
+        request.resource.data.amountRequested > 0 &&
+        request.resource.data.amountRequested <= 1000000 &&
+        (request.resource.data.status in ['underReview', 'submitted', 'pending']);
+      // Status transitions and their linked vouchers are committed by Functions.
+      allow update, delete: if false;
     }
 
     // =========================================================================
-    // 5. DIGITAL LIBRARY & CHURCH PROGRAMS
+    // 5. DIGITAL LIBRARY, MINISTRIES & CHURCH PROGRAMS
     // =========================================================================
     match /library_items/{itemId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isCoordinatorOf('dept-apostolic') || isCoordinatorOf('dept-music');
+      allow read: if isApprovedUser();
+      allow write: if isAdmin() || isCoordinatorOf('dept-apostolic') || isCoordinatorOf('dept-mezmur') || isCoordinatorOf('dept-arts');
     }
 
     match /church_programs/{programId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isCoordinator();
+      allow read: if isApprovedUser();
+      allow write: if isAdmin();
+    }
+
+    match /ministries/{ministryId} {
+      allow read: if isApprovedUser();
+      allow write: if isAdmin();
     }
 
     // =========================================================================
-    // 6. 10 EOTC DEPARTMENTS, BROADCASTS, APPLICATIONS & PROPOSALS
+    // 6. EOTC DEPARTMENTS, BROADCASTS, APPLICATIONS & PROPOSALS
     // =========================================================================
     match /department_broadcasts/{msgId} {
-      allow read: if isSignedIn();
-      allow create, update: if isAdmin() || isCoordinatorOf(request.resource.data.departmentId);
+      allow read: if isApprovedUser();
+      allow create: if isAdmin() || isCoordinatorOf(request.resource.data.departmentId);
+      allow update: if isAdmin() || (
+        isCoordinatorOf(resource.data.departmentId) &&
+        isCoordinatorOf(request.resource.data.departmentId)
+      );
       allow delete: if isAdmin() || isCoordinatorOf(resource.data.departmentId);
     }
 
     match /department_applications/{appId} {
-      allow read: if isSignedIn() && (
+      allow read: if isApprovedUser() && (
         resource.data.studentId == request.auth.uid ||
         isAdmin() ||
-        isCoordinator()
+        isCoordinatorOf(resource.data.ministryId) ||
+        ('departmentId' in resource.data && isCoordinatorOf(resource.data.departmentId))
       );
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update, delete: if isAdmin() || isCoordinatorOf(resource.data.ministryId);
+      allow create: if isApprovedUser() && request.resource.data.studentId == request.auth.uid;
+      // Dual-scope validation: validate both existing and requested scope
+      allow update: if isAdmin() || (
+        (isCoordinatorOf(resource.data.ministryId) || ('departmentId' in resource.data && isCoordinatorOf(resource.data.departmentId))) &&
+        (isCoordinatorOf(request.resource.data.ministryId) || ('departmentId' in request.resource.data && isCoordinatorOf(request.resource.data.departmentId)))
+      );
+      allow delete: if isAdmin() ||
+        isCoordinatorOf(resource.data.ministryId) ||
+        ('departmentId' in resource.data && isCoordinatorOf(resource.data.departmentId));
     }
 
     match /department_members/{memberId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isCoordinatorOf(request.resource.data.departmentId);
+      allow read: if isApprovedUser();
+      allow create: if isAdmin() || isCoordinatorOf(request.resource.data.departmentId);
+      allow update: if isAdmin() || (
+        isCoordinatorOf(resource.data.departmentId) &&
+        isCoordinatorOf(request.resource.data.departmentId)
+      );
+      allow delete: if isAdmin() || isCoordinatorOf(resource.data.departmentId);
     }
 
     match /fundraising_proposals/{proposalId} {
-      allow read: if isSignedIn() && (isAdmin() || isCoordinator());
-      allow create: if isAdmin() || isCoordinatorOf('dept-development');
-      allow update, delete: if isAdmin() || isCoordinatorOf('dept-development');
+      allow read: if isApprovedUser() && (isAdmin() || isCoordinatorOf('dept-development'));
+      allow create, update, delete: if isAdmin() || isCoordinatorOf('dept-development');
     }
 
     // =========================================================================
     // 7. CONFESSOR FATHERS, APPOINTMENTS & SPIRITUAL Q&A
     // =========================================================================
     match /confessors/{fatherId} {
-      allow read: if isSignedIn();
+      allow read: if isApprovedUser();
       allow write: if isAdmin();
     }
 
     match /confession_appointments/{apptId} {
-      allow read: if isSignedIn() && (
+      allow read: if isApprovedUser() && (
         resource.data.studentId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if isApprovedUser() && request.resource.data.studentId == request.auth.uid;
+      allow update: if isAdmin() || (
+        isApprovedUser() &&
+        resource.data.studentId == request.auth.uid &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status == 'cancelled' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+      );
+      allow delete: if isAdmin();
     }
 
     match /spiritual_questions/{questionId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
+      allow read: if isApprovedUser();
+      allow create: if isApprovedUser();
       allow update, delete: if isAdmin() || isCoordinatorOf('dept-apostolic');
     }
 
@@ -220,51 +434,97 @@ service cloud.firestore {
     // 8. ACADEMIC MENTORSHIP & FAITH TRIVIA
     // =========================================================================
     match /academic_mentors/{mentorId} {
-      allow read: if isSignedIn();
+      allow read: if isApprovedUser();
       allow write: if isAdmin() || isCoordinatorOf('dept-membercare') || isCoordinatorOf('dept-apostolic');
     }
 
     match /mentorship_requests/{reqId} {
-      allow read: if isSignedIn() && (
+      allow read: if isApprovedUser() && (
         resource.data.juniorStudentId == request.auth.uid ||
         resource.data.mentorId == request.auth.uid ||
         isAdmin() ||
         isCoordinatorOf('dept-membercare')
       );
-      allow create: if isSignedIn() && request.resource.data.juniorStudentId == request.auth.uid;
-      allow update, delete: if isAdmin() || isCoordinatorOf('dept-membercare') || (isSignedIn() && resource.data.juniorStudentId == request.auth.uid);
+      allow create: if isApprovedUser() &&
+        request.resource.data.juniorStudentId == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.mentorId is string &&
+        request.resource.data.mentorId.size() > 0;
+      allow update: if isAdmin() || isCoordinatorOf('dept-membercare') || (
+        isApprovedUser() &&
+        resource.data.mentorId == request.auth.uid &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status in ['matched', 'declined'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'mentorPhone', 'mentorTelegram'
+        ])
+      );
+      allow delete: if isAdmin() || isCoordinatorOf('dept-membercare');
     }
 
     match /quiz_attempts/{attemptId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow read: if isApprovedUser() && (
+        resource.data.studentId == request.auth.uid ||
+        isAdmin()
+      );
+      // Admin SDK callable computes and records the score atomically.
+      allow create, update, delete: if false;
     }
 
     match /trivia_quizzes/{quizId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isCoordinator();
+      // Legacy documents contain answer keys. They are migrated by an admin
+      // callable, then removed; no client can read or change them.
+      allow read, write: if false;
+    }
+
+    match /trivia_public_quizzes/{quizId} {
+      allow read: if isApprovedUser();
+      allow write: if false;
+    }
+
+    match /trivia_answer_keys/{quizId} {
+      allow read, write: if false;
+    }
+
+    // Public session status deliberately omits the short-lived check-in code.
+    match /attendance_session_status/{sessionId} {
+      allow read: if isApprovedUser();
+      allow write: if isAdmin() || isCoordinatorOf('dept-education');
     }
 
     match /attendance_sessions/{sessionId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin() || isCoordinator();
+      allow read: if isAdmin() || isCoordinatorOf('dept-education');
+      allow write: if isAdmin() || isCoordinatorOf('dept-education');
 
       // Subcollection for individual scan records — each student writes their own.
       // Admin & coordinators can read all scans for reporting.
       match /scans/{scanId} {
-        allow read: if isSignedIn() && (
+        allow read: if isApprovedUser() && (
           scanId == request.auth.uid ||
           isAdmin() ||
-          isCoordinator()
+          isCoordinatorOf('dept-education')
         );
-        // Student can only write their scan if authenticated, recording their own UID,
-        // and the parent session is currently marked active.
-        allow create: if isSignedIn() &&
+        // Student can only write their scan if approved, recording their own UID,
+        // the parent session is active, and the valid session rollingPin/code is provided.
+        allow create: if isApprovedUser() &&
           scanId == request.auth.uid &&
           request.resource.data.studentId == request.auth.uid &&
-          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.isActive == true;
-        allow update, delete: if isAdmin() || isCoordinator();
+          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.isActive == true &&
+          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.isExpired == false &&
+          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.expiresAt is timestamp &&
+          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.expiresAt > request.time &&
+          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.rollingPin is string &&
+          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.rollingPin.size() == 4 &&
+          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.code is string &&
+          request.resource.data.enteredPin is string &&
+          request.resource.data.enteredPin.size() > 0 &&
+          (request.resource.data.enteredPin == get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.rollingPin ||
+           request.resource.data.enteredPin == get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.code) &&
+          request.resource.data.studentName == currentUserDoc().fullName &&
+          request.resource.data.timestamp == request.time &&
+          request.resource.data.status == 'present' &&
+          request.resource.data.method in ['qr', 'pin'];
+        allow update, delete: if isAdmin() || isCoordinatorOf('dept-education');
       }
     }
 
@@ -272,24 +532,33 @@ service cloud.firestore {
     // 9. GENERAL ANNOUNCEMENTS (Admin-authored notice board)
     // =========================================================================
     match /announcements/{announcementId} {
-      allow read: if isSignedIn();
-      allow create, update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read: if isApprovedUser();
+      allow create: if isAdmin() || (
+        isCoordinatorOf('dept-membercare') &&
+        request.resource.data.keys().hasOnly([
+          'title',
+          'content',
+          'authorName',
+          'category',
+          'imageUrl',
+          'isUrgent',
+          'createdAt'
+        ]) &&
+        request.resource.data.title == 'Family Roster Published' &&
+        request.resource.data.category == 'Family Roster' &&
+        request.resource.data.isUrgent == false &&
+        request.resource.data.authorName == currentUserDoc().fullName
+      );
+      allow update, delete: if isAdmin();
     }
 
     // =========================================================================
     // 10. TRIVIA SCORES LEADERBOARD (Per-student aggregate totals)
     // =========================================================================
     match /trivia_scores/{studentUid} {
-      // All signed-in users can view the leaderboard.
-      allow read: if isSignedIn();
-      // A student can only create/update their own score document.
-      allow create: if isSignedIn() && studentUid == request.auth.uid;
-      allow update: if isSignedIn() && (
-        studentUid == request.auth.uid ||
-        isAdmin()
-      );
-      allow delete: if isAdmin();
+      // Approved users can view the leaderboard.
+      allow read: if isApprovedUser();
+      allow write: if false;
     }
   }
 }

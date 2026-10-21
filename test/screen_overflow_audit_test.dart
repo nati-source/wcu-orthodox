@@ -133,16 +133,36 @@ void main() {
       await pumpScreen('StudentFamilyScreen-ParentRole', StudentFamilyScreen(state: state), size: size);
       await pumpScreen('StudentRoadmapScreen-ParentRole', StudentRoadmapScreen(state: state, onOpenScanner: () {}), size: size);
 
-      // 4. Coordinator Hub across all 10 Departments
+      // 4. Coordinator Hub across all 11 Departments & Tabs
       for (final deptId in FellowshipDepartmentConstants.allDepartmentIds) {
         state.switchRole(UserRole.volunteerCoordinator, coordinatorDeptId: deptId);
         await pumpScreen('CoordinatorHub-$deptId', CoordinatorHubScreen(state: state), size: size);
+        for (final tabTitle in ['Overview', 'Tasks', 'Team', 'Tools']) {
+          final tabFinder = find.widgetWithText(Tab, tabTitle);
+          if (tabFinder.evaluate().isNotEmpty) {
+            await tester.tap(tabFinder.first, warnIfMissed: false);
+            await tester.pump(const Duration(milliseconds: 150));
+            if (overflowErrors.isNotEmpty && !overflowErrors.last.startsWith('[')) {
+              overflowErrors[overflowErrors.length - 1] = '[CoordinatorHub-$deptId-$tabTitle @ ${width.toInt()}] ${overflowErrors.last}';
+            }
+          }
+        }
       }
 
-      // 5. Admin Screens
+      // 5. Admin Screens & Approvals Tabs
       state.switchRole(UserRole.admin);
       await pumpScreen('AdminDashboardScreen', AdminDashboardScreen(state: state, onOpenFamilyMatching: () {}, onOpenLiveAttendance: () {}), size: size);
       await pumpScreen('AdminApprovalsScreen', AdminApprovalsScreen(state: state), size: size);
+      for (final tabTitle in ['Applications', 'Registrations', 'Roles']) {
+        final tabFinder = find.widgetWithText(Tab, tabTitle);
+        if (tabFinder.evaluate().isNotEmpty) {
+          await tester.tap(tabFinder.first, warnIfMissed: false);
+          await tester.pump(const Duration(milliseconds: 150));
+          if (overflowErrors.isNotEmpty && !overflowErrors.last.startsWith('[')) {
+            overflowErrors[overflowErrors.length - 1] = '[AdminApprovals-$tabTitle @ ${width.toInt()}] ${overflowErrors.last}';
+          }
+        }
+      }
       await pumpScreen('AdminFamilyMatchingScreen', AdminFamilyMatchingScreen(state: state), size: size);
       await pumpScreen('AdminLiveAttendanceScreen', AdminLiveAttendanceScreen(state: state), size: size);
       await pumpScreen('AdminMediaCurriculumScreen', AdminMediaCurriculumScreen(state: state), size: size);

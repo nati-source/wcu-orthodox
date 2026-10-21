@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'pilgrimage_models.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'pilgrimage_models.dart';
 
 class CharityCampaignModel {
   final String id;
@@ -11,7 +12,8 @@ class CharityCampaignModel {
   final int donorsCount;
   final DateTime deadline;
   final bool isEmergency;
-  final String category; // "Student Mutual Aid", "Orphanage Outreach", "Church Construction"
+  final String
+  category; // "Student Mutual Aid", "Orphanage Outreach", "Church Construction"
 
   const CharityCampaignModel({
     required this.id,
@@ -25,7 +27,32 @@ class CharityCampaignModel {
     this.category = 'Student Mutual Aid',
   });
 
-  double get progressPercentage => (raisedAmount / targetAmount).clamp(0.0, 1.0);
+  double get progressPercentage =>
+      (raisedAmount / targetAmount).clamp(0.0, 1.0);
+
+  CharityCampaignModel copyWith({
+    String? id,
+    String? title,
+    String? description,
+    double? targetAmount,
+    double? raisedAmount,
+    int? donorsCount,
+    DateTime? deadline,
+    bool? isEmergency,
+    String? category,
+  }) {
+    return CharityCampaignModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      targetAmount: targetAmount ?? this.targetAmount,
+      raisedAmount: raisedAmount ?? this.raisedAmount,
+      donorsCount: donorsCount ?? this.donorsCount,
+      deadline: deadline ?? this.deadline,
+      isEmergency: isEmergency ?? this.isEmergency,
+      category: category ?? this.category,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -48,7 +75,9 @@ class CharityCampaignModel {
       targetAmount: (map['targetAmount'] as num?)?.toDouble() ?? 0.0,
       raisedAmount: (map['raisedAmount'] as num?)?.toDouble() ?? 0.0,
       donorsCount: (map['donorsCount'] as num?)?.toInt() ?? 0,
-      deadline: map['deadline'] != null ? DateTime.tryParse(map['deadline']) ?? DateTime.now() : DateTime.now(),
+      deadline: map['deadline'] != null
+          ? DateTime.tryParse(map['deadline']) ?? DateTime.now()
+          : DateTime.now(),
       isEmergency: map['isEmergency'] ?? false,
       category: map['category'] ?? 'Student Mutual Aid',
     );
@@ -65,6 +94,7 @@ class DuesPaymentModel {
   final String transactionReference;
   final String status; // "Verified", "Pending Verification"
   final DateTime submittedAt;
+  final String? campaignId;
 
   const DuesPaymentModel({
     required this.id,
@@ -76,6 +106,7 @@ class DuesPaymentModel {
     required this.transactionReference,
     required this.status,
     required this.submittedAt,
+    this.campaignId,
   });
 
   DuesPaymentModel copyWith({
@@ -88,6 +119,7 @@ class DuesPaymentModel {
     String? transactionReference,
     String? status,
     DateTime? submittedAt,
+    String? campaignId,
   }) {
     return DuesPaymentModel(
       id: id ?? this.id,
@@ -99,6 +131,7 @@ class DuesPaymentModel {
       transactionReference: transactionReference ?? this.transactionReference,
       status: status ?? this.status,
       submittedAt: submittedAt ?? this.submittedAt,
+      campaignId: campaignId ?? this.campaignId,
     );
   }
 
@@ -112,6 +145,7 @@ class DuesPaymentModel {
       'transactionReference': transactionReference,
       'status': status,
       'submittedAt': submittedAt.toIso8601String(),
+      if (campaignId != null) 'campaignId': campaignId,
     };
   }
 
@@ -130,7 +164,12 @@ class DuesPaymentModel {
       paymentMethod: method,
       transactionReference: map['transactionReference'] ?? '',
       status: map['status'] ?? 'Verified',
-      submittedAt: map['submittedAt'] != null ? DateTime.tryParse(map['submittedAt']) ?? DateTime.now() : DateTime.now(),
+      submittedAt: map['submittedAt'] is Timestamp
+          ? (map['submittedAt'] as Timestamp).toDate()
+          : map['submittedAt'] is String
+          ? DateTime.tryParse(map['submittedAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      campaignId: map['campaignId'] as String?,
     );
   }
 }
@@ -140,6 +179,7 @@ class CharityDisbursementModel {
   final String beneficiaryName;
   final String assistanceType; // "Student Cafeteria Meal Support", "Medical & Prescription", "Emergency Transport", "Academic Supplies"
   final double amount;
+  final String paymentMethod;
   final String voucherReference;
   final String approvedBy;
   final DateTime disbursedAt;
@@ -150,6 +190,7 @@ class CharityDisbursementModel {
     required this.beneficiaryName,
     required this.assistanceType,
     required this.amount,
+    this.paymentMethod = '',
     required this.voucherReference,
     required this.approvedBy,
     required this.disbursedAt,
@@ -161,6 +202,7 @@ class CharityDisbursementModel {
     String? beneficiaryName,
     String? assistanceType,
     double? amount,
+    String? paymentMethod,
     String? voucherReference,
     String? approvedBy,
     DateTime? disbursedAt,
@@ -171,6 +213,7 @@ class CharityDisbursementModel {
       beneficiaryName: beneficiaryName ?? this.beneficiaryName,
       assistanceType: assistanceType ?? this.assistanceType,
       amount: amount ?? this.amount,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       voucherReference: voucherReference ?? this.voucherReference,
       approvedBy: approvedBy ?? this.approvedBy,
       disbursedAt: disbursedAt ?? this.disbursedAt,
@@ -183,6 +226,7 @@ class CharityDisbursementModel {
       'beneficiaryName': beneficiaryName,
       'assistanceType': assistanceType,
       'amount': amount,
+      'paymentMethod': paymentMethod,
       'voucherReference': voucherReference,
       'approvedBy': approvedBy,
       'disbursedAt': disbursedAt.toIso8601String(),
@@ -190,15 +234,25 @@ class CharityDisbursementModel {
     };
   }
 
-  factory CharityDisbursementModel.fromMap(Map<String, dynamic> map, String docId) {
+  factory CharityDisbursementModel.fromMap(
+    Map<String, dynamic> map,
+    String docId,
+  ) {
+    final rawDisbursedAt = map['disbursedAt'];
+    final disbursedAt = rawDisbursedAt is Timestamp
+        ? rawDisbursedAt.toDate()
+        : rawDisbursedAt is String
+        ? DateTime.tryParse(rawDisbursedAt) ?? DateTime.now()
+        : DateTime.now();
     return CharityDisbursementModel(
       id: docId,
       beneficiaryName: map['beneficiaryName'] ?? '',
       assistanceType: map['assistanceType'] ?? 'Student Cafeteria Meal Support',
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      paymentMethod: map['paymentMethod']?.toString() ?? '',
       voucherReference: map['voucherReference'] ?? '',
       approvedBy: map['approvedBy'] ?? 'Charity Coordinator',
-      disbursedAt: map['disbursedAt'] != null ? DateTime.tryParse(map['disbursedAt']) ?? DateTime.now() : DateTime.now(),
+      disbursedAt: disbursedAt,
       notes: map['notes'] ?? '',
     );
   }
@@ -229,12 +283,7 @@ extension EmergencyAidCategoryExt on EmergencyAidCategory {
   }
 }
 
-enum EmergencyAidStatus {
-  underReview,
-  approved,
-  disbursed,
-  declined,
-}
+enum EmergencyAidStatus { underReview, approved, disbursed, declined }
 
 extension EmergencyAidStatusExt on EmergencyAidStatus {
   String get displayName {
@@ -344,7 +393,10 @@ class EmergencyAidRequestModel {
     };
   }
 
-  factory EmergencyAidRequestModel.fromMap(Map<String, dynamic> map, String docId) {
+  factory EmergencyAidRequestModel.fromMap(
+    Map<String, dynamic> map,
+    String docId,
+  ) {
     final catName = map['category']?.toString() ?? 'other';
     final cat = EmergencyAidCategory.values.firstWhere(
       (c) => c.name == catName,
@@ -368,7 +420,9 @@ class EmergencyAidRequestModel {
       description: map['description'] ?? '',
       amountRequested: (map['amountRequested'] as num?)?.toDouble() ?? 0.0,
       status: status,
-      submittedAt: map['submittedAt'] != null ? DateTime.tryParse(map['submittedAt']) ?? DateTime.now() : DateTime.now(),
+      submittedAt: map['submittedAt'] != null
+          ? DateTime.tryParse(map['submittedAt']) ?? DateTime.now()
+          : DateTime.now(),
       adminNote: map['adminNote'],
     );
   }

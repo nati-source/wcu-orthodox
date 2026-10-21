@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- Branded splash background — consistent in both light and dark OS modes.
+     The dark navy (#070F1E) matches the app's Scaffold background so there is
+     zero color flash when Flutter draws its first frame. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+    <!-- Solid brand dark-navy background — eliminates white/black flash -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#FF070F1E"/>
+        </shape>
+    </item>
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+    <!-- Centered app icon shown while the Flutter engine warms up -->
+    <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:src="@mipmap/ic_launcher"/>
+    </item>
 </layer-list>

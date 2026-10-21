@@ -2,15 +2,17 @@ part of 'fellowship_state.dart';
 
 /// Feature slice managing Authentication, Active User, Theme, RBAC & Student Approvals.
 class AuthState extends ChangeNotifier {
-  final FellowshipState root; AuthState(this.root);
+  final FellowshipState root;
+  AuthState(this.root);
   void refresh() => notifyListeners();
 }
 
 mixin AuthStateMixin on ChangeNotifier {
+  bool get isDemoMode;
   FirestoreService get firestoreService;
   FirestoreService get _firestoreService => firestoreService;
   List<FamilyModel> get _families;
-      set _selectedCoordinatorDepartmentId(String? value);
+  set _selectedCoordinatorDepartmentId(String? value);
   FamilyModel? get currentStudentFamily;
   List<PilgrimageTripModel> get _pilgrimageTrips;
   List<TripRegistrationModel> get _tripRegistrations;
@@ -56,11 +58,17 @@ mixin AuthStateMixin on ChangeNotifier {
   }
 
   bool get isAuthorizedAdmin =>
-      _isOriginalAdmin ||
-      _authenticatedRole == UserRole.admin ||
-      _assignedRole == UserRole.admin ||
       _currentUser.role == UserRole.admin ||
-      AppAdminConstants.isAdminEmail(_currentUser.email);
+      _authenticatedRole == UserRole.admin ||
+      _assignedRole == UserRole.admin;
+
+  void revokeAdminPrivileges() {
+    _isOriginalAdmin = false;
+    _authenticatedRole = UserRole.student;
+    _assignedRole = UserRole.student;
+    _activeRole = UserRole.student;
+    notifyListeners();
+  }
 
   /// Returns the roles this user is authorized to access and switch between.
   /// - Admin: All 4 access points (Admin, Volunteer Coordinator, Spiritual Parent, Student).
@@ -68,15 +76,9 @@ mixin AuthStateMixin on ChangeNotifier {
   /// - Spiritual Parent: 2 access points (Spiritual Parent, Student).
   /// - Student: Student only (unless developer mode is explicitly enabled by Admin).
   List<UserRole> get availableRoles {
-    final baseRole = _authenticatedRole != UserRole.student ? _authenticatedRole : _assignedRole;
-    if (_showDevRoleSwitcher ||
-        _isOriginalAdmin ||
-        baseRole == UserRole.admin ||
+    if (_currentUser.role == UserRole.admin ||
         _authenticatedRole == UserRole.admin ||
-        _assignedRole == UserRole.admin ||
-        _currentUser.role == UserRole.admin ||
-        _activeRole == UserRole.admin ||
-        AppAdminConstants.isAdminEmail(_currentUser.email)) {
+        _showDevRoleSwitcher) {
       return [
         UserRole.admin,
         UserRole.volunteerCoordinator,
@@ -84,35 +86,20 @@ mixin AuthStateMixin on ChangeNotifier {
         UserRole.student,
       ];
     }
-    if (baseRole == UserRole.volunteerCoordinator ||
+    if (_currentUser.role == UserRole.volunteerCoordinator ||
         _authenticatedRole == UserRole.volunteerCoordinator ||
-        _assignedRole == UserRole.volunteerCoordinator ||
-        _currentUser.role == UserRole.volunteerCoordinator ||
-        _currentUser.coordinatorProfile != null ||
-        _activeRole == UserRole.volunteerCoordinator) {
-      return [
-        UserRole.volunteerCoordinator,
-        UserRole.student,
-      ];
+        _currentUser.coordinatorProfile != null) {
+      return [UserRole.volunteerCoordinator, UserRole.student];
     }
-    if (baseRole == UserRole.spiritualParent ||
-        _authenticatedRole == UserRole.spiritualParent ||
-        _assignedRole == UserRole.spiritualParent ||
-        _currentUser.role == UserRole.spiritualParent ||
-        _activeRole == UserRole.spiritualParent) {
-      return [
-        UserRole.spiritualParent,
-        UserRole.student,
-      ];
+    if (_currentUser.role == UserRole.spiritualParent ||
+        _authenticatedRole == UserRole.spiritualParent) {
+      return [UserRole.spiritualParent, UserRole.student];
     }
     return [UserRole.student];
   }
 
   bool get canSwitchRoles =>
-      _isOriginalAdmin ||
-      _authenticatedRole == UserRole.admin ||
-      _assignedRole == UserRole.admin ||
-      AppAdminConstants.isAdminEmail(_currentUser.email) ||
+      _currentUser.role == UserRole.admin ||
       _showDevRoleSwitcher ||
       availableRoles.length > 1;
 
@@ -129,6 +116,7 @@ mixin AuthStateMixin on ChangeNotifier {
 
   /// Bulk seed realistic sample Orthodox campus students directly to Firestore users collection
   Future<int> seedTestStudentsToFirestore({int count = 15}) async {
+    if (!kDebugMode || !isDemoMode || !isAdmin) return 0;
     _isSeedingData = true;
     notifyListeners();
 
@@ -354,13 +342,17 @@ mixin AuthStateMixin on ChangeNotifier {
 
   /// Wipe all seeded test records from Firestore users collection to free the database
   Future<int> clearTestStudentsFromFirestore() async {
+    if (!kDebugMode || !isDemoMode || !isAdmin) return 0;
     _isSeedingData = true;
     notifyListeners();
 
     int deleted = 0;
     try {
       final firestore = FirebaseFirestore.instance;
-      final query = await firestore.collection('users').where('isTestRecord', isEqualTo: true).get();
+      final query = await firestore
+          .collection('users')
+          .where('isTestRecord', isEqualTo: true)
+          .get();
       for (final doc in query.docs) {
         await doc.reference.delete();
         deleted++;
@@ -377,11 +369,13 @@ mixin AuthStateMixin on ChangeNotifier {
 
   /// Bulk seed all 20 fellowship domains directly into Firestore so the database is fully populated
   Future<int> seedEntireDatabaseToFirestore() async {
+    if (!kDebugMode || !isDemoMode || !isAdmin) return 0;
     _isSeedingData = true;
     notifyListeners();
 
     int totalDocsPushed = 0;
     try {
+      // Templates ready in firestoreService if memory lists are empty
       totalDocsPushed = await _firestoreService.seedCompleteDatabase(
         students: List.from(_allStudents),
         pendingApprovals: List.from(_pendingApprovals),
@@ -419,39 +413,73 @@ mixin AuthStateMixin on ChangeNotifier {
   // ----------------------------------------------------
   // ROLE CAPABILITIES & PERMISSION CHECKERS (SCOPED RBAC)
   // ----------------------------------------------------
-  bool get isAdmin => _activeRole == UserRole.admin;
-  bool get canManageApprovals => _activeRole == UserRole.admin || _activeRole == UserRole.volunteerCoordinator;
-  bool get canManageFamilies => _activeRole == UserRole.admin || _activeRole == UserRole.spiritualParent;
-  bool get canVerifyFinances => _activeRole == UserRole.admin;
+  bool get isAdmin =>
+      _activeRole == UserRole.admin ||
+      _currentUser.role == UserRole.admin ||
+      _authenticatedRole == UserRole.admin;
 
-  /// General student registration acceptance is strictly ADMIN only.
+  bool get isCoordinator =>
+      _activeRole == UserRole.volunteerCoordinator ||
+      _currentUser.role == UserRole.volunteerCoordinator;
+
+  bool isCoordinatorOf(String deptId) {
+    if (isAdmin) return true;
+    if (_activeRole == UserRole.volunteerCoordinator &&
+        _currentUser.coordinatorProfile != null &&
+        _currentUser.coordinatorProfile!.isReadOnlyAudit != true &&
+        deptId != FellowshipDepartmentConstants.deptAudit) {
+      final userDept = _currentUser.coordinatorProfile!.departmentId;
+      return userDept == deptId;
+    }
+    return false;
+  }
+
+  /// General student approval is strictly ADMIN only (matches firestore.rules users write restriction)
+  bool get canManageApprovals => isAdmin;
   bool get canApproveGeneralStudents => isAdmin;
 
-  /// Priest / Confessor scheduling is strictly ADMIN / Clergy Liaison only.
+  /// Spiritual families management (Admin, Spiritual Parent, or Member Care Coordinator)
+  bool get canManageFamilies =>
+      isAdmin ||
+      _activeRole == UserRole.spiritualParent ||
+      isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare);
+
+  /// Financial verification (Admin, Charity Coordinator, or Accounting/Finance Coordinator)
+  bool get canVerifyFinances =>
+      isAdmin ||
+      isCoordinatorOf(FellowshipDepartmentConstants.deptCharity) ||
+      isCoordinatorOf(FellowshipDepartmentConstants.deptFinanceProperty);
+
+  /// Priest / Confessor scheduling (Admin only in firestore.rules confessors write)
   bool get canSchedulePriests => isAdmin;
 
   /// Assigning or promoting roles is strictly ADMIN only.
   bool get canAssignRoles => isAdmin;
 
-  /// Emergency student aid review is strictly ADMIN or 'አባላት እንክብካቤ፤ ምክክርና አቅም ማጎልበቻ' (deptMemberCare).
+  /// Emergency student aid review (Admin or Member Care Coordinator)
   bool get canManageEmergencyAid =>
-      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptMemberCare);
+      isAdmin || isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare);
 
-  /// Pilgrimage trip payment verification is strictly ADMIN or 'ባችና መርሐ ግብራት' (deptBatchPrograms).
+  /// Pilgrimage trip management (Admin or Batch & Programs Coordinator)
   bool get canManagePilgrimages =>
-      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptBatchPrograms);
+      isAdmin ||
+      isCoordinatorOf(FellowshipDepartmentConstants.deptBatchPrograms);
 
+  /// Charity campaigns management (Admin or Charity Coordinator)
   bool get canManageCharityAndAid =>
-      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptCharity);
+      isAdmin || isCoordinatorOf(FellowshipDepartmentConstants.deptCharity);
 
+  /// Family matching (Admin or Member Care Coordinator)
   bool get canManageFamilyMatching =>
-      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptMemberCare);
+      isAdmin || isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare);
 
+  /// Special teacher notices / Apostolic broadcasts (Admin or Apostolic Education Coordinator)
   bool get canPublishSpecialTeacherNotice =>
-      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptEducation);
+      isAdmin || isCoordinatorOf(FellowshipDepartmentConstants.deptEducation);
 
+  /// Fundraising proposals (Admin or Development Coordinator)
   bool get canSubmitFundraisingProposal =>
-      isAdmin || (_activeRole == UserRole.volunteerCoordinator && _currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptDevelopment);
+      isAdmin || isCoordinatorOf(FellowshipDepartmentConstants.deptDevelopment);
 
   /// Scoped RBAC: Checks if current user can view applications & roster of a department.
   /// - Global Admins: Read access to all departments.
@@ -477,9 +505,12 @@ mixin AuthStateMixin on ChangeNotifier {
   bool canAccessDepartmentWrite(String? targetDeptId) {
     if (isAdmin) return true;
     if (_currentUser.coordinatorProfile?.isReadOnlyAudit == true) return false;
+    if (targetDeptId == FellowshipDepartmentConstants.deptAudit) return false;
     if (_activeRole == UserRole.volunteerCoordinator) {
       final myDept = _currentUser.coordinatorProfile?.departmentId;
-      final canApprove = _currentUser.coordinatorProfile?.canApproveApplicants ?? false;
+      if (myDept == FellowshipDepartmentConstants.deptAudit) return false;
+      final canApprove =
+          _currentUser.coordinatorProfile?.canApproveApplicants ?? false;
       return canApprove && myDept == targetDeptId;
     }
     return false;
@@ -509,7 +540,9 @@ mixin AuthStateMixin on ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedIndex = prefs.getInt(_themePrefKey);
-      if (savedIndex != null && savedIndex >= 0 && savedIndex < AppThemePalette.values.length) {
+      if (savedIndex != null &&
+          savedIndex >= 0 &&
+          savedIndex < AppThemePalette.values.length) {
         _currentThemePalette = AppThemePalette.values[savedIndex];
         notifyListeners();
       }
@@ -539,21 +572,21 @@ mixin AuthStateMixin on ChangeNotifier {
     isApproved: false,
     badges: const [],
     ministryStatus: 'New Member',
-    assignedFamilyId: 'fam-st-george',
-    attendancePercentage: 0.0,
   );
 
   UserModel get currentUser => _currentUser;
 
   void setCurrentUser(UserModel user) {
     _currentUser = user;
-    if (user.role == UserRole.admin || AppAdminConstants.isAdminEmail(user.email)) {
+    if (user.role == UserRole.admin) {
       _isOriginalAdmin = true;
+    } else {
+      _isOriginalAdmin = false;
     }
     _authenticatedRole = user.role;
     _assignedRole = user.role;
     _activeRole = user.role;
-    final idx = _allStudents.indexWhere((u) => u.id == user.id || u.fullName.toLowerCase() == user.fullName.toLowerCase());
+    final idx = _allStudents.indexWhere((u) => u.id == user.id);
     if (idx >= 0) {
       _allStudents[idx] = _currentUser;
     } else {
@@ -581,8 +614,10 @@ mixin AuthStateMixin on ChangeNotifier {
     String? gender,
   }) {
     final effectiveRole = role ?? _currentUser.role;
-    if (effectiveRole == UserRole.admin || AppAdminConstants.isAdminEmail(_currentUser.email)) {
+    if (effectiveRole == UserRole.admin) {
       _isOriginalAdmin = true;
+    } else {
+      _isOriginalAdmin = false;
     }
 
     _currentUser = _currentUser.copyWith(
@@ -599,53 +634,112 @@ mixin AuthStateMixin on ChangeNotifier {
       ministryStatus: ministryStatus ?? _currentUser.ministryStatus,
       badges: badges ?? _currentUser.badges,
       avatarUrl: avatarUrl ?? _currentUser.avatarUrl,
-      attendancePercentage: attendancePercentage ?? _currentUser.attendancePercentage,
+      attendancePercentage:
+          attendancePercentage ?? _currentUser.attendancePercentage,
       coordinatorProfile: coordinatorProfile ?? _currentUser.coordinatorProfile,
       gender: gender ?? _currentUser.gender,
     );
 
     if (role != null) {
       _activeRole = role;
+      _authenticatedRole = role;
+      _assignedRole = role;
       if (role == UserRole.admin) {
         _isOriginalAdmin = true;
-        _authenticatedRole = UserRole.admin;
-        _assignedRole = UserRole.admin;
-      } else if (!_isOriginalAdmin && _authenticatedRole != UserRole.admin) {
-        _authenticatedRole = role;
-        _assignedRole = role;
+      } else {
+        _isOriginalAdmin = false;
       }
     }
 
-    final idx = _allStudents.indexWhere((u) => u.id == _currentUser.id || u.id == 'usr-current' || u.fullName.toLowerCase() == _currentUser.fullName.toLowerCase());
+    final idx = _allStudents.indexWhere((u) => u.id == _currentUser.id);
     if (idx >= 0) {
       _allStudents[idx] = _currentUser;
     } else {
       _allStudents.insert(0, _currentUser);
     }
     notifyListeners();
+    if (this is FellowshipState) {
+      (this as FellowshipState).refreshScopedStreams();
+    }
   }
 
-  Future<void> updateFamilyTelegramLink(String familyId, String newTelegramUrl) async {
-    final index = _families.indexWhere((f) => f.id == familyId);
-    if (index >= 0) {
-      _families[index] = _families[index].copyWith(telegramGroupUrl: newTelegramUrl);
-      notifyListeners();
-    }
-    try {
-      await FirebaseFirestore.instance.collection('families').doc(familyId).set({
-        'telegramGroupUrl': newTelegramUrl,
+  /// Updates current user profile in state and persists the changes directly to Firestore
+  Future<void> saveUserProfile({
+    required String fullName,
+    required String baptismalName,
+    required String phoneNumber,
+    required String department,
+    required int academicYear,
+    required String batchYear,
+    String? gender,
+  }) async {
+    updateCurrentUserProfile(
+      fullName: fullName.trim(),
+      baptismalName: baptismalName.trim(),
+      phoneNumber: phoneNumber.trim(),
+      department: department.trim(),
+      academicYear: academicYear,
+      batchYear: batchYear.trim(),
+      gender: gender?.trim().toLowerCase(),
+    );
+
+    final uid = _currentUser.id.trim().isNotEmpty
+        ? _currentUser.id.trim()
+        : FirebaseAuth.instance.currentUser?.uid;
+
+    if (uid != null && uid.isNotEmpty) {
+      final updateData = <String, dynamic>{
+        'fullName': fullName.trim(),
+        'baptismalName': baptismalName.trim(),
+        'phoneNumber': phoneNumber.trim(),
+        'department': department.trim(),
+        'academicYear': academicYear,
+        'batchYear': batchYear.trim(),
         'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (_) {
-      // Fallback silently if offline
+      };
+      if (gender != null && gender.trim().isNotEmpty) {
+        updateData['gender'] = gender.trim().toLowerCase();
+      }
+
+      try {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .set(updateData, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('saveUserProfile Firestore error: $e');
+      }
     }
+  }
+
+  Future<void> updateFamilyTelegramLink(
+    String familyId,
+    String newTelegramUrl,
+  ) async {
+    if (!canManageFamilies)
+      throw StateError(
+        'You do not have permission to edit family group links.',
+      );
+    final familyIndex = _families.indexWhere((family) => family.id == familyId);
+    if (familyIndex < 0) throw StateError('This family no longer exists.');
+    final uri = Uri.tryParse(newTelegramUrl.trim());
+    if (uri == null || uri.scheme != 'https' || uri.host != 't.me') {
+      throw FormatException(
+        'Enter a Telegram invite link that starts with https://t.me/.',
+      );
+    }
+
+    await _firestoreService.updateFamilyTelegramLink(familyId, uri.toString());
+    _families[familyIndex] = _families[familyIndex].copyWith(
+      telegramGroupUrl: uri.toString(),
+    );
+    notifyListeners();
   }
 
   void switchRole(UserRole newRole, {String? coordinatorDeptId}) {
     if (_activeRole == UserRole.admin ||
         _authenticatedRole == UserRole.admin ||
-        _currentUser.role == UserRole.admin ||
-        AppAdminConstants.isAdminEmail(_currentUser.email)) {
+        _currentUser.role == UserRole.admin) {
       _isOriginalAdmin = true;
     }
 
@@ -653,14 +747,21 @@ mixin AuthStateMixin on ChangeNotifier {
     CoordinatorProfileModel? coordProfile = _currentUser.coordinatorProfile;
 
     if (newRole == UserRole.volunteerCoordinator) {
-      final targetDept = coordinatorDeptId ?? coordProfile?.departmentId ?? FellowshipDepartmentConstants.deptChoirArts;
+      final targetDept =
+          coordinatorDeptId ??
+          coordProfile?.departmentId ??
+          FellowshipDepartmentConstants.deptEducation;
       final isAudit = targetDept == FellowshipDepartmentConstants.deptAudit;
       coordProfile = CoordinatorProfileModel(
         departmentId: targetDept,
-        departmentNameAmharic: FellowshipDepartmentConstants.getNameAmharic(targetDept),
+        departmentNameAmharic: FellowshipDepartmentConstants.getNameAmharic(
+          targetDept,
+        ),
         departmentNameEn: FellowshipDepartmentConstants.getNameEn(targetDept),
-        coordinatorTitle: isAudit ? 'Audit & Inspection Inspector' : 'Department Coordinator',
-        appointedDate: DateTime(2024, 9, 1),
+        coordinatorTitle: isAudit
+            ? 'Audit & Inspection Inspector'
+            : 'Department Coordinator',
+        appointedDate: coordProfile?.appointedDate ?? DateTime(2024, 9, 1),
         canApproveApplicants: !isAudit,
         canManageRoster: !isAudit,
         canPublishAnnouncements: true,
@@ -672,7 +773,9 @@ mixin AuthStateMixin on ChangeNotifier {
     _currentUser = _currentUser.copyWith(
       role: newRole,
       coordinatorProfile: coordProfile ?? _currentUser.coordinatorProfile,
-      assignedFamilyId: newRole == UserRole.spiritualParent ? 'fam-st-george' : _currentUser.assignedFamilyId,
+      assignedFamilyId: newRole == UserRole.spiritualParent
+          ? 'fam-st-george'
+          : _currentUser.assignedFamilyId,
     );
     notifyListeners();
   }
@@ -681,9 +784,13 @@ mixin AuthStateMixin on ChangeNotifier {
     final isAudit = departmentId == FellowshipDepartmentConstants.deptAudit;
     final profile = CoordinatorProfileModel(
       departmentId: departmentId,
-      departmentNameAmharic: FellowshipDepartmentConstants.getNameAmharic(departmentId),
+      departmentNameAmharic: FellowshipDepartmentConstants.getNameAmharic(
+        departmentId,
+      ),
       departmentNameEn: FellowshipDepartmentConstants.getNameEn(departmentId),
-      coordinatorTitle: isAudit ? 'Audit & Inspection Inspector' : 'Department Coordinator',
+      coordinatorTitle: isAudit
+          ? 'Audit & Inspection Inspector'
+          : 'Department Coordinator',
       appointedDate: DateTime(2024, 9, 1),
       canApproveApplicants: !isAudit,
       canManageRoster: !isAudit,
@@ -735,7 +842,6 @@ mixin AuthStateMixin on ChangeNotifier {
       isApproved: false, // Requires admin verification
       badges: ['New Fellow'],
       ministryStatus: 'General Member',
-      attendancePercentage: 100.0,
       gender: gender,
     );
 
@@ -744,111 +850,109 @@ mixin AuthStateMixin on ChangeNotifier {
     notifyListeners();
 
     // Write to Firestore asynchronously; surface errors to log
-    FirebaseFirestore.instance.collection('users').doc(newStudent.id).set(
-      newStudent.toMap(),
-      SetOptions(merge: true),
-    ).then((_) {
-      debugPrint('registerStudent: Firestore write succeeded for ${newStudent.id}');
-    }).catchError((e) {
-      debugPrint('Firestore registerStudent error (offline or permission): $e');
-      // Data is already saved locally via _pendingApprovals & _currentUser.
-      // The next time the user comes online, the Firestore stream will re-sync.
-    });
-  }
-
-  void approveStudent(String studentId, {UserRole role = UserRole.student}) {
-    if (!canApproveGeneralStudents) return;
-    final index = _pendingApprovals.indexWhere((u) => u.id == studentId);
-    if (index != -1) {
-      final targetFamilyId = _families.isNotEmpty ? _families.first.id : null;
-      final student = _pendingApprovals.removeAt(index).copyWith(
-        isApproved: true,
-        role: role,
-        assignedFamilyId: targetFamilyId,
-      );
-      _allStudents.add(student);
-
-      // Synchronize family roster by inserting student id into target family
-      if (targetFamilyId != null) {
-        final fIdx = _families.indexWhere((f) => f.id == targetFamilyId);
-        if (fIdx != -1) {
-          final f = _families[fIdx];
-          if (!f.memberIds.contains(student.id)) {
-            final updatedMembers = List<String>.from(f.memberIds)..add(student.id);
-            _families[fIdx] = f.copyWith(memberIds: updatedMembers);
-          }
-        }
-      }
-
-      if (_currentUser.id == studentId) {
-        _currentUser = student;
-      }
-      notifyListeners();
-
-      try {
-        FirebaseFirestore.instance.collection('users').doc(studentId).set({
-          'isApproved': true,
-          'role': role.name,
-          'assignedFamilyId': targetFamilyId,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      } catch (e) {
-        debugPrint('Firestore approveStudent notice: $e');
-      }
+    try {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(newStudent.id)
+          .set(newStudent.toMap(), SetOptions(merge: true))
+          .then((_) {
+            debugPrint(
+              'registerStudent: Firestore write succeeded for ${newStudent.id}',
+            );
+          })
+          .catchError((e) {
+            debugPrint(
+              'Firestore registerStudent error (offline or permission): $e',
+            );
+            // Data is already saved locally via _pendingApprovals & _currentUser.
+            // The next time the user comes online, the Firestore stream will re-sync.
+          });
+    } catch (e) {
+      debugPrint('Firestore registerStudent notice: $e');
     }
   }
 
-  void approveMultipleStudents(List<String> studentIds, {UserRole role = UserRole.student}) {
-    if (!canApproveGeneralStudents || studentIds.isEmpty) return;
-    final targetFamilyId = _families.isNotEmpty ? _families.first.id : null;
-    final Set<String> targetIds = studentIds.toSet();
-    final List<UserModel> approvedList = [];
-
-    _pendingApprovals.removeWhere((u) {
-      if (targetIds.contains(u.id)) {
-        final approvedStudent = u.copyWith(
-          isApproved: true,
-          role: role,
-          assignedFamilyId: targetFamilyId,
-        );
-        approvedList.add(approvedStudent);
-        if (_currentUser.id == u.id) {
-          _currentUser = approvedStudent;
-        }
-        return true;
-      }
+  Future<bool> approveStudent(
+    String studentId, {
+    UserRole role = UserRole.student,
+  }) async {
+    if (!canApproveGeneralStudents || role == UserRole.volunteerCoordinator)
       return false;
-    });
-
-    _allStudents.addAll(approvedList);
-
-    // Synchronize family roster
-    if (targetFamilyId != null && approvedList.isNotEmpty) {
-      final fIdx = _families.indexWhere((f) => f.id == targetFamilyId);
-      if (fIdx != -1) {
-        final f = _families[fIdx];
-        final newMemberIds = approvedList.map((s) => s.id).where((id) => !f.memberIds.contains(id)).toList();
-        if (newMemberIds.isNotEmpty) {
-          final updatedMembers = List<String>.from(f.memberIds)..addAll(newMemberIds);
-          _families[fIdx] = f.copyWith(memberIds: updatedMembers);
-        }
-      }
-    }
-
-    notifyListeners();
+    final index = _pendingApprovals.indexWhere((u) => u.id == studentId);
+    if (index == -1) return false;
 
     try {
-      for (final s in approvedList) {
-        FirebaseFirestore.instance.collection('users').doc(s.id).set({
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(studentId)
+          .update({
+            'isApproved': true,
+            'role': role.name,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint('Firestore approveStudent failed: $e');
+      return false;
+    }
+
+    final student = _pendingApprovals
+        .removeAt(index)
+        .copyWith(isApproved: true, role: role);
+    _allStudents.removeWhere((user) => user.id == student.id);
+    _allStudents.add(student);
+    if (_currentUser.id == studentId) _currentUser = student;
+    notifyListeners();
+    return true;
+  }
+
+  Future<int> approveMultipleStudents(
+    List<String> studentIds, {
+    UserRole role = UserRole.student,
+  }) async {
+    if (!canApproveGeneralStudents ||
+        studentIds.isEmpty ||
+        role == UserRole.volunteerCoordinator)
+      return 0;
+    final requestedIds = studentIds.toSet();
+    final pending = _pendingApprovals
+        .where((u) => requestedIds.contains(u.id))
+        .toList();
+    if (pending.isEmpty) return 0;
+
+    final approvedIds = <String>{};
+    final firestore = FirebaseFirestore.instance;
+    for (var start = 0; start < pending.length; start += 450) {
+      final chunk = pending.skip(start).take(450).toList();
+      final batch = firestore.batch();
+      for (final user in chunk) {
+        batch.update(firestore.collection('users').doc(user.id), {
           'isApproved': true,
           'role': role.name,
-          'assignedFamilyId': targetFamilyId,
           'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        });
       }
-    } catch (e) {
-      debugPrint('Firestore approveMultipleStudents notice: $e');
+      try {
+        await batch.commit();
+        approvedIds.addAll(chunk.map((user) => user.id));
+      } catch (e) {
+        debugPrint('Firestore approveMultipleStudents failed for batch: $e');
+        break;
+      }
     }
+
+    if (approvedIds.isEmpty) return 0;
+    final approvedUsers = _pendingApprovals
+        .where((user) => approvedIds.contains(user.id))
+        .map((user) => user.copyWith(isApproved: true, role: role))
+        .toList();
+    _pendingApprovals.removeWhere((user) => approvedIds.contains(user.id));
+    _allStudents.removeWhere((user) => approvedIds.contains(user.id));
+    _allStudents.addAll(approvedUsers);
+    for (final user in approvedUsers) {
+      if (_currentUser.id == user.id) _currentUser = user;
+    }
+    notifyListeners();
+    return approvedUsers.length;
   }
 
   void rejectStudent(String studentId) {
@@ -878,44 +982,98 @@ mixin AuthStateMixin on ChangeNotifier {
     }
   }
 
-  void approveAllPendingStudents({UserRole role = UserRole.student}) {
-    if (!canApproveGeneralStudents || _pendingApprovals.isEmpty) return;
+  Future<int> approveAllPendingStudents({
+    UserRole role = UserRole.student,
+  }) async {
+    if (!canApproveGeneralStudents || _pendingApprovals.isEmpty) return 0;
     final allIds = _pendingApprovals.map((u) => u.id).toList();
-    approveMultipleStudents(allIds, role: role);
+    return approveMultipleStudents(allIds, role: role);
   }
 
-  Future<void> assignUserRole(String studentId, UserRole role) async {
-    if (!isAdmin) return;
+  Future<bool> assignUserRole(
+    String studentId,
+    UserRole role, {
+    String? departmentId,
+  }) async {
+    if (!isAdmin) return false;
     final index = _allStudents.indexWhere((u) => u.id == studentId);
-    if (index != -1) {
-      CoordinatorProfileModel? coordProfile = _allStudents[index].coordinatorProfile;
-      if (role == UserRole.volunteerCoordinator && coordProfile == null) {
-        coordProfile = CoordinatorProfileModel(
-          departmentId: FellowshipDepartmentConstants.deptChoirArts,
-          departmentNameAmharic: FellowshipDepartmentConstants.getNameAmharic(FellowshipDepartmentConstants.deptChoirArts),
-          departmentNameEn: FellowshipDepartmentConstants.getNameEn(FellowshipDepartmentConstants.deptChoirArts),
-          coordinatorTitle: 'Department Coordinator',
-          appointedDate: DateTime.now(),
+    if (index == -1) return false;
+
+    CoordinatorProfileModel? coordProfile;
+    if (role == UserRole.volunteerCoordinator) {
+      final targetDept =
+          departmentId ?? _allStudents[index].coordinatorProfile?.departmentId;
+      if (targetDept == null ||
+          !FellowshipDepartmentConstants.coordinatorScopeIds.contains(
+            targetDept,
+          )) {
+        debugPrint(
+          'Coordinator role assignment rejected: an explicit valid department is required.',
         );
+        return false;
       }
-      _allStudents[index] = _allStudents[index].copyWith(role: role, coordinatorProfile: coordProfile);
-      if (_currentUser.id == studentId) {
-        _currentUser = _allStudents[index];
-        _assignedRole = role;
-        _activeRole = role;
-      }
-      notifyListeners();
+      final isAudit = targetDept == FellowshipDepartmentConstants.deptAudit;
+      coordProfile = CoordinatorProfileModel(
+        departmentId: targetDept,
+        departmentNameAmharic: FellowshipDepartmentConstants.getNameAmharic(
+          targetDept,
+        ),
+        departmentNameEn: FellowshipDepartmentConstants.getNameEn(targetDept),
+        coordinatorTitle: isAudit
+            ? 'Audit & Inspection Inspector'
+            : 'Department Coordinator',
+        appointedDate:
+            _allStudents[index].coordinatorProfile?.appointedDate ??
+            DateTime.now(),
+        canApproveApplicants: !isAudit,
+        canManageRoster: !isAudit,
+        canPublishAnnouncements: true,
+        isReadOnlyAudit: isAudit,
+      );
     }
+
     try {
-      await FirebaseFirestore.instance.collection('users').doc(studentId).set({
-        'role': role.name,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (_) {
-      // Fallback silently if offline
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(studentId)
+          .update({
+            'role': role.name,
+            'coordinatorProfile': coordProfile?.toMap(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+    } catch (e) {
+      debugPrint('Firestore assignUserRole failed: $e');
+      return false;
     }
+
+    final updatedUser = _allStudents[index].copyWith(
+      role: role,
+      coordinatorProfile: coordProfile,
+    );
+    _allStudents[index] = updatedUser;
+    if (_currentUser.id == studentId) {
+      _currentUser = updatedUser;
+      _assignedRole = role;
+      _activeRole = role;
+    }
+    notifyListeners();
+    return true;
   }
 
+  /// Admin-specific scope reassignment for volunteer coordinators
+  Future<bool> updateCoordinatorScope(
+    String studentId,
+    String newDepartmentId,
+  ) async {
+    return assignUserRole(
+      studentId,
+      UserRole.volunteerCoordinator,
+      departmentId: newDepartmentId,
+    );
+  }
+
+  /// Admin revocation of coordinator access, reverting to general student role
+  Future<bool> revokeCoordinatorAccess(String studentId) async {
+    return assignUserRole(studentId, UserRole.student);
+  }
 }
-
-

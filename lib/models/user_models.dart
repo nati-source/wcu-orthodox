@@ -1,11 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum UserRole {
-  student,
-  admin,
-  spiritualParent,
-  volunteerCoordinator,
-}
+enum UserRole { student, admin, spiritualParent, volunteerCoordinator }
 
 extension UserRoleExtension on UserRole {
   String get displayName {
@@ -40,21 +35,51 @@ extension UserRoleExtension on UserRole {
 // ============================================================================
 
 class FellowshipDepartmentConstants {
-  static const String deptEducation = 'dept-apostolic'; // DEPT_EDUCATION (ትምህርትና ሐዋርያዊ አገልግሎት)
-  static const String deptMemberCare = 'dept-membercare'; // DEPT_MEMBER_CARE (አባላት እንክብካቤ፤ ምክክርና አቅም ማጎልበቻ)
-  static const String deptChoirArts = 'dept-music'; // DEPT_CHOIR_ARTS (መዝሙርና ስነ ጥበባት)
-  static const String deptDevelopment = 'dept-development'; // DEPT_DEVELOPMENT (ልማትና ገቢ አሰባሰብ)
-  static const String deptFinanceProperty = 'dept-accounting'; // DEPT_FINANCE_PROPERTY (ሒሳብና ንብረት)
-  static const String deptBatchPrograms = 'dept-programs'; // DEPT_BATCH_PROGRAMS (ባችና መርሐ ግብራት ማስተባበሪያ)
-  static const String deptCharity = 'dept-charity'; // DEPT_CHARITY (ሙያና በጎ አድራጎት)
-  static const String deptSpecialNeeds = 'dept-language'; // DEPT_SPECIAL_NEEDS (ቋንቋና ልዩ ልዩ ፍላጎት)
-  static const String deptPlanning = 'dept-planning'; // DEPT_PLANNING (እቅድና ክትትል)
-  static const String deptAudit = 'dept-audit'; // DEPT_AUDIT (ኦዲትና ኢንስፔክሽን)
+  static const String deptEducation =
+      'dept-apostolic'; // DEPT_EDUCATION (ትምህርትና ሐዋርያዊ አገልግሎት)
+  static const String deptMemberCare =
+      'dept-membercare'; // DEPT_MEMBER_CARE (አባላት እንክብካቤ፤ ምክክርና አቅም ማጎልበቻ)
+  static const String deptChoir =
+      'dept-mezmur'; // DEPT_CHOIR (መዝሙር ክፍል) - Dedicated Choir & Hymnography
+  static const String deptSacredArts = 'dept-arts'; // DEPT_SACRED_ARTS (ስነ ጥበባት ክፍል) - Dedicated Christian Arts & Literature
+  static const String deptChoirArts =
+      'dept-music'; // Legacy combined identifier for migration review
+  static const String deptDevelopment =
+      'dept-development'; // DEPT_DEVELOPMENT (ልማትና ገቢ አሰባሰብ)
+  static const String deptFinanceProperty =
+      'dept-accounting'; // DEPT_FINANCE_PROPERTY (ሒሳብና ንብረት)
+  static const String deptBatchPrograms =
+      'dept-programs'; // DEPT_BATCH_PROGRAMS (ባችና መርሐ ግብራት ማስተባበሪያ)
+  static const String deptCharity =
+      'dept-charity'; // DEPT_CHARITY (ሙያና በጎ አድራጎት)
+  static const String deptSpecialNeeds =
+      'dept-language'; // DEPT_SPECIAL_NEEDS (ቋንቋና ልዩ ልዩ ፍላጎት)
+  static const String deptPlanning =
+      'dept-planning'; // DEPT_PLANNING (እቅድና ክትትል)
+  static const String deptAudit =
+      'dept-audit'; // DEPT_AUDIT (ኦዲትና ኢንስፔክሽን - Read Only)
 
+  /// The 11 specific coordinator scopes selectable by admins
+  static const List<String> coordinatorScopeIds = [
+    deptEducation,
+    deptMemberCare,
+    deptChoir,
+    deptSacredArts,
+    deptDevelopment,
+    deptFinanceProperty,
+    deptBatchPrograms,
+    deptCharity,
+    deptSpecialNeeds,
+    deptPlanning,
+    deptAudit,
+  ];
+
+  /// Active fellowship departments across the application
   static const List<String> allDepartmentIds = [
     deptEducation,
     deptMemberCare,
-    deptChoirArts,
+    deptChoir,
+    deptSacredArts,
     deptDevelopment,
     deptFinanceProperty,
     deptBatchPrograms,
@@ -67,7 +92,9 @@ class FellowshipDepartmentConstants {
   static const Map<String, String> amharicNames = {
     deptEducation: 'ትምህርትና ሐዋርያዊ አገልግሎት',
     deptMemberCare: 'አባላት እንክብካቤ፤ ምክክርና አቅም ማጎልበቻ',
-    deptChoirArts: 'መዝሙርና ስነ ጥበባት',
+    deptChoir: 'መዝሙር ክፍል',
+    deptSacredArts: 'ስነ ጥበባት ክፍል',
+    deptChoirArts: 'መዝሙርና ስነ ጥበባት (የቀድሞ ጥምር)',
     deptDevelopment: 'ልማትና ገቢ አሰባሰብ',
     deptFinanceProperty: 'ሒሳብና ንብረት',
     deptBatchPrograms: 'ባችና መርሐ ግብራት ማስተባበሪያ',
@@ -80,7 +107,9 @@ class FellowshipDepartmentConstants {
   static const Map<String, String> englishNames = {
     deptEducation: 'Education & Apostolic Ministry',
     deptMemberCare: 'Member Care, Counseling & Capacity',
-    deptChoirArts: 'Music, Hymnography & Sacred Arts',
+    deptChoir: 'Mezmur / Choir',
+    deptSacredArts: 'Sacred Arts',
+    deptChoirArts: 'Music & Sacred Arts (Legacy Combined)',
     deptDevelopment: 'Development & Fundraising',
     deptFinanceProperty: 'Accounting & Property Management',
     deptBatchPrograms: 'Batch & Programs Coordination',
@@ -96,6 +125,12 @@ class FellowshipDepartmentConstants {
         return deptEducation;
       case 'DEPT_MEMBER_CARE':
         return deptMemberCare;
+      case 'DEPT_CHOIR':
+      case 'DEPT_MEZMUR':
+        return deptChoir;
+      case 'DEPT_SACRED_ARTS':
+      case 'DEPT_ARTS':
+        return deptSacredArts;
       case 'DEPT_CHOIR_ARTS':
         return deptChoirArts;
       case 'DEPT_DEVELOPMENT':
@@ -117,7 +152,8 @@ class FellowshipDepartmentConstants {
     }
   }
 
-  static String normalizeDepartmentId(String deptIdOrKey) => normalize(deptIdOrKey);
+  static String normalizeDepartmentId(String deptIdOrKey) =>
+      normalize(deptIdOrKey);
 
   static String getNameAmharic(String deptIdOrKey) {
     final normalized = normalize(deptIdOrKey);
@@ -127,6 +163,34 @@ class FellowshipDepartmentConstants {
   static String getNameEn(String deptIdOrKey) {
     final normalized = normalize(deptIdOrKey);
     return englishNames[normalized] ?? englishNames[deptIdOrKey] ?? deptIdOrKey;
+  }
+
+  /// Checks if a department ID corresponds to the legacy combined Music & Sacred Arts scope
+  static bool isLegacyCombinedMusicScope(String? deptId) {
+    if (deptId == null) return false;
+    final clean = deptId.trim().toLowerCase();
+    return clean == deptChoirArts ||
+        clean == 'dept-music' ||
+        clean == 'dept_choir_arts';
+  }
+
+  /// Checks if a department ID corresponds to the read-only Audit & Inspection scope
+  static bool isAuditScope(String? deptId) {
+    if (deptId == null) return false;
+    final clean = deptId.trim().toLowerCase();
+    return clean == deptAudit || clean == 'dept-audit' || clean == 'dept_audit';
+  }
+
+  /// Returns clear formatted role string: "Volunteer Coordinator — [Scope]"
+  static String formatCoordinatorScope(String? deptId) {
+    if (deptId == null || deptId.trim().isEmpty) {
+      return 'Volunteer Coordinator — Unassigned Scope';
+    }
+    if (isLegacyCombinedMusicScope(deptId)) {
+      return 'Volunteer Coordinator — Music & Sacred Arts (Legacy Combined)';
+    }
+    final enName = getNameEn(deptId);
+    return 'Volunteer Coordinator — $enName';
   }
 }
 
@@ -155,10 +219,12 @@ class CoordinatorProfileModel {
     this.canManageRoster = true,
     this.canPublishAnnouncements = true,
     this.isReadOnlyAudit = false,
-  })  : departmentTitle = departmentTitle ?? departmentNameEn ?? '',
-        departmentTitleAmharic = departmentTitleAmharic ?? departmentNameAmharic ?? '',
-        departmentNameEn = departmentNameEn ?? departmentTitle ?? '',
-        departmentNameAmharic = departmentNameAmharic ?? departmentTitleAmharic ?? '';
+  }) : departmentTitle = departmentTitle ?? departmentNameEn ?? '',
+       departmentTitleAmharic =
+           departmentTitleAmharic ?? departmentNameAmharic ?? '',
+       departmentNameEn = departmentNameEn ?? departmentTitle ?? '',
+       departmentNameAmharic =
+           departmentNameAmharic ?? departmentTitleAmharic ?? '';
 
   CoordinatorProfileModel copyWith({
     String? departmentId,
@@ -176,14 +242,17 @@ class CoordinatorProfileModel {
     return CoordinatorProfileModel(
       departmentId: departmentId ?? this.departmentId,
       departmentTitle: departmentTitle ?? this.departmentTitle,
-      departmentTitleAmharic: departmentTitleAmharic ?? this.departmentTitleAmharic,
+      departmentTitleAmharic:
+          departmentTitleAmharic ?? this.departmentTitleAmharic,
       departmentNameEn: departmentNameEn ?? this.departmentNameEn,
-      departmentNameAmharic: departmentNameAmharic ?? this.departmentNameAmharic,
+      departmentNameAmharic:
+          departmentNameAmharic ?? this.departmentNameAmharic,
       coordinatorTitle: coordinatorTitle ?? this.coordinatorTitle,
       appointedDate: appointedDate ?? this.appointedDate,
       canApproveApplicants: canApproveApplicants ?? this.canApproveApplicants,
       canManageRoster: canManageRoster ?? this.canManageRoster,
-      canPublishAnnouncements: canPublishAnnouncements ?? this.canPublishAnnouncements,
+      canPublishAnnouncements:
+          canPublishAnnouncements ?? this.canPublishAnnouncements,
       isReadOnlyAudit: isReadOnlyAudit ?? this.isReadOnlyAudit,
     );
   }
@@ -208,11 +277,15 @@ class CoordinatorProfileModel {
     return CoordinatorProfileModel(
       departmentId: map['departmentId'] ?? '',
       departmentTitle: map['departmentTitle'] ?? map['departmentNameEn'],
-      departmentTitleAmharic: map['departmentTitleAmharic'] ?? map['departmentNameAmharic'],
+      departmentTitleAmharic:
+          map['departmentTitleAmharic'] ?? map['departmentNameAmharic'],
       departmentNameEn: map['departmentNameEn'] ?? map['departmentTitle'],
-      departmentNameAmharic: map['departmentNameAmharic'] ?? map['departmentTitleAmharic'],
+      departmentNameAmharic:
+          map['departmentNameAmharic'] ?? map['departmentTitleAmharic'],
       coordinatorTitle: map['coordinatorTitle'] ?? 'Department Coordinator',
-      appointedDate: map['appointedDate'] != null ? DateTime.tryParse(map['appointedDate']) : null,
+      appointedDate: map['appointedDate'] != null
+          ? DateTime.tryParse(map['appointedDate'])
+          : null,
       canApproveApplicants: map['canApproveApplicants'] ?? true,
       canManageRoster: map['canManageRoster'] ?? true,
       canPublishAnnouncements: map['canPublishAnnouncements'] ?? true,
@@ -224,10 +297,21 @@ class CoordinatorProfileModel {
 class AppAdminConstants {
   static const String adminEmail = 'natisita928@gmail.com';
 
+  static const List<String> authorizedAdminEmails = [
+    'natisita928@gmail.com',
+    'natnaeltedla25@gmail.com',
+    'alamrew0955958544@gmail.com',
+    'admin@wcu.edu.et',
+    'admin@wcuorthodox.org',
+    'admin@gmail.com',
+    'wcuorthodox@gmail.com',
+  ];
+
   static bool isAdminEmail(String? email) {
     if (email == null) return false;
     final clean = email.trim().toLowerCase();
-    return clean == adminEmail;
+    if (clean.isEmpty) return false;
+    return clean == adminEmail || authorizedAdminEmails.contains(clean);
   }
 }
 
@@ -242,10 +326,12 @@ class UserModel {
   final UserRole role;
   final bool isApproved;
   final List<String> badges;
-  final String ministryStatus; // e.g. "Choir Member", "Hospitality Volunteer", "None"
+  final String
+  ministryStatus; // e.g. "Choir Member", "Hospitality Volunteer", "None"
   final String? assignedFamilyId;
   final String? avatarUrl;
-  final double attendancePercentage; // e.g. 88.0
+  final double attendancePercentage;
+  final bool hasAttendanceData;
   final CoordinatorProfileModel? coordinatorProfile;
   final String gender; // 'male' or 'female'
   final String? email;
@@ -264,11 +350,13 @@ class UserModel {
     this.ministryStatus = 'General Fellow',
     this.assignedFamilyId,
     this.avatarUrl,
-    this.attendancePercentage = 85.0,
+    double? attendancePercentage,
+    bool? hasAttendanceData,
     this.coordinatorProfile,
     this.gender = 'male',
     this.email,
-  });
+  }) : attendancePercentage = attendancePercentage ?? 0.0,
+       hasAttendanceData = hasAttendanceData ?? attendancePercentage != null;
 
   bool get isMale => gender.toLowerCase() == 'male';
   bool get isFemale => gender.toLowerCase() == 'female';
@@ -277,20 +365,7 @@ class UserModel {
     final lowerName = fullName.toLowerCase().trim();
     final lowerBap = (baptismalName ?? '').toLowerCase().trim();
 
-    // Check baptismal clues first (accurate in Ethiopian Orthodox tradition)
-    if (lowerBap.contains('walata') ||
-        lowerBap.contains('wolete') ||
-        lowerBap.contains('ወለተ') ||
-        lowerBap.contains('amata') ||
-        lowerBap.contains('አመተ') ||
-        lowerBap.contains('kristos samra') ||
-        lowerBap.contains('ክርስቶስ ሠምራ') ||
-        lowerBap.contains('maryam') ||
-        lowerBap.contains('ማርያም') ||
-        lowerBap.contains('fikerte') ||
-        lowerBap.contains('ፍቅርተ')) {
-      return 'female';
-    }
+    // Check male baptismal prefixes first (accurate in Ethiopian Orthodox tradition: Gebre Maryam, Wolde Maryam, etc.)
     if (lowerBap.contains('gebre') ||
         lowerBap.contains('ገብረ') ||
         lowerBap.contains('haile') ||
@@ -303,21 +378,111 @@ class UserModel {
         lowerBap.contains('ወልደ') ||
         lowerBap.contains('kidan') ||
         lowerBap.contains('ኪዳነ')) {
-      return 'male';
+      if (!lowerBap.contains('wolete') && !lowerBap.contains('ወለተ')) {
+        return 'male';
+      }
+    }
+
+    // Check female baptismal clues
+    if (lowerBap.contains('walata') ||
+        lowerBap.contains('wolete') ||
+        lowerBap.contains('ወለተ') ||
+        lowerBap.contains('amata') ||
+        lowerBap.contains('አመተ') ||
+        lowerBap.contains('ehete') ||
+        lowerBap.contains('እኅተ') ||
+        lowerBap.contains('kristos samra') ||
+        lowerBap.contains('ክርስቶስ ሠምራ') ||
+        lowerBap.contains('maryam') ||
+        lowerBap.contains('ማርያም') ||
+        lowerBap.contains('fikerte') ||
+        lowerBap.contains('ፍቅርተ')) {
+      return 'female';
     }
 
     const femaleNames = {
-      'selamawit', 'martha', 'lidia', 'lidya', 'sara', 'sarah', 'rahel', 'rachel',
-      'eden', 'feven', 'bethlehem', 'bethelhem', 'meron', 'tsehay', 'tigist',
-      'meseret', 'helen', 'senait', 'almaz', 'hiwot', 'tsion', 'zion', 'mahlet',
-      'genet', 'lemlem', 'kalkidan', 'yeabsera', 'abigiya', 'ruth', 'aster',
-      'hirut', 'sosina', 'samrawit', 'hilina', 'hermela', 'mekdes', 'hewan',
-      'feker', 'weynishet', 'haddas', 'frehiwot', 'birtukan', 'worknesh', 'yemisrach',
-      'hana', 'hanna', 'blen', 'rebecca', 'rebeka', 'diana', 'gelila',
-      'ሴላማዊት', 'ማርታ', 'ሊዲያ', 'ሣራ', 'ሣራህ', 'ራሔል', 'ኤደን', 'ፌቨን', 'ቤተልሔም', 'ሜሮን',
-      'ፀሐይ', 'ትዕግሥት', 'መሠረት', 'ሄለን', 'ሠናይት', 'አልማዝ', 'ሕይወት', 'ጽዮን', 'ማሕሌት',
-      'ገነት', 'ለምለም', 'ቃልኪዳን', 'ሩት', 'አስቴር', 'ሕሩት', 'ሶስና', 'ሳምራዊት', 'ህሊና',
-      'ሔርሜላ', 'መቅደስ', 'ሔዋን'
+      'selamawit',
+      'martha',
+      'lidia',
+      'lidya',
+      'sara',
+      'sarah',
+      'rahel',
+      'rachel',
+      'eden',
+      'feven',
+      'bethlehem',
+      'bethelhem',
+      'meron',
+      'tsehay',
+      'tigist',
+      'meseret',
+      'helen',
+      'senait',
+      'almaz',
+      'hiwot',
+      'tsion',
+      'zion',
+      'mahlet',
+      'genet',
+      'lemlem',
+      'kalkidan',
+      'yeabsera',
+      'abigiya',
+      'ruth',
+      'aster',
+      'hirut',
+      'sosina',
+      'samrawit',
+      'hilina',
+      'hermela',
+      'mekdes',
+      'hewan',
+      'feker',
+      'weynishet',
+      'haddas',
+      'frehiwot',
+      'birtukan',
+      'worknesh',
+      'yemisrach',
+      'hana',
+      'hanna',
+      'blen',
+      'rebecca',
+      'rebeka',
+      'diana',
+      'gelila',
+      'ሴላማዊት',
+      'ማርታ',
+      'ሊዲያ',
+      'ሣራ',
+      'ሣራህ',
+      'ራሔል',
+      'ኤደን',
+      'ፌቨን',
+      'ቤተልሔም',
+      'ሜሮን',
+      'ፀሐይ',
+      'ትዕግሥት',
+      'መሠረት',
+      'ሄለን',
+      'ሠናይት',
+      'አልማዝ',
+      'ሕይወት',
+      'ጽዮን',
+      'ማሕሌት',
+      'ገነት',
+      'ለምለም',
+      'ቃልኪዳን',
+      'ሩት',
+      'አስቴር',
+      'ሕሩት',
+      'ሶስና',
+      'ሳምራዊት',
+      'ህሊና',
+      'ሔርሜላ',
+      'መቅደስ',
+      'ሔዋን',
     };
 
     final firstWord = lowerName.split(RegExp(r'\s+')).first;
@@ -343,6 +508,7 @@ class UserModel {
     String? assignedFamilyId,
     String? avatarUrl,
     double? attendancePercentage,
+    bool? hasAttendanceData,
     CoordinatorProfileModel? coordinatorProfile,
     String? gender,
     String? email,
@@ -362,6 +528,7 @@ class UserModel {
       assignedFamilyId: assignedFamilyId ?? this.assignedFamilyId,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       attendancePercentage: attendancePercentage ?? this.attendancePercentage,
+      hasAttendanceData: hasAttendanceData ?? this.hasAttendanceData,
       coordinatorProfile: coordinatorProfile ?? this.coordinatorProfile,
       gender: gender ?? this.gender,
       email: email ?? this.email,
@@ -383,7 +550,7 @@ class UserModel {
       'ministryStatus': ministryStatus,
       'assignedFamilyId': assignedFamilyId,
       'avatarUrl': avatarUrl,
-      'attendancePercentage': attendancePercentage,
+      if (hasAttendanceData) 'attendancePercentage': attendancePercentage,
       'coordinatorProfile': coordinatorProfile?.toMap(),
       'gender': gender,
       'email': email,
@@ -391,26 +558,28 @@ class UserModel {
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map, String docId) {
-    final rawEmail = map['email']?.toString();
-    final bool isAdminEmail = AppAdminConstants.isAdminEmail(rawEmail) || docId == 'gonGT6FkXzZTlHQkXWTFokH8GZF3';
-
-    final roleStr = map['role']?.toString() ?? 'student';
-    UserRole role = UserRole.values.firstWhere(
-      (r) => r.name == roleStr,
-      orElse: () => UserRole.student,
-    );
-    if (isAdminEmail) {
-      role = UserRole.admin;
+    final roleStr = map['role']?.toString().trim() ?? 'student';
+    UserRole role = UserRole.student;
+    for (final r in UserRole.values) {
+      if (r.name.toLowerCase() == roleStr.toLowerCase()) {
+        role = r;
+        break;
+      }
     }
+
     final rawName = map['fullName'] ?? map['name'];
     final nameStr = (rawName != null && rawName.toString().trim().isNotEmpty)
         ? rawName.toString().trim()
-        : (isAdminEmail ? 'Nati (Admin)' : 'Student Fellow');
+        : 'Student Fellow';
     final bapStr = map['baptismalName']?.toString() ?? '';
     final parsedGender = map['gender']?.toString().toLowerCase().trim();
     final finalGender = (parsedGender == 'male' || parsedGender == 'female')
         ? parsedGender!
         : inferGender(nameStr, bapStr);
+
+    final bool isApproved = map['isApproved'] is bool
+        ? (map['isApproved'] as bool)
+        : false;
 
     return UserModel(
       id: docId.isNotEmpty ? docId : (map['id']?.toString() ?? ''),
@@ -421,18 +590,24 @@ class UserModel {
       department: map['department']?.toString() ?? 'General',
       academicYear: (map['academicYear'] as num?)?.toInt() ?? 1,
       role: role,
-      isApproved: isAdminEmail ? true : (map['isApproved'] ?? false),
-      badges: (map['badges'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      isApproved: isApproved,
+      badges:
+          (map['badges'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
       ministryStatus: map['ministryStatus']?.toString() ?? 'General Fellow',
-      assignedFamilyId: map['assignedFamilyId'] ?? map['familyId'] ?? map['family'] ?? map['assignedFamily'],
+      assignedFamilyId:
+          map['assignedFamilyId'] ??
+          map['familyId'] ??
+          map['family'] ??
+          map['assignedFamily'],
       avatarUrl: map['avatarUrl'],
-      attendancePercentage: (map['attendancePercentage'] as num?)?.toDouble() ?? 85.0,
+      attendancePercentage: (map['attendancePercentage'] as num?)?.toDouble(),
+      hasAttendanceData: map['attendancePercentage'] is num,
       coordinatorProfile: map['coordinatorProfile'] is Map<String, dynamic>
           ? CoordinatorProfileModel.fromMap(map['coordinatorProfile'])
           : null,
       gender: finalGender,
-      email: rawEmail,
+      email: map['email']?.toString(),
     );
   }
 }
-

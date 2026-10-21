@@ -240,6 +240,115 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
             ],
           ),
           const SizedBox(height: 14),
+          if (state.programs.where((p) => !p.isEmergency).isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: primaryAccent.withOpacity(0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.timer_outlined, size: 18, color: primaryAccent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Active Program Countdowns • የፕሮግራም ቆጣሪዎች (${state.programs.where((p) => !p.isEmergency).length})',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textCol),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ...state.programs.where((p) => !p.isEmergency).map((prog) {
+                    final isPast = prog.dateTime.isBefore(DateTime.now());
+                    final diff = prog.dateTime.difference(DateTime.now());
+                    final timeLabel = isPast
+                        ? 'Passed / ተከናውኗል'
+                        : '${diff.inDays > 0 ? "${diff.inDays}d " : ""}${diff.inHours % 24}h ${diff.inMinutes % 60}m remaining';
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: elevatedBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: primaryAccent.withOpacity(0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  prog.title,
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: textCol),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${prog.churchName} • ${prog.category}',
+                                  style: TextStyle(fontSize: 11, color: textMuted),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(Icons.alarm, size: 12, color: primaryAccent),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        '${prog.dateTime.day}/${prog.dateTime.month}/${prog.dateTime.year} ${prog.dateTime.hour}:${prog.dateTime.minute.toString().padLeft(2, '0')} ($timeLabel)',
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: primaryAccent),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          if (!isAudit) ...[
+                            IconButton(
+                              icon: Icon(Icons.edit_outlined, size: 16, color: primaryAccent),
+                              tooltip: 'Update / አስተካክል',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                              onPressed: () => _showScheduleChurchProgramDialog(context, state, programToEdit: prog),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.stop_circle_outlined, size: 16, color: AppTheme.crimson),
+                              tooltip: 'Stop & Cancel Countdown / አቁም',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                              onPressed: () {
+                                _confirmDeleteDialog(
+                                  context,
+                                  title: 'Stop Program Countdown',
+                                  message: 'Are you sure you want to stop and remove the countdown for "${prog.title}"?',
+                                  onConfirm: () async {
+                                    await state.deleteChurchProgram(prog.id);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Countdown for "${prog.title}" stopped and removed.')),
+                                    );
+                                  },
+                                );
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
           if (state.triviaQuizzes.isNotEmpty) ...[
             Container(
               padding: const EdgeInsets.all(14),
@@ -1215,15 +1324,16 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
   // Dedicated to: Interactive Campaign Proposals Drafting, Admin Review Tracking, & Capital Goals
   // --------------------------------------------------------------------------
 
-  void _showScheduleChurchProgramDialog(BuildContext context, FellowshipState state) {
+  void _showScheduleChurchProgramDialog(BuildContext context, FellowshipState state, {ChurchProgramModel? programToEdit}) {
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
 
-    final titleController = TextEditingController(text: 'Sunday Divine Liturgy • የሰንበት ቅዳሴ');
-    final churchController = TextEditingController(text: "St. Mary's Orthodox Church • ደብረ ምሕረት ቅድስት ማርያም");
-    final descController = TextEditingController(text: 'Canonical Divine Liturgy and Holy Eucharist service.');
-    String selectedCategory = 'Liturgy';
-    DateTime selectedDateTime = DateTime.now().add(const Duration(days: 1, hours: 2));
+    final isEditing = programToEdit != null;
+    final titleController = TextEditingController(text: programToEdit?.title ?? 'Sunday Divine Liturgy • የሰንበት ቅዳሴ');
+    final churchController = TextEditingController(text: programToEdit?.churchName ?? "St. Mary's Orthodox Church • ደብረ ምሕረት ቅድስት ማርያም");
+    final descController = TextEditingController(text: programToEdit?.description ?? 'Canonical Divine Liturgy and Holy Eucharist service.');
+    String selectedCategory = programToEdit?.category ?? 'Liturgy';
+    DateTime selectedDateTime = programToEdit?.dateTime ?? DateTime.now().add(const Duration(days: 1, hours: 2));
 
     showDialog(
       context: context,
@@ -1392,43 +1502,111 @@ extension DeptEducationModuleExt on _CoordinatorHubScreenState {
                     ),
                     const SizedBox(height: 18),
 
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        final title = titleController.text.trim();
-                        final church = churchController.text.trim();
-                        final desc = descController.text.trim();
+                    if (isEditing) ...[
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                await state.deleteChurchProgram(programToEdit.id);
+                                if (dialogCtx.mounted) {
+                                  Navigator.pop(dialogCtx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Countdown for "${programToEdit.title}" stopped & removed.')),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.stop_circle_outlined, size: 16, color: AppTheme.crimson),
+                              label: const Text('Stop / ሰርዝ', style: TextStyle(color: AppTheme.crimson, fontWeight: FontWeight.bold, fontSize: 12)),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: AppTheme.crimson),
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                final title = titleController.text.trim();
+                                final church = churchController.text.trim();
+                                final desc = descController.text.trim();
 
-                        if (title.isEmpty || church.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please enter program title and church location.')),
-                          );
-                          return;
-                        }
+                                if (title.isEmpty || church.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Please enter program title and church location.')),
+                                  );
+                                  return;
+                                }
 
-                        await state.scheduleChurchProgram(
-                          title: title,
-                          churchName: church,
-                          category: selectedCategory,
-                          dateTime: selectedDateTime,
-                          description: desc,
-                        );
+                                await state.updateChurchProgram(
+                                  id: programToEdit.id,
+                                  title: title,
+                                  churchName: church,
+                                  category: selectedCategory,
+                                  dateTime: selectedDateTime,
+                                  description: desc,
+                                );
 
-                        if (dialogCtx.mounted) {
-                          Navigator.pop(dialogCtx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Liturgy countdown set to ${selectedDateTime.toString().substring(0, 16)}!')),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Flexible(child: Text('Publish Countdown • ሰዓቱን አስቀምጥና ጀምር', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryAccent,
-                        foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                                if (dialogCtx.mounted) {
+                                  Navigator.pop(dialogCtx);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Program & countdown updated!')),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.check_circle, size: 18),
+                              label: const Flexible(child: Text('Update • አሻሽል', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryAccent,
+                                foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    ] else ...[
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final title = titleController.text.trim();
+                          final church = churchController.text.trim();
+                          final desc = descController.text.trim();
+
+                          if (title.isEmpty || church.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Please enter program title and church location.')),
+                            );
+                            return;
+                          }
+
+                          await state.scheduleChurchProgram(
+                            title: title,
+                            churchName: church,
+                            category: selectedCategory,
+                            dateTime: selectedDateTime,
+                            description: desc,
+                          );
+
+                          if (dialogCtx.mounted) {
+                            Navigator.pop(dialogCtx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Liturgy countdown set to ${selectedDateTime.toString().substring(0, 16)}!')),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.check_circle, size: 18),
+                        label: const Flexible(child: Text('Publish Countdown • ሰዓቱን አስቀምጥና ጀምር', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryAccent,
+                          foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

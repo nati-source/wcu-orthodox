@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
@@ -25,7 +26,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
   late AnimationController _animationController;
   final TextEditingController _pinInputController = TextEditingController();
   final TextEditingController _ticketInputController = TextEditingController();
-  
+
   MobileScannerController? _cameraController;
   DateTime? _lastScanTime;
 
@@ -33,7 +34,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
   String? _statusMessage;
   bool _isTorchOn = false;
 
-  bool get _canScanPilgrims => widget.state.canManagePilgrimages || widget.state.isAdmin;
+  bool get _canScanPilgrims =>
+      widget.state.canManagePilgrimages || widget.state.isAdmin;
 
   @override
   void initState() {
@@ -64,6 +66,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
       detectionSpeed: DetectionSpeed.normal,
       facing: CameraFacing.back,
       torchEnabled: false,
+      autoStart: true,
     );
   }
 
@@ -97,7 +100,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
 
   void _handleBarcodeDetection(BarcodeCapture capture) {
     final now = DateTime.now();
-    if (_lastScanTime != null && now.difference(_lastScanTime!).inMilliseconds < 1500) {
+    if (_lastScanTime != null &&
+        now.difference(_lastScanTime!).inMilliseconds < 1500) {
       return;
     }
 
@@ -124,9 +128,15 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     super.dispose();
   }
 
-  void _verifyAttendanceCheckIn(String pinOrCode, AttendanceCheckInMethod method) {
+  Future<void> _verifyAttendanceCheckIn(
+    String pinOrCode,
+    AttendanceCheckInMethod method,
+  ) async {
     final session = widget.state.activeSession;
-    if (!session.isActive || session.isExpired) {
+    if (!session.isActive ||
+        session.isExpired ||
+        session.expiresAt == null ||
+        !session.expiresAt!.isAfter(DateTime.now())) {
       setState(() {
         _isSuccess = false;
         _statusMessage = 'Attendance window has expired or is not active yet.\nPlease wait for the admin to start the 30-second round.\n(ክፍለ ጊዜው አልቋል ወይም አልተጀመረም። እባክዎ አስተዳዳሪው የ30 ሰከንድ ዙር እስኪጀምር ይጠብቁ)';
@@ -136,7 +146,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
         SnackBar(
           backgroundColor: AppTheme.crimson,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           content: const Row(
             children: [
               Icon(Icons.lock_clock, color: Colors.white, size: 20),
@@ -155,8 +167,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
       return;
     }
 
-    final success = widget.state.checkInStudent(
-      studentId: widget.state.currentUser.id,
+    final success = await widget.state.submitAttendanceCheckIn(
       enteredPinOrCode: pinOrCode,
       method: method,
     );
@@ -176,20 +187,37 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     }
   }
 
-  void _verifyPilgrimPassScan(String qrTicketCode) {
+  Future<void> _verifyPilgrimPassScan(String qrTicketCode) async {
     final cleanCode = qrTicketCode.trim().toUpperCase();
     final allTrips = widget.state.allTripRegistrations;
-    final match = allTrips.where(
-      (r) => r.qrTicketCode.trim().toUpperCase() == cleanCode || r.transactionReference.trim().toUpperCase() == cleanCode,
-    ).toList();
+    final match = allTrips
+        .where(
+          (r) =>
+              r.qrTicketCode.trim().toUpperCase() == cleanCode ||
+              r.transactionReference.trim().toUpperCase() == cleanCode,
+        )
+        .toList();
 
     if (match.isNotEmpty) {
       final reg = match.first;
-      widget.state.scanBusBoardingTicket(reg.qrTicketCode);
+      final success = await widget.state.scanBusBoardingTicket(
+        reg.qrTicketCode,
+      );
+      if (!mounted) return;
+      if (!success) {
+        setState(() {
+          _isSuccess = false;
+          _statusMessage =
+              'Ticket is unpaid, invalid, or has already been boarded.';
+        });
+        HapticFeedback.heavyImpact();
+        return;
+      }
 
       setState(() {
         _isSuccess = true;
-        _statusMessage = 'Boarding Verified: ${reg.studentName} (Bus #${reg.busNumber}, Seat #${reg.seatNumber})';
+        _statusMessage =
+            'Boarding Verified: ${reg.studentName} (Bus #${reg.busNumber}, Seat #${reg.seatNumber})';
       });
 
       HapticFeedback.mediumImpact();
@@ -197,7 +225,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     } else {
       setState(() {
         _isSuccess = false;
-        _statusMessage = 'Ticket code "$cleanCode" not found in active bus passenger manifest.';
+        _statusMessage =
+            'Ticket code "$cleanCode" not found in active bus passenger manifest.';
       });
       HapticFeedback.heavyImpact();
     }
@@ -241,7 +270,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     showModalBottomSheet(
       context: context,
       backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) {
         return Padding(
           padding: const EdgeInsets.all(22),
@@ -251,7 +282,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
               Container(
                 width: 44,
                 height: 4,
-                decoration: BoxDecoration(color: theme.dividerColor, borderRadius: BorderRadius.circular(2)),
+                decoration: BoxDecoration(
+                  color: theme.dividerColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
               const SizedBox(height: 16),
               Container(
@@ -261,16 +295,29 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                   shape: BoxShape.circle,
                   border: Border.all(color: AppTheme.emerald.withOpacity(0.4)),
                 ),
-                child: const Icon(Icons.verified, color: AppTheme.emerald, size: 36),
+                child: const Icon(
+                  Icons.verified,
+                  color: AppTheme.emerald,
+                  size: 36,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
                 'Pilgrim Boarding Pass Verified!',
-                style: TextStyle(fontFamily: 'serif', fontSize: 18, fontWeight: FontWeight.bold, color: textCol),
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textCol,
+                ),
               ),
               Text(
                 'የጉዞና አውቶቡስ ትኬት በተሳካ ሁኔታ ተረጋግጧል',
-                style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: primaryAccent,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               const SizedBox(height: 16),
               Container(
@@ -284,15 +331,31 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                   children: [
                     _buildModalRow('Passenger:', reg.studentName, textCol),
                     const SizedBox(height: 6),
-                    _buildModalRow('Baptismal Name:', reg.studentBaptismalName, primaryAccent),
+                    _buildModalRow(
+                      'Baptismal Name:',
+                      reg.studentBaptismalName,
+                      primaryAccent,
+                    ),
                     const SizedBox(height: 6),
                     _buildModalRow('Trip Destination:', reg.tripTitle, textCol),
                     const SizedBox(height: 6),
-                    _buildModalRow('Bus & Seat Assignment:', 'Bus #${reg.busNumber} • Seat #${reg.seatNumber}', AppTheme.emerald),
+                    _buildModalRow(
+                      'Bus & Seat Assignment:',
+                      'Bus #${reg.busNumber} • Seat #${reg.seatNumber}',
+                      AppTheme.emerald,
+                    ),
                     const SizedBox(height: 6),
-                    _buildModalRow('Payment Status:', reg.paymentStatus.displayName, AppTheme.emerald),
+                    _buildModalRow(
+                      'Payment Status:',
+                      reg.paymentStatus.displayName,
+                      AppTheme.emerald,
+                    ),
                     const SizedBox(height: 6),
-                    _buildModalRow('Ticket Code:', reg.qrTicketCode, primaryAccent),
+                    _buildModalRow(
+                      'Ticket Code:',
+                      reg.qrTicketCode,
+                      primaryAccent,
+                    ),
                   ],
                 ),
               ),
@@ -305,9 +368,14 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                     backgroundColor: primaryAccent,
                     foregroundColor: isDark ? Colors.black : Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                  child: const Text('Confirm Boarding / እሺ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  child: const Text(
+                    'Confirm Boarding / እሺ',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                 ),
               ),
             ],
@@ -321,11 +389,18 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+        ),
         Flexible(
           child: Text(
             value,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: valColor),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: valColor,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -338,7 +413,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
     final textCol = theme.colorScheme.onSurface;
-    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final textMuted =
+        theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
     final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
     final borderCol = theme.dividerColor;
     final isDark = theme.brightness == Brightness.dark;
@@ -351,8 +427,14 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          _activeScannerTab == 0 ? 'Live Attendance Scanner' : 'Pilgrim Pass Boarding Scanner',
-          style: TextStyle(color: textCol, fontSize: 17, fontWeight: FontWeight.bold),
+          _activeScannerTab == 0
+              ? 'Live Attendance Scanner'
+              : 'Pilgrim Pass Boarding Scanner',
+          style: TextStyle(
+            color: textCol,
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: cardBg,
         elevation: 0,
@@ -445,31 +527,44 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                            color: activeSession.isActive && !activeSession.isExpired
+                            color:
+                                activeSession.isActive &&
+                                    !activeSession.isExpired
                                 ? AppTheme.emeraldBg
                                 : (activeSession.isExpired
-                                    ? Colors.red.withOpacity(0.15)
-                                    : Colors.grey.withOpacity(0.15)),
+                                      ? Colors.red.withOpacity(0.15)
+                                      : Colors.grey.withOpacity(0.15)),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: activeSession.isActive && !activeSession.isExpired
+                              color:
+                                  activeSession.isActive &&
+                                      !activeSession.isExpired
                                   ? AppTheme.emerald.withOpacity(0.4)
                                   : (activeSession.isExpired
-                                      ? Colors.red.withOpacity(0.4)
-                                      : Colors.grey.withOpacity(0.4)),
+                                        ? Colors.red.withOpacity(0.4)
+                                        : Colors.grey.withOpacity(0.4)),
                             ),
                           ),
                           child: Text(
                             activeSession.isActive && !activeSession.isExpired
                                 ? 'SESSION ACTIVE (ክፍት)'
-                                : (activeSession.isExpired ? 'WINDOW EXPIRED (ተዘግቷል)' : 'STANDBY (ዝግጁ)'),
+                                : (activeSession.isExpired
+                                      ? 'WINDOW EXPIRED (ተዘግቷል)'
+                                      : 'STANDBY (ዝግጁ)'),
                             style: TextStyle(
                               fontSize: 10,
-                              color: activeSession.isActive && !activeSession.isExpired
+                              color:
+                                  activeSession.isActive &&
+                                      !activeSession.isExpired
                                   ? AppTheme.emerald
-                                  : (activeSession.isExpired ? Colors.redAccent : Colors.grey),
+                                  : (activeSession.isExpired
+                                        ? Colors.redAccent
+                                        : Colors.grey),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -479,7 +574,11 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                     const SizedBox(height: 4),
                     Text(
                       activeSession.courseName,
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textCol),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: textCol,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -517,23 +616,38 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: primaryAccent.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: primaryAccent.withOpacity(0.4)),
+                            border: Border.all(
+                              color: primaryAccent.withOpacity(0.4),
+                            ),
                           ),
                           child: Text(
                             '${allRegistrations.length} Registrations',
-                            style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: primaryAccent,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      trips.isNotEmpty ? trips.first.title : 'St. Gabriel Kulubi Pilgrimage',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: textCol),
+                      trips.isNotEmpty
+                          ? trips.first.title
+                          : 'St. Gabriel Kulubi Pilgrimage',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: textCol,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -562,12 +676,15 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                   ),
                   borderRadius: BorderRadius.circular(28),
                   border: Border.all(
-                    color: _isTorchOn ? Colors.amber.withOpacity(0.8) : primaryAccent.withOpacity(0.7),
+                    color: _isTorchOn
+                        ? Colors.amber.withOpacity(0.8)
+                        : primaryAccent.withOpacity(0.7),
                     width: 2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: (_isTorchOn ? Colors.amber : primaryAccent).withOpacity(0.25),
+                      color: (_isTorchOn ? Colors.amber : primaryAccent)
+                          .withOpacity(0.25),
                       blurRadius: 24,
                       spreadRadius: 2,
                     ),
@@ -584,13 +701,17 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                             controller: _cameraController!,
                             onDetect: _handleBarcodeDetection,
                             errorBuilder: (context, error, child) {
-                              final isDenied = error.errorCode == MobileScannerErrorCode.permissionDenied;
-                              final isUnsupported = error.errorCode == MobileScannerErrorCode.unsupported;
+                              final isDenied =
+                                  error.errorCode ==
+                                  MobileScannerErrorCode.permissionDenied;
+                              final isUnsupported =
+                                  error.errorCode ==
+                                  MobileScannerErrorCode.unsupported;
                               final message = isDenied
                                   ? 'Camera permission denied.\nPlease enable Camera permission in device settings or use PIN below.'
                                   : isUnsupported
-                                      ? 'Camera feed unavailable on this platform/device (Windows/Emulator).\nPlease use manual PIN/ticket below or tap viewfinder.'
-                                      : 'Camera feed unavailable: ${error.errorDetails?.message ?? error.errorCode.name}\nPlease retry or use manual PIN below.';
+                                  ? 'Camera feed unavailable on this platform/device (Windows/Emulator).\nPlease use manual PIN/ticket below or tap viewfinder.'
+                                  : 'Camera feed unavailable: ${error.errorDetails?.message ?? error.errorCode.name}\nPlease retry or use manual PIN below.';
 
                               return Container(
                                 color: const Color(0xFF0F172A),
@@ -599,12 +720,20 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 36),
+                                      const Icon(
+                                        Icons.videocam_off_outlined,
+                                        color: Colors.white54,
+                                        size: 36,
+                                      ),
                                       const SizedBox(height: 8),
                                       Text(
                                         message,
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.3),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 11,
+                                          height: 1.3,
+                                        ),
                                       ),
                                       const SizedBox(height: 12),
                                       Wrap(
@@ -618,14 +747,36 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                                               _startCamera();
                                               setState(() {});
                                             },
-                                            icon: const Icon(Icons.refresh, size: 16, color: Colors.amber),
-                                            label: const Text('Retry Camera', style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold)),
+                                            icon: const Icon(
+                                              Icons.refresh,
+                                              size: 16,
+                                              color: Colors.amber,
+                                            ),
+                                            label: const Text(
+                                              'Retry Camera',
+                                              style: TextStyle(
+                                                color: Colors.amber,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
                                           ),
                                           if (_activeScannerTab == 1)
                                             TextButton.icon(
                                               onPressed: _simulatePilgrimScan,
-                                              icon: const Icon(Icons.flash_on, size: 16, color: Color(0xFF10B981)),
-                                              label: const Text('Simulate Scan', style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold)),
+                                              icon: const Icon(
+                                                Icons.flash_on,
+                                                size: 16,
+                                                color: Color(0xFF10B981),
+                                              ),
+                                              label: const Text(
+                                                'Simulate Scan',
+                                                style: TextStyle(
+                                                  color: Color(0xFF10B981),
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                             ),
                                         ],
                                       ),
@@ -641,7 +792,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                           child: Container(
                             color: const Color(0xFF0F172A),
                             child: const Center(
-                              child: CircularProgressIndicator(color: AppTheme.gold),
+                              child: CircularProgressIndicator(
+                                color: AppTheme.gold,
+                              ),
                             ),
                           ),
                         ),
@@ -679,10 +832,16 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                             child: Container(
                               height: 2.5,
                               decoration: BoxDecoration(
-                                color: _isTorchOn ? Colors.amber : primaryAccent,
+                                color: _isTorchOn
+                                    ? Colors.amber
+                                    : primaryAccent,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: (_isTorchOn ? Colors.amber : primaryAccent).withOpacity(0.9),
+                                    color:
+                                        (_isTorchOn
+                                                ? Colors.amber
+                                                : primaryAccent)
+                                            .withOpacity(0.9),
                                     blurRadius: 10,
                                     spreadRadius: 2,
                                   ),
@@ -692,20 +851,6 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                           );
                         },
                       ),
-
-                      // Tap trigger for Attendance (or test simulation)
-                      if (_activeScannerTab == 0)
-                        Positioned.fill(
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(28),
-                              onTap: () {
-                                _verifyAttendanceCheckIn(activeSession.code, AttendanceCheckInMethod.qr);
-                              },
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
@@ -718,7 +863,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                 _activeScannerTab == 0
                     ? 'Scan live session screen or enter rolling PIN below'
                     : 'Aim camera at passenger ticket QR or enter ticket code below',
-                style: TextStyle(color: textMuted.withOpacity(0.8), fontSize: 11),
+                style: TextStyle(
+                  color: textMuted.withOpacity(0.8),
+                  fontSize: 11,
+                ),
               ),
             ),
 
@@ -771,8 +919,16 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                       decoration: InputDecoration(
                         hintText: 'PIN',
                         counterText: '',
-                        hintStyle: TextStyle(letterSpacing: 2, color: textMuted.withOpacity(0.5), fontSize: 15),
-                        prefixIcon: Icon(Icons.pin, color: primaryAccent, size: 20),
+                        hintStyle: TextStyle(
+                          letterSpacing: 2,
+                          color: textMuted.withOpacity(0.5),
+                          fontSize: 15,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.pin,
+                          color: primaryAccent,
+                          size: 20,
+                        ),
                         filled: true,
                         fillColor: cardBg,
                         border: OutlineInputBorder(
@@ -788,12 +944,17 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                     child: ElevatedButton(
                       onPressed: () {
                         if (_pinInputController.text.trim().isNotEmpty) {
-                          _verifyAttendanceCheckIn(_pinInputController.text.trim(), AttendanceCheckInMethod.pin);
+                          _verifyAttendanceCheckIn(
+                            _pinInputController.text.trim(),
+                            AttendanceCheckInMethod.pin,
+                          );
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                       ),
                       child: Text(
@@ -849,8 +1010,15 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                       ),
                       decoration: InputDecoration(
                         hintText: 'e.g. PILGRIM-TRIP-8421',
-                        hintStyle: TextStyle(color: textMuted.withOpacity(0.5), fontSize: 13),
-                        prefixIcon: Icon(Icons.confirmation_number_outlined, color: primaryAccent, size: 20),
+                        hintStyle: TextStyle(
+                          color: textMuted.withOpacity(0.5),
+                          fontSize: 13,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.confirmation_number_outlined,
+                          color: primaryAccent,
+                          size: 20,
+                        ),
                         filled: true,
                         fillColor: cardBg,
                         border: OutlineInputBorder(
@@ -864,14 +1032,18 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                   SizedBox(
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         if (_ticketInputController.text.trim().isNotEmpty) {
-                          _verifyPilgrimPassScan(_ticketInputController.text.trim());
+                          await _verifyPilgrimPassScan(
+                            _ticketInputController.text.trim(),
+                          );
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         padding: const EdgeInsets.symmetric(horizontal: 18),
                       ),
                       child: Text(
@@ -893,9 +1065,13 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: _isSuccess ? AppTheme.emeraldBg.withOpacity(0.4) : AppTheme.crimsonBg.withOpacity(0.4),
+                  color: _isSuccess
+                      ? AppTheme.emeraldBg.withOpacity(0.4)
+                      : AppTheme.crimsonBg.withOpacity(0.4),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _isSuccess ? AppTheme.emerald : AppTheme.crimson),
+                  border: Border.all(
+                    color: _isSuccess ? AppTheme.emerald : AppTheme.crimson,
+                  ),
                 ),
                 child: Text(
                   _statusMessage!,
@@ -944,7 +1120,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                 Icon(
                   icon,
                   size: 14,
-                  color: isActive ? (isDark ? Colors.black : Colors.white) : primaryAccent,
+                  color: isActive
+                      ? (isDark ? Colors.black : Colors.white)
+                      : primaryAccent,
                 ),
                 const SizedBox(width: 4),
                 Flexible(
@@ -953,7 +1131,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: isActive ? (isDark ? Colors.black : Colors.white) : AppTheme.textSecondary,
+                      color: isActive
+                          ? (isDark ? Colors.black : Colors.white)
+                          : AppTheme.textSecondary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -987,10 +1167,18 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
       height: 22,
       decoration: BoxDecoration(
         border: Border(
-          top: (corner == 0 || corner == 1) ? BorderSide(color: color, width: 3) : BorderSide.none,
-          bottom: (corner == 2 || corner == 3) ? BorderSide(color: color, width: 3) : BorderSide.none,
-          left: (corner == 0 || corner == 2) ? BorderSide(color: color, width: 3) : BorderSide.none,
-          right: (corner == 1 || corner == 3) ? BorderSide(color: color, width: 3) : BorderSide.none,
+          top: (corner == 0 || corner == 1)
+              ? BorderSide(color: color, width: 3)
+              : BorderSide.none,
+          bottom: (corner == 2 || corner == 3)
+              ? BorderSide(color: color, width: 3)
+              : BorderSide.none,
+          left: (corner == 0 || corner == 2)
+              ? BorderSide(color: color, width: 3)
+              : BorderSide.none,
+          right: (corner == 1 || corner == 3)
+              ? BorderSide(color: color, width: 3)
+              : BorderSide.none,
         ),
       ),
     );
@@ -1060,7 +1248,8 @@ class _QrSuccessRippleModalState extends State<_QrSuccessRippleModal>
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
     final textCol = theme.colorScheme.onSurface;
-    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final textMuted =
+        theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
     final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
     final elevatedBg = theme.colorScheme.surfaceContainerHighest;
     final isDark = theme.brightness == Brightness.dark;
@@ -1076,7 +1265,10 @@ class _QrSuccessRippleModalState extends State<_QrSuccessRippleModal>
             decoration: BoxDecoration(
               color: cardBg,
               borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: primaryAccent.withOpacity(0.5), width: 1.5),
+              border: Border.all(
+                color: primaryAccent.withOpacity(0.5),
+                width: 1.5,
+              ),
               boxShadow: [
                 BoxShadow(
                   color: primaryAccent.withOpacity(0.25),
@@ -1109,7 +1301,10 @@ class _QrSuccessRippleModalState extends State<_QrSuccessRippleModal>
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: primaryAccent.withOpacity((1.0 - ringProgress).clamp(0.0, 1.0) * 0.8),
+                                    color: primaryAccent.withOpacity(
+                                      (1.0 - ringProgress).clamp(0.0, 1.0) *
+                                          0.8,
+                                    ),
                                     width: 3 * (1.0 - ringProgress * 0.5),
                                   ),
                                 ),
@@ -1120,7 +1315,10 @@ class _QrSuccessRippleModalState extends State<_QrSuccessRippleModal>
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: primaryAccent.withOpacity((1.0 - ringProgress).clamp(0.0, 1.0) * 0.5),
+                                    color: primaryAccent.withOpacity(
+                                      (1.0 - ringProgress).clamp(0.0, 1.0) *
+                                          0.5,
+                                    ),
                                     width: 2,
                                   ),
                                 ),
@@ -1195,7 +1393,10 @@ class _QrSuccessRippleModalState extends State<_QrSuccessRippleModal>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Student', style: TextStyle(fontSize: 12, color: textMuted)),
+                          Text(
+                            'Student',
+                            style: TextStyle(fontSize: 12, color: textMuted),
+                          ),
                           Text(
                             widget.student.fullName,
                             style: TextStyle(
@@ -1210,7 +1411,10 @@ class _QrSuccessRippleModalState extends State<_QrSuccessRippleModal>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Baptismal Name', style: TextStyle(fontSize: 12, color: textMuted)),
+                          Text(
+                            'Baptismal Name',
+                            style: TextStyle(fontSize: 12, color: textMuted),
+                          ),
                           Text(
                             widget.student.baptismalName,
                             style: TextStyle(
@@ -1225,7 +1429,10 @@ class _QrSuccessRippleModalState extends State<_QrSuccessRippleModal>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Course', style: TextStyle(fontSize: 12, color: textMuted)),
+                          Text(
+                            'Course',
+                            style: TextStyle(fontSize: 12, color: textMuted),
+                          ),
                           Flexible(
                             child: Text(
                               widget.session.courseName,
@@ -1254,7 +1461,9 @@ class _QrSuccessRippleModalState extends State<_QrSuccessRippleModal>
                       backgroundColor: primaryAccent,
                       foregroundColor: isDark ? Colors.black : Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                     child: Text(
                       'Done & Return',

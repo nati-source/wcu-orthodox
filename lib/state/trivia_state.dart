@@ -2,13 +2,15 @@ part of 'fellowship_state.dart';
 
 /// Feature slice managing Theological Faith Challenge Trivia & Family Leaderboard.
 class TriviaState extends ChangeNotifier {
-  final FellowshipState root; TriviaState(this.root);
+  final FellowshipState root;
+  TriviaState(this.root);
   void refresh() => notifyListeners();
 }
 
 mixin TriviaStateMixin on ChangeNotifier {
   UserModel get _currentUser;
   FamilyModel? get currentStudentFamily;
+  bool get isDemoMode;
 
   // ----------------------------------------------------
   // DOMAIN 14: THEOLOGICAL FAITH CHALLENGE TRIVIA
@@ -21,9 +23,12 @@ mixin TriviaStateMixin on ChangeNotifier {
 
   List<TriviaQuizModel> get triviaQuizzes => List.unmodifiable(_triviaQuizzes);
   List<QuizAttemptModel> get quizAttempts => List.unmodifiable(_quizAttempts);
-  List<FamilyLeaderboardEntry> get familyLeaderboard => List.unmodifiable(_familyLeaderboard);
+  List<FamilyLeaderboardEntry> get familyLeaderboard =>
+      List.unmodifiable(_familyLeaderboard);
+
   /// Live global leaderboard from trivia_scores (all students, cross-device).
-  List<Map<String, dynamic>> get globalTriviaLeaderboard => List.unmodifiable(_globalTriviaLeaderboard);
+  List<Map<String, dynamic>> get globalTriviaLeaderboard =>
+      List.unmodifiable(_globalTriviaLeaderboard);
 
   QuizAttemptModel? get myLatestQuizAttempt {
     if (_quizAttempts.isEmpty) return null;
@@ -46,115 +51,161 @@ mixin TriviaStateMixin on ChangeNotifier {
     }
   }
 
-  void submitQuizAttempt({
+  Future<Map<String, int>> submitQuizAttempt({
     required String quizId,
-    required int score,
-    required int totalQuestions,
-  }) {
-    final currentFam = currentStudentFamily;
-    final attempt = QuizAttemptModel(
-      id: 'att-quiz-${DateTime.now().millisecondsSinceEpoch}',
-      studentId: _currentUser.id,
-      studentName: _currentUser.fullName,
-      familyId: currentFam?.id ?? 'fam-st-george',
-      familyName: currentFam?.name ?? 'Family of St. George',
-      quizId: quizId,
-      score: score,
-      totalQuestions: totalQuestions,
-      completedAt: DateTime.now(),
-    );
-    _quizAttempts.insert(0, attempt);
-
-    // Update family leaderboard and dynamically re-sort ranks descending by totalScore
-    final famIdx = _familyLeaderboard.indexWhere((f) => f.familyId == attempt.familyId);
-    if (famIdx != -1) {
-      final cur = _familyLeaderboard[famIdx];
-      _familyLeaderboard[famIdx] = FamilyLeaderboardEntry(
-        familyId: cur.familyId,
-        familyName: cur.familyName,
-        totalScore: cur.totalScore + (score * 20),
-        participantsCount: cur.participantsCount + 1,
-        rank: cur.rank,
+    required List<int> selectedAnswers,
+  }) async {
+    if (_currentUser.id.isEmpty || selectedAnswers.isEmpty) {
+      throw StateError('The signed-in student or quiz answers are missing.');
+    }
+    final attemptId = '${quizId}_${_currentUser.id}';
+    late final int score;
+    late final int totalQuestions;
+    var familyId = '';
+    var familyName = '';
+    try {
+      final response = await FirebaseCallableService.instance.call(
+        'submitTriviaAttempt',
+        {'quizId': quizId, 'selectedAnswers': selectedAnswers},
       );
-
-      final sorted = List<FamilyLeaderboardEntry>.from(_familyLeaderboard)
-        ..sort((a, b) => b.totalScore.compareTo(a.totalScore));
-      _familyLeaderboard = [
-        for (int i = 0; i < sorted.length; i++)
-          FamilyLeaderboardEntry(
-            familyId: sorted[i].familyId,
-            familyName: sorted[i].familyName,
-            totalScore: sorted[i].totalScore,
-            participantsCount: sorted[i].participantsCount,
-            rank: i + 1,
+      score = (response['score'] as num).toInt();
+      totalQuestions = (response['totalQuestions'] as num).toInt();
+      familyId = response['familyId']?.toString() ?? '';
+      familyName = response['familyName']?.toString() ?? '';
+    } catch (e) {
+      if (!isDemoMode) {
+        debugPrint('Secure quiz submission failed: $e');
+        rethrow;
+      }
+      final quiz = _triviaQuizzes.firstWhere((item) => item.id == quizId);
+      totalQuestions = quiz.questions.length;
+      if (selectedAnswers.length != totalQuestions) {
+        throw StateError('Select one answer for every quiz question.');
+      }
+      score = List<int>.generate(totalQuestions, (index) => index)
+          .where(
+            (index) =>
+                quiz.questions[index].correctOptionIndex ==
+                selectedAnswers[index],
           )
-      ];
+          .length;
+      final family = currentStudentFamily;
+      familyId = family?.id ?? '';
+      familyName = family?.name ?? '';
+    }
+
+    final alreadyInState = _quizAttempts.any(
+      (existing) => existing.id == attemptId,
+    );
+    if (!alreadyInState) {
+      _quizAttempts.insert(
+        0,
+        QuizAttemptModel(
+          id: attemptId,
+          studentId: _currentUser.id,
+          studentName: _currentUser.fullName,
+          familyId: familyId,
+          familyName: familyName,
+          quizId: quizId,
+          score: score,
+          totalQuestions: totalQuestions,
+          completedAt: DateTime.now(),
+        ),
+      );
+      _addScoreToFamilyLeaderboard(familyId, familyName, score);
     }
     notifyListeners();
-
-    // 1. Record the individual attempt in quiz_attempts
-    try {
-      FirebaseFirestore.instance.collection('quiz_attempts').doc(attempt.id).set(
-        attempt.toMap(),
-        SetOptions(merge: true),
-      );
-    } catch (e) {
-      debugPrint('Firestore submitQuizAttempt (quiz_attempts) notice: $e');
-    }
-
-    // 2. Increment the per-student aggregate score in trivia_scores so the
-    //    global leaderboard (streamTriviaLeaderboard) reflects the result
-    //    immediately and consistently across all devices.
-    try {
-      final scoreDoc = FirebaseFirestore.instance
-          .collection('trivia_scores')
-          .doc(_currentUser.id);
-
-      scoreDoc.get().then((doc) {
-        if (doc.exists) {
-          scoreDoc.update({
-            'studentName': _currentUser.fullName,
-            'totalScore': FieldValue.increment(score),
-            'quizzesCompleted': FieldValue.increment(1),
-            'lastActive': FieldValue.serverTimestamp(),
-          });
-        } else {
-          scoreDoc.set({
-            'studentUid': _currentUser.id,
-            'studentName': _currentUser.fullName,
-            'totalScore': score,
-            'quizzesCompleted': 1,
-            'lastActive': FieldValue.serverTimestamp(),
-          });
-        }
-      });
-    } catch (e) {
-      debugPrint('Firestore submitQuizAttempt (trivia_scores) notice: $e');
-    }
+    return {'score': score, 'totalQuestions': totalQuestions};
   }
 
   Future<void> addTriviaQuiz(TriviaQuizModel quiz) async {
-    _triviaQuizzes.insert(0, quiz);
-    notifyListeners();
-
     try {
-      await FirebaseFirestore.instance.collection('trivia_quizzes').doc(quiz.id).set(
-        quiz.toMap(),
-        SetOptions(merge: true),
-      );
+      await FirebaseCallableService.instance.call('saveTriviaQuiz', {
+        'quizId': quiz.id,
+        ...quiz.toMap(),
+      });
+      final sanitized = _withoutAnswerKey(quiz);
+      _triviaQuizzes.removeWhere((item) => item.id == quiz.id);
+      _triviaQuizzes.insert(0, sanitized);
+      notifyListeners();
     } catch (e) {
       debugPrint('Firestore addTriviaQuiz error: $e');
+      rethrow;
     }
   }
 
   Future<void> deleteTriviaQuiz(String quizId) async {
-    _triviaQuizzes.removeWhere((q) => q.id == quizId);
-    notifyListeners();
-
     try {
-      await FirebaseFirestore.instance.collection('trivia_quizzes').doc(quizId).delete();
+      await FirebaseCallableService.instance.call('deleteTriviaQuiz', {
+        'quizId': quizId,
+      });
+      _triviaQuizzes.removeWhere((quiz) => quiz.id == quizId);
+      notifyListeners();
     } catch (e) {
       debugPrint('Firestore deleteTriviaQuiz error: $e');
+      rethrow;
+    }
+  }
+
+  TriviaQuizModel _withoutAnswerKey(TriviaQuizModel quiz) => TriviaQuizModel(
+    id: quiz.id,
+    weekNumber: quiz.weekNumber,
+    title: quiz.title,
+    description: quiz.description,
+    timeLimitMinutes: quiz.timeLimitMinutes,
+    questions: quiz.questions
+        .map(
+          (question) => TriviaQuestionModel(
+            id: question.id,
+            questionAmharic: question.questionAmharic,
+            questionEnglish: question.questionEnglish,
+            options: question.options,
+            correctOptionIndex: -1,
+            explanation: '',
+            bibleReference: question.bibleReference,
+          ),
+        )
+        .toList(),
+  );
+
+  void _addScoreToFamilyLeaderboard(
+    String familyId,
+    String familyName,
+    int score,
+  ) {
+    if (familyId.isEmpty) return;
+    final famIdx = _familyLeaderboard.indexWhere((f) => f.familyId == familyId);
+    if (famIdx != -1) {
+      final current = _familyLeaderboard[famIdx];
+      _familyLeaderboard[famIdx] = FamilyLeaderboardEntry(
+        familyId: current.familyId,
+        familyName: current.familyName,
+        totalScore: current.totalScore + score * 20,
+        participantsCount: current.participantsCount + 1,
+        rank: current.rank,
+      );
+      final sorted = List<FamilyLeaderboardEntry>.from(_familyLeaderboard)
+        ..sort((a, b) => b.totalScore.compareTo(a.totalScore));
+      _familyLeaderboard = [
+        for (var index = 0; index < sorted.length; index++)
+          FamilyLeaderboardEntry(
+            familyId: sorted[index].familyId,
+            familyName: sorted[index].familyName,
+            totalScore: sorted[index].totalScore,
+            participantsCount: sorted[index].participantsCount,
+            rank: index + 1,
+          ),
+      ];
+    } else {
+      _familyLeaderboard.add(
+        FamilyLeaderboardEntry(
+          familyId: familyId,
+          familyName: familyName,
+          totalScore: score * 20,
+          participantsCount: 1,
+          rank: _familyLeaderboard.length + 1,
+        ),
+      );
     }
   }
 }

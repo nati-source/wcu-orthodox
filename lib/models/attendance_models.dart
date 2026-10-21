@@ -1,9 +1,30 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum AttendanceStatus { present, late, absent }
 
 enum AttendanceCheckInMethod { qr, pin }
+
+class AttendanceEnrollmentSnapshot {
+  final String studentId;
+  final String department;
+
+  const AttendanceEnrollmentSnapshot({
+    required this.studentId,
+    required this.department,
+  });
+
+  Map<String, dynamic> toMap() => {
+    'studentId': studentId,
+    'department': department,
+  };
+
+  factory AttendanceEnrollmentSnapshot.fromMap(Map<String, dynamic> map) {
+    return AttendanceEnrollmentSnapshot(
+      studentId: map['studentId']?.toString() ?? '',
+      department: map['department']?.toString() ?? 'General',
+    );
+  }
+}
 
 class AttendanceRecordModel {
   final String id;
@@ -36,7 +57,10 @@ class AttendanceRecordModel {
     };
   }
 
-  factory AttendanceRecordModel.fromMap(Map<String, dynamic> map, String docId) {
+  factory AttendanceRecordModel.fromMap(
+    Map<String, dynamic> map,
+    String docId,
+  ) {
     AttendanceStatus parsedStatus = AttendanceStatus.present;
     if (map['status'] == 'late') {
       parsedStatus = AttendanceStatus.late;
@@ -81,6 +105,7 @@ class AttendanceSessionModel {
   final DateTime? expiresAt;
   final int refreshIntervalSeconds;
   final int totalEnrolled;
+  final List<AttendanceEnrollmentSnapshot> enrollmentSnapshot;
   final List<AttendanceRecordModel> scans;
   final bool isActive;
   final bool isExpired;
@@ -95,14 +120,17 @@ class AttendanceSessionModel {
     required this.generatedAt,
     this.expiresAt,
     this.refreshIntervalSeconds = 30,
-    this.totalEnrolled = 50,
+    this.totalEnrolled = 0,
+    this.enrollmentSnapshot = const [],
     this.scans = const [],
     this.isActive = false,
     this.isExpired = false,
   });
 
-  int get presentCount => scans.where((s) => s.status == AttendanceStatus.present).length;
-  int get lateCount => scans.where((s) => s.status == AttendanceStatus.late).length;
+  int get presentCount =>
+      scans.where((s) => s.status == AttendanceStatus.present).length;
+  int get lateCount =>
+      scans.where((s) => s.status == AttendanceStatus.late).length;
   int get absentCount => (totalEnrolled - scans.length).clamp(0, totalEnrolled);
 
   AttendanceSessionModel copyWith({
@@ -116,6 +144,7 @@ class AttendanceSessionModel {
     DateTime? expiresAt,
     int? refreshIntervalSeconds,
     int? totalEnrolled,
+    List<AttendanceEnrollmentSnapshot>? enrollmentSnapshot,
     List<AttendanceRecordModel>? scans,
     bool? isActive,
     bool? isExpired,
@@ -129,8 +158,10 @@ class AttendanceSessionModel {
       rollingPin: rollingPin ?? this.rollingPin,
       generatedAt: generatedAt ?? this.generatedAt,
       expiresAt: expiresAt ?? this.expiresAt,
-      refreshIntervalSeconds: refreshIntervalSeconds ?? this.refreshIntervalSeconds,
+      refreshIntervalSeconds:
+          refreshIntervalSeconds ?? this.refreshIntervalSeconds,
       totalEnrolled: totalEnrolled ?? this.totalEnrolled,
+      enrollmentSnapshot: enrollmentSnapshot ?? this.enrollmentSnapshot,
       scans: scans ?? this.scans,
       isActive: isActive ?? this.isActive,
       isExpired: isExpired ?? this.isExpired,
@@ -149,12 +180,18 @@ class AttendanceSessionModel {
       'expiresAt': expiresAt?.toIso8601String(),
       'refreshIntervalSeconds': refreshIntervalSeconds,
       'totalEnrolled': totalEnrolled,
+      'enrollmentSnapshot': enrollmentSnapshot
+          .map((student) => student.toMap())
+          .toList(),
       'isActive': isActive,
       'isExpired': isExpired,
     };
   }
 
-  factory AttendanceSessionModel.fromMap(Map<String, dynamic> map, String docId) {
+  factory AttendanceSessionModel.fromMap(
+    Map<String, dynamic> map,
+    String docId,
+  ) {
     DateTime parsedGen = DateTime.now();
     if (map['generatedAt'] != null) {
       if (map['generatedAt'] is Timestamp) {
@@ -175,19 +212,36 @@ class AttendanceSessionModel {
 
     return AttendanceSessionModel(
       sessionId: docId,
-      courseName: map['courseName'] as String? ?? 'Patristics & Church History (የነገረ አበው ትምህርት)',
-      courseCode: map['courseCode'] as String? ?? 'ORTH-301: Patristics & Church History',
-      faculty: map['faculty'] as String? ?? 'Orthodox Fellowship Education Department',
+      courseName:
+          map['courseName'] as String? ??
+          'Patristics & Church History (የነገረ አበው ትምህርት)',
+      courseCode:
+          map['courseCode'] as String? ??
+          'ORTH-301: Patristics & Church History',
+      faculty:
+          map['faculty'] as String? ??
+          'Orthodox Fellowship Education Department',
       code: map['code'] as String? ?? 'ORTH-301-STANDBY',
       rollingPin: map['rollingPin'] as String? ?? '----',
       generatedAt: parsedGen,
       expiresAt: parsedExp,
-      refreshIntervalSeconds: (map['refreshIntervalSeconds'] as num?)?.toInt() ?? 30,
-      totalEnrolled: (map['totalEnrolled'] as num?)?.toInt() ?? 50,
+      refreshIntervalSeconds:
+          (map['refreshIntervalSeconds'] as num?)?.toInt() ?? 30,
+      totalEnrolled: (map['totalEnrolled'] as num?)?.toInt() ?? 0,
+      enrollmentSnapshot:
+          (map['enrollmentSnapshot'] as List?)
+              ?.whereType<Map>()
+              .map(
+                (student) => AttendanceEnrollmentSnapshot.fromMap(
+                  Map<String, dynamic>.from(student),
+                ),
+              )
+              .where((student) => student.studentId.isNotEmpty)
+              .toList() ??
+          const [],
       isActive: map['isActive'] as bool? ?? false,
       isExpired: map['isExpired'] as bool? ?? false,
       scans: const [],
     );
   }
 }
-

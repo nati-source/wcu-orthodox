@@ -1,4 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+DateTime? _parsePilgrimageDate(dynamic val) {
+  if (val == null) return null;
+  if (val is DateTime) return val;
+  if (val is Timestamp) return val.toDate();
+  if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+  if (val is String) {
+    final dt = DateTime.tryParse(val);
+    if (dt != null) return dt;
+    final ms = int.tryParse(val);
+    if (ms != null) return DateTime.fromMillisecondsSinceEpoch(ms);
+  }
+  return null;
+}
+
+int _parsePilgrimageInt(dynamic val, [int fallback = 1]) {
+  if (val == null) return fallback;
+  if (val is num) return val.toInt();
+  if (val is String) return int.tryParse(val) ?? fallback;
+  return fallback;
+}
+
+double _parsePilgrimageDouble(dynamic val, [double fallback = 0.0]) {
+  if (val == null) return fallback;
+  if (val is num) return val.toDouble();
+  if (val is String) return double.tryParse(val) ?? fallback;
+  return fallback;
+}
+
+bool _parsePilgrimageBool(dynamic val, [bool fallback = false]) {
+  if (val == null) return fallback;
+  if (val is bool) return val;
+  if (val is num) return val != 0;
+  if (val is String) {
+    final lower = val.toLowerCase().trim();
+    return lower == 'true' || lower == '1' || lower == 'yes';
+  }
+  return fallback;
+}
 
 
 enum PaymentMethodType {
@@ -190,24 +230,24 @@ class PilgrimageTripModel {
   factory PilgrimageTripModel.fromMap(Map<String, dynamic> map, String docId) {
     return PilgrimageTripModel(
       id: docId,
-      title: map['title'] ?? '',
-      destination: map['destination'] ?? '',
-      departureDate: map['departureDate'] != null ? DateTime.tryParse(map['departureDate']) ?? DateTime.now() : DateTime.now(),
-      returnDate: map['returnDate'] != null ? DateTime.tryParse(map['returnDate']) ?? DateTime.now() : DateTime.now(),
-      departurePoint: map['departurePoint'] ?? 'WCU Main Gate',
-      isFree: map['isFree'] ?? false,
-      feeAmount: (map['feeAmount'] as num?)?.toDouble() ?? 0.0,
-      telebirrNumber: map['telebirrNumber'] ?? '+251911223344',
-      telebirrAccountName: map['telebirrAccountName'] ?? 'WCU Orthodox Fellowship',
-      cbeAccountNumber: map['cbeAccountNumber'] ?? '1000293848123',
-      cbeAccountName: map['cbeAccountName'] ?? 'WCU Orthodox Student Fellowship',
-      totalSeats: (map['totalSeats'] as num?)?.toInt() ?? 90,
-      bookedSeats: (map['bookedSeats'] as num?)?.toInt() ?? 0,
+      title: map['title']?.toString() ?? '',
+      destination: map['destination']?.toString() ?? '',
+      departureDate: _parsePilgrimageDate(map['departureDate']) ?? DateTime.now(),
+      returnDate: _parsePilgrimageDate(map['returnDate']) ?? DateTime.now().add(const Duration(days: 1)),
+      departurePoint: map['departurePoint']?.toString() ?? 'WCU Main Gate',
+      isFree: _parsePilgrimageBool(map['isFree'], false),
+      feeAmount: _parsePilgrimageDouble(map['feeAmount'], 0.0),
+      telebirrNumber: map['telebirrNumber']?.toString() ?? '+251911223344',
+      telebirrAccountName: map['telebirrAccountName']?.toString() ?? 'WCU Orthodox Fellowship',
+      cbeAccountNumber: map['cbeAccountNumber']?.toString() ?? '1000293848123',
+      cbeAccountName: map['cbeAccountName']?.toString() ?? 'WCU Orthodox Student Fellowship',
+      totalSeats: _parsePilgrimageInt(map['totalSeats'], 90),
+      bookedSeats: _parsePilgrimageInt(map['bookedSeats'], 0),
       itinerary: (map['itinerary'] as List?)?.map((e) => e.toString()).toList() ?? [],
       packingList: (map['packingList'] as List?)?.map((e) => e.toString()).toList() ?? [],
-      coordinatorName: map['coordinatorName'] ?? 'Coordinator',
-      coordinatorPhone: map['coordinatorPhone'] ?? '',
-      bannerAssetPath: map['bannerAssetPath'],
+      coordinatorName: map['coordinatorName']?.toString() ?? 'Coordinator',
+      coordinatorPhone: map['coordinatorPhone']?.toString() ?? '',
+      bannerAssetPath: map['bannerAssetPath']?.toString(),
     );
   }
 }
@@ -233,6 +273,7 @@ class TripRegistrationModel {
   final bool isBoarded;
   final DateTime? boardedAt;
   final DateTime registeredAt;
+  final String? rejectionReason;
 
   TripRegistrationModel({
     required this.id,
@@ -255,6 +296,7 @@ class TripRegistrationModel {
     this.isBoarded = false,
     this.boardedAt,
     required this.registeredAt,
+    this.rejectionReason,
   });
 
   TripRegistrationModel copyWith({
@@ -278,6 +320,7 @@ class TripRegistrationModel {
     bool? isBoarded,
     DateTime? boardedAt,
     DateTime? registeredAt,
+    String? rejectionReason,
   }) {
     return TripRegistrationModel(
       id: id ?? this.id,
@@ -300,6 +343,7 @@ class TripRegistrationModel {
       isBoarded: isBoarded ?? this.isBoarded,
       boardedAt: boardedAt ?? this.boardedAt,
       registeredAt: registeredAt ?? this.registeredAt,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
     );
   }
 
@@ -324,42 +368,67 @@ class TripRegistrationModel {
       'isBoarded': isBoarded,
       'boardedAt': boardedAt?.toIso8601String(),
       'registeredAt': registeredAt.toIso8601String(),
+      'rejectionReason': rejectionReason,
     };
   }
 
   factory TripRegistrationModel.fromMap(Map<String, dynamic> map, String docId) {
-    final methodStr = map['paymentMethod']?.toString() ?? 'telebirr';
-    final method = PaymentMethodType.values.firstWhere(
-      (m) => m.name == methodStr,
-      orElse: () => PaymentMethodType.telebirr,
-    );
-    final statusStr = map['paymentStatus']?.toString() ?? 'pendingVerification';
-    final status = TripPaymentStatus.values.firstWhere(
-      (s) => s.name == statusStr,
-      orElse: () => TripPaymentStatus.pendingVerification,
-    );
+    final rawMethod = map['paymentMethod']?.toString().toLowerCase().trim() ?? '';
+    PaymentMethodType method = PaymentMethodType.telebirr;
+    if (rawMethod.contains('cbeaccount') || rawMethod.contains('cbe_account') || rawMethod == 'cbe') {
+      method = PaymentMethodType.cbeAccount;
+    } else if (rawMethod.contains('cbebirr') || rawMethod.contains('cbe_birr')) {
+      method = PaymentMethodType.cbeBirr;
+    } else if (rawMethod.contains('cash')) {
+      method = PaymentMethodType.cash;
+    } else if (rawMethod.contains('free')) {
+      method = PaymentMethodType.free;
+    } else {
+      method = PaymentMethodType.values.firstWhere(
+        (m) => m.name.toLowerCase() == rawMethod,
+        orElse: () => PaymentMethodType.telebirr,
+      );
+    }
+
+    final rawStatus = map['paymentStatus']?.toString().toLowerCase().trim() ?? '';
+    TripPaymentStatus status = TripPaymentStatus.pendingVerification;
+    if (rawStatus.contains('pending')) {
+      status = TripPaymentStatus.pendingVerification;
+    } else if (rawStatus.contains('verif')) {
+      status = TripPaymentStatus.verified;
+    } else if (rawStatus.contains('reject') || rawStatus.contains('decline')) {
+      status = TripPaymentStatus.rejected;
+    } else if (rawStatus.contains('free')) {
+      status = TripPaymentStatus.free;
+    } else {
+      status = TripPaymentStatus.values.firstWhere(
+        (s) => s.name.toLowerCase() == rawStatus,
+        orElse: () => TripPaymentStatus.pendingVerification,
+      );
+    }
 
     return TripRegistrationModel(
       id: docId,
-      tripId: map['tripId'] ?? '',
-      tripTitle: map['tripTitle'] ?? '',
-      studentId: map['studentId'] ?? '',
-      studentName: map['studentName'] ?? '',
-      studentBaptismalName: map['studentBaptismalName'] ?? '',
-      studentPhone: map['studentPhone'] ?? '',
-      department: map['department'] ?? '',
-      academicYear: (map['academicYear'] as num?)?.toInt() ?? 1,
-      busNumber: (map['busNumber'] as num?)?.toInt() ?? 1,
-      seatNumber: (map['seatNumber'] as num?)?.toInt() ?? 1,
-      feeAmount: (map['feeAmount'] as num?)?.toDouble() ?? 0.0,
-      isFree: map['isFree'] ?? false,
+      tripId: map['tripId']?.toString() ?? '',
+      tripTitle: map['tripTitle']?.toString() ?? '',
+      studentId: map['studentId']?.toString() ?? '',
+      studentName: map['studentName']?.toString() ?? '',
+      studentBaptismalName: map['studentBaptismalName']?.toString() ?? '',
+      studentPhone: map['studentPhone']?.toString() ?? '',
+      department: map['department']?.toString() ?? '',
+      academicYear: _parsePilgrimageInt(map['academicYear'], 1),
+      busNumber: _parsePilgrimageInt(map['busNumber'], 1),
+      seatNumber: _parsePilgrimageInt(map['seatNumber'], 1),
+      feeAmount: _parsePilgrimageDouble(map['feeAmount'], 0.0),
+      isFree: _parsePilgrimageBool(map['isFree'], false),
       paymentMethod: method,
-      transactionReference: map['transactionReference'] ?? '',
+      transactionReference: map['transactionReference']?.toString() ?? '',
       paymentStatus: status,
-      qrTicketCode: map['qrTicketCode'] ?? '',
-      isBoarded: map['isBoarded'] ?? false,
-      boardedAt: map['boardedAt'] != null ? DateTime.tryParse(map['boardedAt']) : null,
-      registeredAt: map['registeredAt'] != null ? DateTime.tryParse(map['registeredAt']) ?? DateTime.now() : DateTime.now(),
+      qrTicketCode: map['qrTicketCode']?.toString() ?? '',
+      isBoarded: _parsePilgrimageBool(map['isBoarded'], false),
+      boardedAt: _parsePilgrimageDate(map['boardedAt']),
+      registeredAt: _parsePilgrimageDate(map['registeredAt']) ?? DateTime.now(),
+      rejectionReason: map['rejectionReason'] as String?,
     );
   }
 }

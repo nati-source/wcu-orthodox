@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 /// Top-level background message handler required by Firebase Messaging.
 /// Must be outside any class and annotated with @pragma('vm:entry-point').
@@ -22,8 +24,22 @@ class NotificationService {
   NotificationService._internal();
   static final NotificationService instance = NotificationService._internal();
 
+  /// Global navigator context accessor for displaying notifications anywhere in the app
+  static BuildContext? Function()? globalContextProvider;
+
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  bool _localNotificationsInitialized = false;
+
+  static const AndroidNotificationChannel _reminderChannel = AndroidNotificationChannel(
+    'liturgy_fellowship_reminders',
+    'Liturgy & Fellowship Reminders',
+    description: 'Notifications and reminders for Holy Liturgy and Church Programs.',
+    importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
+  );
 
   String? _currentToken;
   String? get currentToken => _currentToken;
@@ -117,6 +133,32 @@ class NotificationService {
           this.onNotificationOpened!(initialMessage);
         }
       }
+
+      // 9. Initialize local notifications plugin for system-level screen popups
+      try {
+        const AndroidInitializationSettings androidSettings =
+            AndroidInitializationSettings('@mipmap/ic_launcher');
+        const InitializationSettings initSettings =
+            InitializationSettings(android: androidSettings);
+
+        await _localNotifications.initialize(
+          settings: initSettings,
+          onDidReceiveNotificationResponse: (NotificationResponse response) {
+            debugPrint('Local notification clicked: ${response.payload}');
+          },
+        );
+
+        final androidImpl = _localNotifications
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        if (androidImpl != null) {
+          await androidImpl.createNotificationChannel(_reminderChannel);
+          await androidImpl.requestNotificationsPermission();
+        }
+        _localNotificationsInitialized = true;
+        debugPrint('FlutterLocalNotificationsPlugin initialized successfully.');
+      } catch (e) {
+        debugPrint('FlutterLocalNotificationsPlugin init error: $e');
+      }
     } catch (e) {
       debugPrint('NotificationService initialize error: $e');
     }
@@ -131,6 +173,15 @@ class NotificationService {
     String? departmentId,
   }) async {
     if (userId.isEmpty) return;
+
+    final topicNames = <String>{};
+    if (role.isNotEmpty) topicNames.add('role_${role.toLowerCase()}');
+    if (assignedFamilyId != null && assignedFamilyId.isNotEmpty) {
+      topicNames.add('family_${assignedFamilyId.replaceAll(' ', '_')}');
+    }
+    if (departmentId != null && departmentId.isNotEmpty) {
+      topicNames.add('dept_${departmentId.replaceAll(' ', '_')}');
+    }
 
     try {
       final token = _currentToken ?? await _fcm.getToken();
@@ -147,23 +198,16 @@ class NotificationService {
 
         debugPrint('Synced FCM token to Firestore for user: $userId');
       }
-
-      // Subscribe to role-specific topics
-      if (role.isNotEmpty) {
-        await _fcm.subscribeToTopic('role_${role.toLowerCase()}');
-      }
-
-      // Subscribe to family topic if assigned
-      if (assignedFamilyId != null && assignedFamilyId.isNotEmpty) {
-        await _fcm.subscribeToTopic('family_${assignedFamilyId.replaceAll(' ', '_')}');
-      }
-
-      // Subscribe to department topic if member or coordinator
-      if (departmentId != null && departmentId.isNotEmpty) {
-        await _fcm.subscribeToTopic('dept_${departmentId.replaceAll(' ', '_')}');
-      }
     } catch (e) {
-      debugPrint('NotificationService syncUserFcmToken notice: $e');
+      debugPrint('NotificationService token persistence notice: $e');
+    }
+
+    for (final topic in topicNames) {
+      try {
+        await _fcm.subscribeToTopic(topic);
+      } catch (e) {
+        debugPrint('NotificationService subscription to $topic failed: $e');
+      }
     }
   }
 
@@ -248,6 +292,158 @@ class NotificationService {
         duration: const Duration(seconds: 4),
       ),
     );
+  }
+
+  /// Displays an immediate high-priority in-app alert banner with haptic feedback
+  static void showLocalInAppNotification({
+    BuildContext? context,
+    required String title,
+    required String body,
+    IconData icon = Icons.notifications_active,
+    Color iconColor = const Color(0xFFC5A059),
+    Duration duration = const Duration(seconds: 6),
+  }) {
+    final ctx = context ?? globalContextProvider?.call();
+    if (ctx == null) return;
+
+    try {
+      HapticFeedback.heavyImpact();
+    } catch (_) {}
+
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: const Color(0xFF0F172A),
+        elevation: 8,
+        content: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.2),
+                shape: BoxShape.circle,
+                border: Border.all(color: iconColor.withOpacity(0.4)),
+              ),
+              child: Icon(
+                icon,
+                color: iconColor,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          'NOW LIVE • አሁን ጀምሯል',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                  if (body.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF94A3B8),
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        duration: duration,
+      ),
+    );
+  }
+
+  /// Displays an immediate system-level heads-up notification that pops up on screen
+  /// even when the user is outside the app or on the home screen.
+  Future<void> showSystemNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    try {
+      if (!_localNotificationsInitialized) {
+        const AndroidInitializationSettings androidSettings =
+            AndroidInitializationSettings('@mipmap/ic_launcher');
+        await _localNotifications.initialize(
+          settings: const InitializationSettings(android: androidSettings),
+        );
+        final androidImpl = _localNotifications
+            .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+        await androidImpl?.createNotificationChannel(_reminderChannel);
+        _localNotificationsInitialized = true;
+      }
+
+      final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        _reminderChannel.id,
+        _reminderChannel.name,
+        channelDescription: _reminderChannel.description,
+        importance: Importance.max,
+        priority: Priority.high,
+        ticker: 'WCU Orthodox Reminder',
+        playSound: true,
+        enableVibration: true,
+        icon: '@mipmap/ic_launcher',
+        styleInformation: BigTextStyleInformation(body),
+      );
+
+      final NotificationDetails details = NotificationDetails(android: androidDetails);
+      await _localNotifications.show(
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: details,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('Error showing system notification: $e');
+    }
+  }
+
+  /// Cancels an active system notification by ID
+  Future<void> cancelNotification(int id) async {
+    try {
+      await _localNotifications.cancel(id: id);
+    } catch (e) {
+      debugPrint('Error cancelling notification: $e');
+    }
   }
 
   void dispose() {

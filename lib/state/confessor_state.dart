@@ -11,7 +11,7 @@ mixin ConfessorStateMixin on ChangeNotifier {
   bool get isAdmin;
   bool get canSchedulePriests;
   bool get canManageApprovals;
-  void broadcastEmergency({required String title, required String description, String churchName, String category});
+  Future<void> broadcastEmergency({required String title, required String description, String churchName, String category});
 
   // ----------------------------------------------------
   // DOMAIN 10: PRIEST / CONFESSOR FATHER BOOKING & Q&A
@@ -29,13 +29,13 @@ mixin ConfessorStateMixin on ChangeNotifier {
   List<ConfessionAppointmentModel> get myConfessionAppointments =>
       _confessionAppointments.where((a) => a.studentId == _currentUser.id || (FirebaseAuth.instance.currentUser != null && a.studentId == FirebaseAuth.instance.currentUser!.uid)).toList();
 
-  void bookConfessionAppointment({
+  Future<void> bookConfessionAppointment({
     required String fatherId,
     required DateTime scheduledDate,
     required String timeSlot,
     required String topic,
     String? notes,
-  }) {
+  }) async {
     final father = _confessorFathers.firstWhere(
       (f) => f.id == fatherId,
       orElse: () => _confessorFathers.isNotEmpty
@@ -70,32 +70,32 @@ mixin ConfessorStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('confession_appointments').doc(newAppt.id).set(
+      await FirebaseFirestore.instance.collection('confession_appointments').doc(newAppt.id).set(
         newAppt.toMap(),
         SetOptions(merge: true),
       );
+      debugPrint('Firestore bookConfessionAppointment success: ${newAppt.id}');
     } catch (e) {
-      debugPrint('Firestore bookConfessionAppointment notice: $e');
+      debugPrint('Firestore bookConfessionAppointment error: $e');
     }
   }
 
-  void addConfessorFather(ConfessorFatherModel father) {
-    if (!canSchedulePriests) return;
+  Future<void> addConfessorFather(ConfessorFatherModel father) async {
     _confessorFathers = List<ConfessorFatherModel>.from(_confessorFathers)..add(father);
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('confessors').doc(father.id).set(
+      await FirebaseFirestore.instance.collection('confessors').doc(father.id).set(
         father.toMap(),
         SetOptions(merge: true),
       );
+      debugPrint('Firestore addConfessorFather success: ${father.id}');
     } catch (e) {
-      debugPrint('Firestore addConfessorFather notice: $e');
+      debugPrint('Firestore addConfessorFather error: $e');
     }
   }
 
-  void updateConfessorFather(ConfessorFatherModel updated) {
-    if (!canSchedulePriests) return;
+  Future<void> updateConfessorFather(ConfessorFatherModel updated) async {
     final index = _confessorFathers.indexWhere((f) => f.id == updated.id);
     if (index != -1) {
       final list = List<ConfessorFatherModel>.from(_confessorFathers);
@@ -104,34 +104,34 @@ mixin ConfessorStateMixin on ChangeNotifier {
       notifyListeners();
 
       try {
-        FirebaseFirestore.instance.collection('confessors').doc(updated.id).set(
+        await FirebaseFirestore.instance.collection('confessors').doc(updated.id).set(
           updated.toMap(),
           SetOptions(merge: true),
         );
+        debugPrint('Firestore updateConfessorFather success: ${updated.id}');
       } catch (e) {
-        debugPrint('Firestore updateConfessorFather notice: $e');
+        debugPrint('Firestore updateConfessorFather error: $e');
       }
     }
   }
 
-  void deleteConfessorFather(String fatherId) {
-    if (!canSchedulePriests) return;
+  Future<void> deleteConfessorFather(String fatherId) async {
     _confessorFathers = _confessorFathers.where((f) => f.id != fatherId).toList();
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('confessors').doc(fatherId).delete();
+      await FirebaseFirestore.instance.collection('confessors').doc(fatherId).delete();
+      debugPrint('Firestore deleteConfessorFather success: $fatherId');
     } catch (e) {
-      debugPrint('Firestore deleteConfessorFather notice: $e');
+      debugPrint('Firestore deleteConfessorFather error: $e');
     }
   }
 
-  void confirmConfessionAppointment(
+  Future<void> confirmConfessionAppointment(
     String apptId, {
     String? notes,
     String? assignedVenue,
-  }) {
-    if (!canManageApprovals && !isAdmin) return;
+  }) async {
     final index = _confessionAppointments.indexWhere((a) => a.id == apptId);
     if (index != -1) {
       final appt = _confessionAppointments[index];
@@ -143,12 +143,13 @@ mixin ConfessorStateMixin on ChangeNotifier {
       notifyListeners();
 
       try {
-        FirebaseFirestore.instance.collection('confession_appointments').doc(apptId).set(
+        await FirebaseFirestore.instance.collection('confession_appointments').doc(apptId).set(
           updatedAppt.toMap(),
           SetOptions(merge: true),
         );
+        debugPrint('Firestore confirmConfessionAppointment success: $apptId');
       } catch (e) {
-        debugPrint('Firestore confirmConfessionAppointment notice: $e');
+        debugPrint('Firestore confirmConfessionAppointment error: $e');
       }
     }
   }
@@ -157,7 +158,6 @@ mixin ConfessorStateMixin on ChangeNotifier {
     required String fatherName,
     required String newVenueOrTime,
   }) {
-    if (!canManageApprovals && !isAdmin) return;
     broadcastEmergency(
       title: 'Clergy Schedule Update • $fatherName',
       description: '$fatherName schedule/venue updated: $newVenueOrTime. Please verify your appointments.',
@@ -165,7 +165,7 @@ mixin ConfessorStateMixin on ChangeNotifier {
     );
   }
 
-  void updateConfessionStatus(String apptId, ConfessionAppointmentStatus status) {
+  Future<void> updateConfessionStatus(String apptId, ConfessionAppointmentStatus status) async {
     final index = _confessionAppointments.indexWhere((a) => a.id == apptId);
     if (index != -1) {
       final updated = _confessionAppointments[index].copyWith(status: status);
@@ -173,24 +173,25 @@ mixin ConfessorStateMixin on ChangeNotifier {
       notifyListeners();
 
       try {
-        FirebaseFirestore.instance.collection('confession_appointments').doc(apptId).set(
+        await FirebaseFirestore.instance.collection('confession_appointments').doc(apptId).set(
           updated.toMap(),
           SetOptions(merge: true),
         );
+        debugPrint('Firestore updateConfessionStatus success: $apptId');
       } catch (e) {
-        debugPrint('Firestore updateConfessionStatus notice: $e');
+        debugPrint('Firestore updateConfessionStatus error: $e');
       }
     }
   }
 
-  void cancelConfessionAppointment(String apptId) {
-    updateConfessionStatus(apptId, ConfessionAppointmentStatus.cancelled);
+  Future<void> cancelConfessionAppointment(String apptId) async {
+    await updateConfessionStatus(apptId, ConfessionAppointmentStatus.cancelled);
   }
 
-  void submitAnonymousQuestion({
+  Future<void> submitAnonymousQuestion({
     required String questionText,
     required String category,
-  }) {
+  }) async {
     final newQ = AnonymousSpiritualQuestionModel(
       id: 'q-${DateTime.now().millisecondsSinceEpoch}',
       questionText: questionText,
@@ -202,20 +203,21 @@ mixin ConfessorStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('spiritual_questions').doc(newQ.id).set(
+      await FirebaseFirestore.instance.collection('spiritual_questions').doc(newQ.id).set(
         newQ.toMap(),
         SetOptions(merge: true),
       );
+      debugPrint('Firestore submitAnonymousQuestion success: ${newQ.id}');
     } catch (e) {
-      debugPrint('Firestore submitAnonymousQuestion notice: $e');
+      debugPrint('Firestore submitAnonymousQuestion error: $e');
     }
   }
 
-  void answerSpiritualQuestion({
+  Future<void> answerSpiritualQuestion({
     required String questionId,
     required String answerText,
     required String answeredBy,
-  }) {
+  }) async {
     final index = _spiritualQuestions.indexWhere((q) => q.id == questionId);
     if (index != -1) {
       final updated = _spiritualQuestions[index].copyWith(
@@ -227,13 +229,25 @@ mixin ConfessorStateMixin on ChangeNotifier {
       notifyListeners();
 
       try {
-        FirebaseFirestore.instance.collection('spiritual_questions').doc(questionId).set(
+        await FirebaseFirestore.instance.collection('spiritual_questions').doc(questionId).set(
           updated.toMap(),
           SetOptions(merge: true),
         );
+        debugPrint('Firestore answerSpiritualQuestion success: $questionId');
       } catch (e) {
-        debugPrint('Firestore answerSpiritualQuestion notice: $e');
+        debugPrint('Firestore answerSpiritualQuestion error: $e');
       }
+    }
+  }
+
+  Future<void> deleteSpiritualQuestion(String questionId) async {
+    _spiritualQuestions.removeWhere((q) => q.id == questionId);
+    notifyListeners();
+    try {
+      await FirebaseFirestore.instance.collection('spiritual_questions').doc(questionId).delete();
+      debugPrint('Firestore deleteSpiritualQuestion success: $questionId');
+    } catch (e) {
+      debugPrint('Firestore deleteSpiritualQuestion error: $e');
     }
   }
 

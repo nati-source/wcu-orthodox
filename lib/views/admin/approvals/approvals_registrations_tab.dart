@@ -678,15 +678,6 @@ extension ApprovalsRegistrationsTabExt on _AdminApprovalsScreenState {
                     onSelected: (r) => setDialogState(() => selectedRole = r),
                   ),
 
-                  // Option 3: Volunteer Coordinator
-                  _buildRoleRadioTile(
-                    title: 'Coordinator / አስተባባሪ',
-                    subtitle: 'Coordinates fellowship departments and services',
-                    role: UserRole.volunteerCoordinator,
-                    selectedRole: selectedRole,
-                    color: const Color(0xFF3B82F6),
-                    onSelected: (r) => setDialogState(() => selectedRole = r),
-                  ),
                 ],
               ),
             ),
@@ -696,24 +687,31 @@ extension ApprovalsRegistrationsTabExt on _AdminApprovalsScreenState {
                 child: const Text('Cancel', style: TextStyle(color: AppTheme.slateMuted)),
               ),
               ElevatedButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   Navigator.pop(ctx);
-                  state.approveStudent(student.id, role: selectedRole);
+                  final approved = await state.approveStudent(student.id, role: selectedRole);
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Row(
                         children: [
-                          const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                          Icon(
+                            approved ? Icons.check_circle : Icons.error_outline,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              '${student.fullName} approved as ${selectedRole.displayName}!',
+                              approved
+                                  ? '${student.fullName} approved as ${selectedRole.displayName}.'
+                                  : 'Could not approve ${student.fullName}. Check the connection and try again.',
                               style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
                       ),
-                      backgroundColor: AppTheme.emerald,
+                      backgroundColor: approved ? AppTheme.emerald : AppTheme.crimson,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
@@ -888,13 +886,18 @@ extension ApprovalsRegistrationsTabExt on _AdminApprovalsScreenState {
             child: const Text('Cancel', style: TextStyle(color: AppTheme.slateMuted)),
           ),
           ElevatedButton.icon(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(ctx);
-              state.approveAllPendingStudents();
+              final approvedCount = await state.approveAllPendingStudents();
+              if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('All $count pending students approved successfully!'),
-                  backgroundColor: AppTheme.emerald,
+                  content: Text(
+                    approvedCount == count
+                        ? 'All $approvedCount pending students approved successfully.'
+                        : '$approvedCount of $count registrations were approved. The rest remain pending.',
+                  ),
+                  backgroundColor: approvedCount > 0 ? AppTheme.emerald : AppTheme.crimson,
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),

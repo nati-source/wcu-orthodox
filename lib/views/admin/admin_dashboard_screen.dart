@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/services.dart';
 import 'package:fl_chart/fl_chart.dart';
+
 import '../../models/app_models.dart';
+import '../../services/admin_dashboard_analytics_service.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/edit_profile_modal.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final FellowshipState state;
@@ -28,8 +34,14 @@ class _DashboardMetricsData {
   final String periodLabel;
   final int registeredCount;
   final double avgAttendance;
-  final int activeRoadmaps;
+  final bool hasAttendanceData;
+  final int recordedSessions;
   final int atRiskCount;
+  final int pendingApprovalsCount;
+  final bool hasSessionBreakdown;
+  final String breakdownCourseName;
+  final bool isLoading;
+  final String? loadError;
   final List<String> xLabels;
   final List<FlSpot> spots;
   final int peakIndex;
@@ -43,8 +55,14 @@ class _DashboardMetricsData {
     required this.periodLabel,
     required this.registeredCount,
     required this.avgAttendance,
-    required this.activeRoadmaps,
+    required this.hasAttendanceData,
+    required this.recordedSessions,
     required this.atRiskCount,
+    required this.pendingApprovalsCount,
+    required this.hasSessionBreakdown,
+    required this.breakdownCourseName,
+    required this.isLoading,
+    required this.loadError,
     required this.xLabels,
     required this.spots,
     required this.peakIndex,
@@ -74,190 +92,267 @@ class _DashboardActivityItem {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  String _selectedTimeFilter = 'This Week';
+  final AdminDashboardAnalyticsService _analyticsService =
+      AdminDashboardAnalyticsService();
+  AdminDashboardAnalyticsSnapshot? _databaseSnapshot;
+  bool _isLoading = true;
+  String? _loadError;
   String _selectedBatchFilter = 'All Batches';
 
-  List<String> _getAvailableBatches(FellowshipState state) {
-    final depts = state.allStudents
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadDashboardData());
+  }
+
+  Future<void> _loadDashboardData() async {
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    }
+    try {
+      final snapshot = await _analyticsService.load();
+      if (!mounted) return;
+      setState(() {
+        _databaseSnapshot = snapshot;
+        _isLoading = false;
+        _loadError = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _databaseSnapshot = null;
+        _isLoading = false;
+        _loadError = error.toString();
+      });
+    }
+  }
+
+  List<String> _getAvailableBatches(List<UserModel> students) {
+    final depts = students
         .map((s) => s.department.trim())
         .where((d) => d.isNotEmpty && d != 'General')
         .toSet()
         .toList();
-    depts.sort();
     return ['All Batches', ...depts];
   }
 
-  final List<String> _timeFilterOptions = ['This Week', 'This Month', 'Semester', 'Annual'];
-
   _DashboardMetricsData _computeDashboardData(FellowshipState state) {
-    // 1. Filter students according to selected department/batch
-    final allStudents = state.allStudents;
-    final List<UserModel> students;
-    if (_selectedBatchFilter == 'All Batches') {
-      students = allStudents;
-    } else {
-      students = allStudents
-          .where((s) => s.department.trim().toLowerCase() == _selectedBatchFilter.trim().toLowerCase())
-          .toList();
-    }
+    final database = _databaseSnapshot;
+    final students = (database?.students ?? const <UserModel>[])
+        .where(
+          (student) =>
+              student.role == UserRole.student &&
+              (_selectedBatchFilter == 'All Batches' ||
+                  student.department.trim() == _selectedBatchFilter),
+        )
+        .toList();
+    final registeredCount = students.length;
+    final selectedDepartment = _selectedBatchFilter == 'All Batches'
+        ? null
+        : _selectedBatchFilter;
+    final completedSessions = (database?.sessions ?? const [])
+        .where(
+          (record) =>
+              !record.session.isActive ||
+              record.session.isExpired ||
+              (record.session.expiresAt != null &&
+                  !record.session.expiresAt!.isAfter(DateTime.now())),
+        )
+        .where((record) => record.enrolledStudents.isNotEmpty)
+        .where(
+          (record) =>
+              selectedDepartment == null ||
+              record.enrolledStudents.any(
+                (student) => student.department == selectedDepartment,
+              ),
+        )
+        .toList();
+    final scopedStudentIds = students.map((student) => student.id).toSet();
+    final opportunitiesByStudent = <String, int>{};
+    final attendedByStudent = <String, int>{};
+    var totalOpportunities = 0;
+    var totalAttended = 0;
 
-    final int registeredCount = students.length;
-
-    // 2. Compute true average attendance mathematically from actual student records
-    final double avgAttendance = registeredCount == 0
-        ? 0.0
-        : double.parse((students.fold<double>(0.0, (sum, s) => sum + s.attendancePercentage) / registeredCount).toStringAsFixed(1));
-
-    // 3. Compute at-risk students & counts
-    final atRiskList = students.where((s) => s.attendancePercentage < 75.0).toList();
-    final int atRiskCount = atRiskList.length;
-
-    // 4. Active roadmaps from state
-    final int activeRoadmaps = state.roadmaps.length;
-
-    // 5. Attendance status counts (Present, Late, Absent)
-    final int presentCount = students.where((s) => s.attendancePercentage >= 75.0).length;
-    final int lateCount = students.where((s) => s.attendancePercentage >= 50.0 && s.attendancePercentage < 75.0).length;
-    final int absentCount = students.where((s) => s.attendancePercentage < 50.0).length;
-
-    // 6. Time period labels
-    final isMonth = _selectedTimeFilter == 'This Month';
-    final isSemester = _selectedTimeFilter.contains('Semester');
-    final isAnnual = _selectedTimeFilter == 'Annual';
-
-    final String periodBadge = isMonth ? 'MONTHLY' : (isSemester ? 'SEMESTER' : (isAnnual ? 'ANNUAL' : 'WEEKLY'));
-    final String periodLabel = isMonth ? 'This Month' : (isSemester ? 'Semester' : (isAnnual ? 'Annual' : 'This Week'));
-
-    // 7. Dynamic Trend Chart Spots
-    List<FlSpot> spots = [];
-    List<String> xLabels = [];
-    int peakIndex = 0;
-
-    if (registeredCount == 0) {
-      spots = [];
-      xLabels = [];
-      peakIndex = 0;
-    } else {
-      if (students.length >= 2) {
-        double maxRate = -1;
-        for (int i = 0; i < students.length && i < 6; i++) {
-          final s = students[i];
-          final namePart = s.fullName.trim().split(' ').first;
-          final label = namePart.length > 5 ? namePart.substring(0, 5) : namePart;
-          xLabels.add(label);
-          final rate = s.attendancePercentage.clamp(0.0, 100.0);
-          spots.add(FlSpot(i.toDouble(), rate));
-          if (rate > maxRate) {
-            maxRate = rate;
-            peakIndex = i;
+    for (final record in completedSessions) {
+      final enrolled = record.enrolledStudents.where((student) {
+        return selectedDepartment == null ||
+            student.department == selectedDepartment;
+      });
+      final enrolledIds = enrolled.map((student) => student.studentId).toSet();
+      totalOpportunities += enrolledIds.length;
+      final scansByStudent = {
+        for (final scan in record.scans) scan.studentId: scan,
+      };
+      for (final studentId in enrolledIds) {
+        final scan = scansByStudent[studentId];
+        final attended =
+            scan != null &&
+            (scan.status == AttendanceStatus.present ||
+                scan.status == AttendanceStatus.late);
+        if (attended) totalAttended++;
+        if (scopedStudentIds.contains(studentId)) {
+          opportunitiesByStudent.update(
+            studentId,
+            (value) => value + 1,
+            ifAbsent: () => 1,
+          );
+          if (attended) {
+            attendedByStudent.update(
+              studentId,
+              (value) => value + 1,
+              ifAbsent: () => 1,
+            );
           }
         }
-      } else {
-        xLabels = isMonth
-            ? ['WK 1', 'WK 2', 'WK 3', 'WK 4']
-            : (isSemester
-                ? ['SEP', 'OCT', 'NOV', 'DEC', 'JAN']
-                : (isAnnual ? ['Q1', 'Q2', 'Q3', 'Q4'] : ['MON', 'TUE', 'WED', 'THU', 'FRI']));
-        for (int i = 0; i < xLabels.length; i++) {
-          spots.add(FlSpot(i.toDouble(), avgAttendance));
-        }
-        peakIndex = (xLabels.length / 2).floor();
       }
     }
 
-    // 8. Real System Activity Items (No fake mock entries)
-    final List<_DashboardActivityItem> activities = [];
+    final attendanceRates = <String, double>{
+      for (final entry in opportunitiesByStudent.entries)
+        entry.key: (attendedByStudent[entry.key] ?? 0) * 100 / entry.value,
+    };
+    final attendanceDataStudents = students
+        .where((student) => attendanceRates.containsKey(student.id))
+        .toList();
+    final hasAttendanceData = totalOpportunities > 0;
+    final avgAttendance = hasAttendanceData
+        ? totalAttended * 100 / totalOpportunities
+        : 0.0;
+    final atRiskStudents =
+        attendanceDataStudents
+            .where((student) => (attendanceRates[student.id] ?? 100) < 75)
+            .toList()
+          ..sort(
+            (a, b) => (attendanceRates[a.id] ?? 0).compareTo(
+              attendanceRates[b.id] ?? 0,
+            ),
+          );
 
-    // Pending registrations
-    if (state.pendingApprovals.isNotEmpty) {
-      activities.add(
-        _DashboardActivityItem(
-          icon: Icons.person_add_alt_1_rounded,
-          title: '${state.pendingApprovals.length} Pending Registration(s)',
-          subtitle: 'Awaiting admin verification: ${state.pendingApprovals.take(3).map((u) => u.fullName).join(", ")}',
-          timeAgo: 'Pending',
-          isRisk: true,
-          onActionTap: widget.onOpenApprovals,
-        ),
-      );
+    final allSessions = database?.sessions ?? const [];
+    final latestSession = allSessions.isEmpty ? null : allSessions.first;
+    final hasLiveSession =
+        latestSession != null &&
+        latestSession.session.isActive &&
+        !latestSession.session.isExpired &&
+        (latestSession.session.expiresAt == null ||
+            latestSession.session.expiresAt!.isAfter(DateTime.now()));
+    final latestEnrollment = latestSession?.enrolledStudents ?? const [];
+    final legacyLiveRoster = hasLiveSession && latestEnrollment.isEmpty
+        ? students.map(
+            (student) => AttendanceEnrollmentSnapshot(
+              studentId: student.id,
+              department: student.department,
+            ),
+          )
+        : const <AttendanceEnrollmentSnapshot>[];
+    final breakdownRoster =
+        (latestEnrollment.isNotEmpty ? latestEnrollment : legacyLiveRoster)
+            .where(
+              (student) =>
+                  selectedDepartment == null ||
+                  student.department == selectedDepartment,
+            )
+            .toList();
+    final breakdownIds = breakdownRoster
+        .map((student) => student.studentId)
+        .toSet();
+    final latestScans =
+        latestSession?.scans
+            .where((scan) => breakdownIds.contains(scan.studentId))
+            .toList() ??
+        const <AttendanceRecordModel>[];
+    final presentCount = latestScans
+        .where((scan) => scan.status == AttendanceStatus.present)
+        .length;
+    final lateCount = latestScans
+        .where((scan) => scan.status == AttendanceStatus.late)
+        .length;
+    final absentCount = (breakdownRoster.length - presentCount - lateCount)
+        .clamp(0, breakdownRoster.length);
+    final hasSessionBreakdown = breakdownRoster.isNotEmpty;
+
+    const labels = ['0–49%', '50–74%', '75–89%', '90–100%'];
+    final buckets = <int>[0, 0, 0, 0];
+    for (final student in attendanceDataStudents) {
+      final rate = attendanceRates[student.id] ?? 0;
+      final bucket = rate < 50
+          ? 0
+          : rate < 75
+          ? 1
+          : rate < 90
+          ? 2
+          : 3;
+      buckets[bucket]++;
+    }
+    final spots = [
+      if (attendanceDataStudents.isNotEmpty)
+        for (var index = 0; index < buckets.length; index++)
+          FlSpot(
+            index.toDouble(),
+            buckets[index] * 100 / attendanceDataStudents.length,
+          ),
+    ];
+    var peakIndex = 0;
+    for (var index = 1; index < spots.length; index++) {
+      if (spots[index].y > spots[peakIndex].y) peakIndex = index;
     }
 
-    // Real At-Risk Students requiring pastoral follow-up
-    for (final atRisk in atRiskList.take(3)) {
-      activities.add(
+    final activities = <_DashboardActivityItem>[
+      for (final student in atRiskStudents.take(3))
         _DashboardActivityItem(
-          icon: Icons.warning_amber_rounded,
-          title: '${atRisk.fullName} (${atRisk.department.isNotEmpty ? atRisk.department : "Fellowship"})',
-          subtitle: 'Attendance at ${atRisk.attendancePercentage.toStringAsFixed(1)}% (Below 75% threshold)',
-          timeAgo: 'Current',
+          icon: Icons.person_off_outlined,
+          title: student.fullName.trim().isEmpty
+              ? 'Student follow-up needed'
+              : student.fullName,
+          subtitle:
+              '${(attendanceRates[student.id] ?? 0).toStringAsFixed(0)}% attendance across ${opportunitiesByStudent[student.id]} recorded sessions',
+          timeAgo: 'Follow-up',
           isRisk: true,
-          onActionTap: atRisk.phoneNumber.isNotEmpty ? () => state.launchCall(atRisk.phoneNumber) : null,
+          onActionTap: student.phoneNumber.trim().isEmpty
+              ? null
+              : () => state.launchCall(student.phoneNumber),
         ),
-      );
-    }
-
-    // Active Live Attendance Session
-    if (state.activeSession.scans.isNotEmpty) {
-      activities.add(
+      if (hasLiveSession)
         _DashboardActivityItem(
           icon: Icons.qr_code_scanner,
           title: 'Live Attendance Session',
-          subtitle: '${state.activeSession.scans.length} of $registeredCount student(s) checked in',
-          timeAgo: 'Active',
+          subtitle:
+              '${latestScans.length} check-ins recorded for ${latestSession.session.courseName}.',
+          timeAgo: 'Live',
           onActionTap: widget.onOpenLiveAttendance,
         ),
-      );
-    }
-
-    // Pending Emergency Aid Requests
-    final pendingAid = state.emergencyAidRequests.where((a) => a.status == 'pending').toList();
-    if (pendingAid.isNotEmpty) {
-      activities.add(
+      if ((database?.pendingStudents.length ?? 0) > 0)
         _DashboardActivityItem(
-          icon: Icons.emergency_outlined,
-          title: '${pendingAid.length} Emergency Aid Request(s)',
-          subtitle: 'Student assistance applications pending review',
-          timeAgo: 'Review',
-          isRisk: true,
+          icon: Icons.verified_user_outlined,
+          title: 'Membership Registrations',
+          subtitle:
+              '${database!.pendingStudents.length} student registrations pending approval.',
+          timeAgo: 'Pending',
           onActionTap: widget.onOpenApprovals,
         ),
-      );
-    }
-
-    // Pending Volunteer Applications
-    final pendingVolunteers = state.volunteerApplications.where((a) => a.status == ApplicationStatus.pending).toList();
-    if (pendingVolunteers.isNotEmpty) {
-      activities.add(
-        _DashboardActivityItem(
-          icon: Icons.volunteer_activism_outlined,
-          title: '${pendingVolunteers.length} Department Application(s)',
-          subtitle: 'Students applied to join fellowship service departments',
-          timeAgo: 'Review',
-          onActionTap: widget.onOpenApprovals,
-        ),
-      );
-    }
-
-    // Broadcasts
-    if (state.latestEmergencyBroadcast != null) {
-      activities.add(
-        _DashboardActivityItem(
-          icon: Icons.campaign_rounded,
-          title: state.latestEmergencyBroadcast!.title,
-          subtitle: state.latestEmergencyBroadcast!.description,
-          timeAgo: 'Broadcast',
-        ),
-      );
-    }
+    ];
 
     return _DashboardMetricsData(
-      periodBadge: periodBadge,
-      periodLabel: periodLabel,
+      periodBadge: 'DATABASE',
+      periodLabel: hasAttendanceData
+          ? '${completedSessions.length} Recorded Sessions'
+          : 'Attendance History',
       registeredCount: registeredCount,
       avgAttendance: avgAttendance,
-      activeRoadmaps: activeRoadmaps,
-      atRiskCount: atRiskCount,
-      xLabels: xLabels,
+      hasAttendanceData: hasAttendanceData,
+      recordedSessions: completedSessions.length,
+      atRiskCount: atRiskStudents.length,
+      pendingApprovalsCount: database?.pendingStudents.length ?? 0,
+      hasSessionBreakdown: hasSessionBreakdown,
+      breakdownCourseName: hasSessionBreakdown
+          ? latestSession?.session.courseName ?? ''
+          : '',
+      isLoading: _isLoading,
+      loadError: _loadError,
+      xLabels: labels,
       spots: spots,
       peakIndex: peakIndex,
       presentCount: presentCount,
@@ -274,6 +369,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     final primaryAccent = theme.colorScheme.primary;
     final isDark = theme.brightness == Brightness.dark;
 
+    final availableBatches = _getAvailableBatches(
+      _databaseSnapshot?.students ?? const <UserModel>[],
+    );
+    if (!availableBatches.contains(_selectedBatchFilter)) {
+      _selectedBatchFilter = 'All Batches';
+    }
     final metrics = _computeDashboardData(state);
 
     return SingleChildScrollView(
@@ -281,6 +382,114 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Executive Administrator Profile & Contact Card
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  primaryAccent.withOpacity(0.16),
+                  theme.cardTheme.color ?? theme.colorScheme.surface,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: primaryAccent.withOpacity(0.4)),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: primaryAccent.withOpacity(0.2),
+                  child: Icon(
+                    Icons.admin_panel_settings,
+                    color: primaryAccent,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              state.currentUser.fullName.isNotEmpty
+                                  ? state.currentUser.fullName
+                                  : 'Administrator',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.gold.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'Admin',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.gold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${state.currentUser.department} • ${state.currentUser.phoneNumber.isNotEmpty ? state.currentUser.phoneNumber : "No phone set"}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color:
+                              theme.textTheme.bodyMedium?.color ??
+                              AppTheme.textSecondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => EditProfileModal.show(context, state),
+                  icon: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: primaryAccent.withOpacity(0.14),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: primaryAccent.withOpacity(0.4)),
+                    ),
+                    child: Icon(
+                      Icons.edit_outlined,
+                      color: primaryAccent,
+                      size: 16,
+                    ),
+                  ),
+                  tooltip: 'Edit Profile • መገለጫ አርትዕ',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
+
           // Header Row: Executive Analytics + Time Filter Dropdown
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -294,7 +503,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                        color:
+                            theme.textTheme.bodyMedium?.color ??
+                            AppTheme.textSecondary,
                         letterSpacing: 0.5,
                       ),
                       maxLines: 1,
@@ -315,36 +526,72 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Time Filter Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: theme.cardTheme.color ?? theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: theme.dividerColor),
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _timeFilterOptions.contains(_selectedTimeFilter)
-                        ? _selectedTimeFilter
-                        : (_selectedTimeFilter.contains('Semester') ? 'Semester' : 'This Week'),
-                    dropdownColor: theme.cardTheme.color ?? theme.colorScheme.surface,
-                    icon: Icon(Icons.keyboard_arrow_down, color: primaryAccent, size: 18),
-                    style: TextStyle(fontSize: 12, color: primaryAccent, fontWeight: FontWeight.bold),
-                    items: _timeFilterOptions.map((s) {
-                      return DropdownMenuItem(
-                        value: s,
-                        child: Text(s, style: TextStyle(color: theme.colorScheme.onSurface)),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedTimeFilter = val);
-                    },
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      metrics.loadError == null
+                          ? Icons.storage_outlined
+                          : Icons.cloud_off_outlined,
+                      color: metrics.loadError == null
+                          ? primaryAccent
+                          : AppTheme.crimson,
+                      size: 16,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      metrics.isLoading
+                          ? 'LOADING'
+                          : metrics.loadError == null
+                          ? 'DATABASE'
+                          : 'ERROR',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: primaryAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: metrics.isLoading ? null : _loadDashboardData,
+                tooltip: 'Refresh database analytics',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.refresh_rounded),
               ),
             ],
           ),
+
+          if (metrics.loadError != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.crimson.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.crimson.withOpacity(0.35)),
+              ),
+              child: Text(
+                'Database analytics could not be loaded. Check your connection and refresh.',
+                style: TextStyle(
+                  color: theme.colorScheme.onSurface,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
 
           const SizedBox(height: 14),
 
@@ -370,27 +617,44 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.swap_horiz_rounded, color: primaryAccent, size: 20),
+                      Icon(
+                        Icons.swap_horiz_rounded,
+                        color: primaryAccent,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Switch Perspective / Toggle Roles',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onSurface,
+                      Expanded(
+                        child: Text(
+                          'Switch Perspective / Toggle Roles',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Spacer(),
+                      const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: AppTheme.gold.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.gold.withOpacity(0.5)),
+                          border: Border.all(
+                            color: AppTheme.gold.withOpacity(0.5),
+                          ),
                         ),
                         child: const Text(
                           'Live Sandbox',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.gold),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.gold,
+                          ),
                         ),
                       ),
                     ],
@@ -398,7 +662,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Experience the app from any role perspective. You can return to Admin anytime via the top banner or Profile tab.',
-                    style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color:
+                          theme.textTheme.bodyMedium?.color ??
+                          AppTheme.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   Row(
@@ -410,12 +679,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             state.switchRole(UserRole.student);
                           },
                           icon: const Icon(Icons.school, size: 16),
-                          label: const Text('Student', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          label: const Text(
+                            'Student',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: UserRole.student.badgeColor,
-                            side: BorderSide(color: UserRole.student.badgeColor.withOpacity(0.5)),
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            side: BorderSide(
+                              color: UserRole.student.badgeColor.withOpacity(
+                                0.5,
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -427,12 +711,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             state.switchRole(UserRole.volunteerCoordinator);
                           },
                           icon: const Icon(Icons.verified_user, size: 16),
-                          label: const Text('Coordinator', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          label: const Text(
+                            'Coordinator',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: UserRole.volunteerCoordinator.badgeColor,
-                            side: BorderSide(color: UserRole.volunteerCoordinator.badgeColor.withOpacity(0.5)),
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            foregroundColor:
+                                UserRole.volunteerCoordinator.badgeColor,
+                            side: BorderSide(
+                              color: UserRole.volunteerCoordinator.badgeColor
+                                  .withOpacity(0.5),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -444,12 +743,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             state.switchRole(UserRole.spiritualParent);
                           },
                           icon: const Icon(Icons.family_restroom, size: 16),
-                          label: const Text('Parent', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          label: const Text(
+                            'Parent',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: UserRole.spiritualParent.badgeColor,
-                            side: BorderSide(color: UserRole.spiritualParent.badgeColor.withOpacity(0.5)),
-                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            foregroundColor:
+                                UserRole.spiritualParent.badgeColor,
+                            side: BorderSide(
+                              color: UserRole.spiritualParent.badgeColor
+                                  .withOpacity(0.5),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 4,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         ),
                       ),
@@ -461,7 +775,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           ],
 
           // Urgent Alert Card: Pending Student Registrations
-          if (state.pendingApprovals.isNotEmpty) ...[
+          if (metrics.pendingApprovalsCount > 0) ...[
             Container(
               margin: const EdgeInsets.only(bottom: 14),
               padding: const EdgeInsets.all(16),
@@ -475,7 +789,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppTheme.gold.withOpacity(0.55), width: 1.5),
+                border: Border.all(
+                  color: AppTheme.gold.withOpacity(0.55),
+                  width: 1.5,
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: AppTheme.gold.withOpacity(0.12),
@@ -492,7 +809,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       color: AppTheme.gold.withOpacity(0.25),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.person_add_alt_1_rounded, color: AppTheme.gold, size: 22),
+                    child: const Icon(
+                      Icons.person_add_alt_1_rounded,
+                      color: AppTheme.gold,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -500,7 +821,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${state.pendingApprovals.length} New Student Registrations',
+                          '${metrics.pendingApprovalsCount} New Student Registrations',
                           style: TextStyle(
                             fontFamily: 'serif',
                             fontSize: 14,
@@ -513,7 +834,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           'Awaiting admin verification & approval to access the app.',
                           style: TextStyle(
                             fontSize: 11,
-                            color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                            color:
+                                theme.textTheme.bodyMedium?.color ??
+                                AppTheme.textSecondary,
                           ),
                         ),
                       ],
@@ -526,11 +849,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.gold,
                         foregroundColor: const Color(0xFF070F1E),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         visualDensity: VisualDensity.compact,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
-                      child: const Text('Review', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                      child: const Text(
+                        'Review',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -540,7 +874,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           // Horizontal Batch Filter Pills (Only shown if multiple departments are registered)
           Builder(
             builder: (context) {
-              final batches = _getAvailableBatches(state);
+              final batches = availableBatches;
               if (batches.length <= 1) return const SizedBox.shrink();
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -550,15 +884,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     children: batches.map((batch) {
                       final isSelected = _selectedBatchFilter == batch;
                       return GestureDetector(
-                        onTap: () => setState(() => _selectedBatchFilter = batch),
+                        onTap: () =>
+                            setState(() => _selectedBatchFilter = batch),
                         child: Container(
                           margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           decoration: BoxDecoration(
-                            color: isSelected ? primaryAccent.withOpacity(0.18) : (theme.cardTheme.color ?? theme.colorScheme.surface),
+                            color: isSelected
+                                ? primaryAccent.withOpacity(0.18)
+                                : (theme.cardTheme.color ??
+                                      theme.colorScheme.surface),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: isSelected ? primaryAccent : theme.dividerColor,
+                              color: isSelected
+                                  ? primaryAccent
+                                  : theme.dividerColor,
                               width: isSelected ? 1.5 : 1,
                             ),
                           ),
@@ -568,7 +911,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.5,
-                              color: isSelected ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                              color: isSelected
+                                  ? primaryAccent
+                                  : (theme.textTheme.bodyMedium?.color ??
+                                        AppTheme.textSecondary),
                             ),
                           ),
                         ),
@@ -591,8 +937,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   context: context,
                   icon: Icons.people,
                   iconColor: primaryAccent,
-                  value: '${metrics.registeredCount}',
-                  label: '${metrics.periodBadge} REGISTERED',
+                  value: metrics.isLoading
+                      ? '…'
+                      : metrics.loadError != null
+                      ? '—'
+                      : '${metrics.registeredCount}',
+                  label: 'APPROVED STUDENTS',
                 ),
               ),
               const SizedBox(width: 12),
@@ -602,8 +952,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   context: context,
                   icon: Icons.check_circle_outline,
                   iconColor: AppTheme.azure,
-                  value: '${metrics.avgAttendance.toStringAsFixed(1)}%',
-                  label: '${metrics.periodBadge} RATE',
+                  value: metrics.isLoading
+                      ? '…'
+                      : metrics.hasAttendanceData
+                      ? '${metrics.avgAttendance.toStringAsFixed(1)}%'
+                      : '—',
+                  label: metrics.hasAttendanceData
+                      ? 'RECORDED ATTENDANCE'
+                      : metrics.loadError != null
+                      ? 'UNAVAILABLE'
+                      : 'NO SESSION HISTORY',
                 ),
               ),
             ],
@@ -611,14 +969,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           const SizedBox(height: 12),
           Row(
             children: [
-              // 3. Active Roadmaps
+              // 3. Attendance sessions with saved enrollment snapshots
               Expanded(
                 child: _buildKpiCard(
                   context: context,
-                  icon: Icons.map_outlined,
+                  icon: Icons.event_available_outlined,
                   iconColor: AppTheme.emerald,
-                  value: '${metrics.activeRoadmaps}',
-                  label: '${metrics.periodBadge} ROADMAPS',
+                  value: metrics.isLoading
+                      ? '…'
+                      : metrics.loadError != null
+                      ? '—'
+                      : '${metrics.recordedSessions}',
+                  label: 'RECORDED SESSIONS',
                 ),
               ),
               const SizedBox(width: 12),
@@ -628,8 +990,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   context: context,
                   icon: Icons.warning_amber_rounded,
                   iconColor: AppTheme.crimson,
-                  value: '${metrics.atRiskCount}',
-                  label: '${metrics.periodBadge} AT-RISK',
+                  value: metrics.hasAttendanceData
+                      ? '${metrics.atRiskCount}'
+                      : '—',
+                  label: 'BELOW 75%',
                   isWarning: true,
                 ),
               ),
@@ -638,7 +1002,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           const SizedBox(height: 24),
 
-          // Attendance Trend Chart Card (Reactive to _selectedTimeFilter)
+          // Attendance distribution calculated from saved session check-ins.
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -654,7 +1018,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Attendance Trend • ${metrics.periodLabel}',
+                        'Attendance Distribution • ${metrics.periodLabel}',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -666,41 +1030,78 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: primaryAccent.withOpacity(0.18),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         metrics.periodBadge,
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: primaryAccent,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 20),
 
-                // Attendance Trend Visualization (Clean real data or intuitive empty placeholder)
-                if (metrics.spots.isEmpty || metrics.registeredCount == 0)
+                if (metrics.isLoading ||
+                    metrics.loadError != null ||
+                    metrics.spots.isEmpty)
                   Container(
                     height: 160,
                     alignment: Alignment.center,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.query_stats_rounded, size: 36, color: primaryAccent.withOpacity(0.4)),
-                        const SizedBox(height: 10),
-                        Text(
-                          'No Attendance Sessions Recorded Yet',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: theme.colorScheme.onSurface),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Live attendance curves will appear here as students check in via QR code or PIN.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
-                        ),
-                      ],
+                    child: SingleChildScrollView(
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            metrics.isLoading
+                                ? Icons.hourglass_empty_rounded
+                                : metrics.loadError != null
+                                ? Icons.cloud_off_outlined
+                                : Icons.query_stats_rounded,
+                            size: 32,
+                            color: primaryAccent.withOpacity(0.4),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            metrics.isLoading
+                                ? 'Loading database aggregates…'
+                                : metrics.loadError != null
+                                ? 'Attendance data is unavailable'
+                                : 'No Complete Attendance Sessions Yet',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            metrics.isLoading
+                                ? 'Reading approved students and attendance records from Firestore.'
+                                : metrics.loadError != null
+                                ? 'Refresh the dashboard after checking the connection.'
+                                : 'Attendance aggregates appear after a session with a saved enrollment roster is closed.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color:
+                                  theme.textTheme.bodyMedium?.color ??
+                                  AppTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   )
                 else
@@ -718,9 +1119,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           ),
                         ),
                         titlesData: FlTitlesData(
-                          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                          leftTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          topTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
+                          rightTitles: const AxisTitles(
+                            sideTitles: SideTitles(showTitles: false),
+                          ),
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
@@ -728,15 +1135,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               getTitlesWidget: (value, meta) {
                                 final titles = metrics.xLabels;
                                 final index = value.toInt();
-                                if (index >= 0 && index < titles.length && (value - index).abs() < 0.1) {
+                                if (index >= 0 &&
+                                    index < titles.length &&
+                                    (value - index).abs() < 0.1) {
                                   final isPeak = index == metrics.peakIndex;
                                   return Padding(
                                     padding: const EdgeInsets.only(top: 6),
                                     child: Text(
                                       titles[index],
                                       style: TextStyle(
-                                        color: isPeak ? primaryAccent : (theme.textTheme.bodyMedium?.color ?? AppTheme.textTertiary),
-                                        fontWeight: isPeak ? FontWeight.bold : FontWeight.normal,
+                                        color: isPeak
+                                            ? primaryAccent
+                                            : (theme
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.color ??
+                                                  AppTheme.textTertiary),
+                                        fontWeight: isPeak
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                         fontSize: 11,
                                       ),
                                     ),
@@ -749,7 +1166,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         ),
                         borderData: FlBorderData(show: false),
                         minX: 0,
-                        maxX: (metrics.spots.length > 1 ? (metrics.spots.length - 1).toDouble() : 1.0),
+                        maxX: (metrics.spots.length > 1
+                            ? (metrics.spots.length - 1).toDouble()
+                            : 1.0),
                         minY: 0,
                         maxY: 100,
                         lineBarsData: [
@@ -766,7 +1185,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 final isPeak = index == metrics.peakIndex;
                                 return FlDotCirclePainter(
                                   radius: isPeak ? 6 : 4,
-                                  color: isPeak ? primaryAccent : (isDark ? Colors.black : Colors.white),
+                                  color: isPeak
+                                      ? primaryAccent
+                                      : (isDark ? Colors.black : Colors.white),
                                   strokeWidth: 2,
                                   strokeColor: primaryAccent,
                                 );
@@ -794,7 +1215,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           const SizedBox(height: 20),
 
-          // Period Attendance Breakdown (Segmented Bar & Counts)
+          // Latest session breakdown from the saved enrollment and scan records.
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -806,22 +1227,42 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${metrics.periodLabel} Attendance Breakdown',
+                  'Latest Session Attendance Breakdown',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
+                if (metrics.breakdownCourseName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    metrics.breakdownCourseName,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color:
+                          theme.textTheme.bodyMedium?.color ??
+                          AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
 
                 // Horizontal Segmented Bar (Guarded against zero flex)
-                if (metrics.registeredCount == 0 || (metrics.presentCount + metrics.lateCount + metrics.absentCount == 0))
-                  Container(
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: theme.dividerColor.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(8),
+                if (!metrics.hasSessionBreakdown ||
+                    (metrics.presentCount +
+                            metrics.lateCount +
+                            metrics.absentCount ==
+                        0))
+                  Text(
+                    metrics.hasSessionBreakdown
+                        ? 'No check-ins are recorded for the latest session.'
+                        : 'No session roster is available for a breakdown yet.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color:
+                          theme.textTheme.bodyMedium?.color ??
+                          AppTheme.textSecondary,
                     ),
                   )
                 else
@@ -837,14 +1278,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               child: Container(color: primaryAccent),
                             ),
                           if (metrics.lateCount > 0) ...[
-                            if (metrics.presentCount > 0) const SizedBox(width: 2),
+                            if (metrics.presentCount > 0)
+                              const SizedBox(width: 2),
                             Expanded(
                               flex: metrics.lateCount,
                               child: Container(color: const Color(0xFF93B5E1)),
                             ),
                           ],
                           if (metrics.absentCount > 0) ...[
-                            if (metrics.presentCount > 0 || metrics.lateCount > 0) const SizedBox(width: 2),
+                            if (metrics.presentCount > 0 ||
+                                metrics.lateCount > 0)
+                              const SizedBox(width: 2),
                             Expanded(
                               flex: metrics.absentCount,
                               child: Container(color: const Color(0xFFF87171)),
@@ -860,9 +1304,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatusLegend(context: context, color: primaryAccent, label: 'PRESENT', count: '${metrics.presentCount}'),
-                    _buildStatusLegend(context: context, color: const Color(0xFF93B5E1), label: 'LATE', count: '${metrics.lateCount}'),
-                    _buildStatusLegend(context: context, color: const Color(0xFFF87171), label: 'ABSENT', count: '${metrics.absentCount}'),
+                    _buildStatusLegend(
+                      context: context,
+                      color: primaryAccent,
+                      label: 'PRESENT',
+                      count: '${metrics.presentCount}',
+                    ),
+                    _buildStatusLegend(
+                      context: context,
+                      color: const Color(0xFF93B5E1),
+                      label: 'LATE',
+                      count: '${metrics.lateCount}',
+                    ),
+                    _buildStatusLegend(
+                      context: context,
+                      color: const Color(0xFFF87171),
+                      label: 'ABSENT',
+                      count: '${metrics.absentCount}',
+                    ),
                   ],
                 ),
               ],
@@ -871,13 +1330,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
           const SizedBox(height: 24),
 
-          // Recent Activity & Period Dynamic Highlights
+          // Current follow-up items derived from live records.
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
-                  'Recent Activity • ${metrics.periodLabel}',
+                  'Needs Attention • ${metrics.periodLabel}',
                   style: TextStyle(
                     fontFamily: 'serif',
                     fontSize: 18,
@@ -888,12 +1347,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              if (metrics.activities.isNotEmpty)
-                TextButton(
-                  onPressed: () {},
-                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                  child: Text('VIEW ALL', style: TextStyle(color: primaryAccent, fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
             ],
           ),
           const SizedBox(height: 8),
@@ -910,234 +1363,311 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.inbox_outlined, size: 36, color: primaryAccent.withOpacity(0.5)),
+                    Icon(
+                      Icons.inbox_outlined,
+                      size: 36,
+                      color: primaryAccent.withOpacity(0.5),
+                    ),
                     const SizedBox(height: 8),
                     Text(
-                      'No Urgent Activities or Alerts',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                      'No Current Follow-ups',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'All ${metrics.registeredCount} enrolled student(s) are in good standing. New registrations, aid requests, and attendance alerts will appear here as they occur.',
+                      metrics.loadError != null
+                          ? 'Dashboard records could not be loaded from the database.'
+                          : !metrics.hasAttendanceData
+                          ? 'No completed sessions with saved enrollment rosters are available for attendance follow-up yet.'
+                          : metrics.registeredCount == 0
+                          ? 'No approved student profiles are available for this department.'
+                          : 'No approved students are below the attendance threshold in the recorded sessions.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color:
+                            theme.textTheme.bodyMedium?.color ??
+                            AppTheme.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
             )
           else
-            ...metrics.activities.map((act) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _buildActivityCard(
-                    context: context,
-                    icon: act.icon,
-                    title: act.title,
-                    subtitle: act.subtitle,
-                    timeAgo: act.timeAgo,
-                    isRisk: act.isRisk,
-                    onActionTap: act.onActionTap,
-                  ),
-                )),
+            ...metrics.activities.map(
+              (act) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _buildActivityCard(
+                  context: context,
+                  icon: act.icon,
+                  title: act.title,
+                  subtitle: act.subtitle,
+                  timeAgo: act.timeAgo,
+                  isRisk: act.isRisk,
+                  onActionTap: act.onActionTap,
+                ),
+              ),
+            ),
 
           const SizedBox(height: 14),
 
-          // Test Data & Database Seeder Action Card
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  primaryAccent.withOpacity(0.12),
-                  theme.cardTheme.color ?? theme.colorScheme.surface,
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: primaryAccent.withOpacity(0.35)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: primaryAccent.withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.storage_rounded, color: primaryAccent, size: 20),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Database Test Fixtures • የዳታቤዝ መሞከሪያ',
-                            style: TextStyle(
-                              fontFamily: 'serif',
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                          Text(
-                            'Bulk seed 15+ campus students to test Smart Matching, Attendance & Roles, or free the database.',
-                            style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
-                          ),
-                        ],
-                      ),
-                    ),
+          if (state.isDemoMode && kDebugMode) ...[
+            // Test Data & Database Seeder Action Card (demo mode only)
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    primaryAccent.withOpacity(0.12),
+                    theme.cardTheme.color ?? theme.colorScheme.surface,
                   ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: state.isSeedingData
-                        ? null
-                        : () async {
-                            final count = await state.seedEntireDatabaseToFirestore();
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Successfully pushed $count records across all 20 collections to Firebase!'),
-                                  backgroundColor: const Color(0xFF10B981),
-                                ),
-                              );
-                            }
-                          },
-                    icon: state.isSeedingData
-                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Icon(Icons.cloud_sync_rounded, size: 20, color: isDark ? Colors.black : Colors.white),
-                    label: Text(
-                      'Push Entire Database to Firebase (20 Collections)',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.black : Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: primaryAccent.withOpacity(0.35)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: primaryAccent.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.storage_rounded,
+                          color: primaryAccent,
+                          size: 20,
+                        ),
                       ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryAccent,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Database Test Fixtures • የዳታቤዝ መሞከሪያ',
+                              style: TextStyle(
+                                fontFamily: 'serif',
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            Text(
+                              'Bulk seed 15+ campus students to test Smart Matching, Attendance & Roles, or free the database.',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color:
+                                    theme.textTheme.bodyMedium?.color ??
+                                    AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: state.isSeedingData
+                          ? null
+                          : () async {
+                              final count = await state
+                                  .seedEntireDatabaseToFirestore();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Successfully pushed $count records across all 20 collections to Firebase!',
+                                    ),
+                                    backgroundColor: const Color(0xFF10B981),
+                                  ),
+                                );
+                              }
+                            },
+                      icon: state.isSeedingData
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Icon(
+                              Icons.cloud_sync_rounded,
+                              size: 20,
+                              color: isDark ? Colors.black : Colors.white,
+                            ),
+                      label: Text(
+                        'Push Entire Database to Firebase (20 Collections)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.black : Colors.white,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryAccent,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: state.isSeedingData
-                            ? null
-                            : () async {
-                                final count = await state.seedTestStudentsToFirestore(count: 15);
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Seeded $count test students to Firebase!'),
-                                      backgroundColor: const Color(0xFF10B981),
-                                    ),
-                                  );
-                                }
-                              },
-                        icon: const Icon(Icons.person_add_outlined, size: 16),
-                        label: const Text(
-                          'Seed Students',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: state.isSeedingData
-                            ? null
-                            : () async {
-                                final count = await state.clearTestStudentsFromFirestore();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text('Cleared $count test students from Firebase database!'),
-                                      backgroundColor: AppTheme.crimson,
-                                    ),
-                                  );
-                                }
-                              },
-                        icon: const Icon(Icons.delete_sweep_outlined, size: 16, color: AppTheme.crimson),
-                        label: const Text(
-                          'Free Database',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.crimson),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: AppTheme.crimson),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Divider(color: theme.dividerColor, height: 1),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.azure.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.developer_mode, color: AppTheme.azure, size: 20),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Developer Testing Role Switcher',
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: state.isSeedingData
+                              ? null
+                              : () async {
+                                  final count = await state
+                                      .seedTestStudentsToFirestore(count: 15);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Seeded $count test students to Firebase!',
+                                        ),
+                                        backgroundColor: const Color(
+                                          0xFF10B981,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                },
+                          icon: const Icon(Icons.person_add_outlined, size: 16),
+                          label: const Text(
+                            'Seed Students',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.onSurface,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Unlock simulator toolbar across all 4 role access points',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                    Switch(
-                      value: state.showDevRoleSwitcher,
-                      activeColor: primaryAccent,
-                      onChanged: (val) {
-                        state.toggleDevRoleSwitcher(val);
-                      },
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: state.isSeedingData
+                              ? null
+                              : () async {
+                                  final count = await state
+                                      .clearTestStudentsFromFirestore();
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Cleared $count test students from Firebase database!',
+                                        ),
+                                        backgroundColor: AppTheme.crimson,
+                                      ),
+                                    );
+                                  }
+                                },
+                          icon: const Icon(
+                            Icons.delete_sweep_outlined,
+                            size: 16,
+                            color: AppTheme.crimson,
+                          ),
+                          label: const Text(
+                            'Free Database',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.crimson,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppTheme.crimson),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Divider(color: theme.dividerColor, height: 1),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.azure.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.developer_mode,
+                          color: AppTheme.azure,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Developer Testing Role Switcher',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Unlock simulator toolbar across all 4 role access points',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color:
+                                    theme.textTheme.bodyMedium?.color ??
+                                    AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch(
+                        value: state.showDevRoleSwitcher,
+                        activeColor: primaryAccent,
+                        onChanged: (val) {
+                          state.toggleDevRoleSwitcher(val);
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
+          ],
         ],
       ),
     );
@@ -1160,7 +1690,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             : (theme.cardTheme.color ?? theme.colorScheme.surface),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isWarning ? AppTheme.crimson.withOpacity(0.5) : theme.dividerColor,
+          color: isWarning
+              ? AppTheme.crimson.withOpacity(0.5)
+              : theme.dividerColor,
         ),
       ),
       child: Column(
@@ -1182,7 +1714,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             style: TextStyle(
               fontSize: 9,
               fontWeight: FontWeight.w800,
-              color: isWarning ? AppTheme.crimson : (theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary),
+              color: isWarning
+                  ? AppTheme.crimson
+                  : (theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+                        AppTheme.textTertiary),
               letterSpacing: 1.1,
             ),
           ),
@@ -1211,11 +1746,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           children: [
             Text(
               label,
-              style: TextStyle(fontSize: 10, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 10,
+                color:
+                    theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+                    AppTheme.textTertiary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             Text(
               count,
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: theme.colorScheme.onSurface,
+              ),
             ),
           ],
         ),
@@ -1241,15 +1786,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         color: theme.cardTheme.color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isRisk ? AppTheme.crimson.withOpacity(0.4) : theme.dividerColor,
+          color: isRisk
+              ? AppTheme.crimson.withOpacity(0.4)
+              : theme.dividerColor,
         ),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 20,
-            backgroundColor: isRisk ? AppTheme.crimson.withOpacity(0.15) : primaryAccent.withOpacity(0.15),
-            child: Icon(icon, color: isRisk ? AppTheme.crimson : primaryAccent, size: 20),
+            backgroundColor: isRisk
+                ? AppTheme.crimson.withOpacity(0.15)
+                : primaryAccent.withOpacity(0.15),
+            child: Icon(
+              icon,
+              color: isRisk ? AppTheme.crimson : primaryAccent,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -1258,12 +1811,21 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color:
+                        theme.textTheme.bodyMedium?.color ??
+                        AppTheme.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -1273,7 +1835,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               Text(
                 timeAgo,
-                style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary),
+                style: TextStyle(
+                  fontSize: 11,
+                  color:
+                      theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+                      AppTheme.textTertiary,
+                ),
               ),
               if (onActionTap != null) ...[
                 const SizedBox(height: 4),
@@ -1281,7 +1848,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   onTap: onActionTap,
                   child: Text(
                     'Contact',
-                    style: TextStyle(fontSize: 11, color: primaryAccent, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: primaryAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],

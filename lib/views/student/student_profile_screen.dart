@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/interactive_fellowship_card.dart';
+import '../../widgets/edit_profile_modal.dart';
 import 'student_ministry_screen.dart';
 import 'student_confessor_screen.dart';
 import 'student_pilgrimage_screen.dart';
@@ -13,6 +14,7 @@ import 'student_charity_screen.dart';
 import 'student_mentorship_screen.dart';
 import '../coordinator/coordinator_hub_screen.dart';
 import '../help/user_guide_screen.dart';
+import '../onboarding/fellowship_onboarding_screen.dart';
 
 class StudentProfileScreen extends StatelessWidget {
   final FellowshipState state;
@@ -170,6 +172,19 @@ class StudentProfileScreen extends StatelessWidget {
                           ),
                         ],
                       ),
+                    ),
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: primaryAccent.withOpacity(0.14),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: primaryAccent.withOpacity(0.4)),
+                        ),
+                        child: Icon(Icons.edit_outlined, color: primaryAccent, size: 18),
+                      ),
+                      tooltip: 'Edit Profile • መገለጫ አርትዕ',
+                      onPressed: () => EditProfileModal.show(context, state),
                     ),
                   ],
                 ),
@@ -650,20 +665,30 @@ class StudentProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${user.attendancePercentage.toStringAsFixed(1)}%',
+                        user.hasAttendanceData
+                            ? '${user.attendancePercentage.toStringAsFixed(1)}%'
+                            : '—',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: primaryAccent,
+                          color: user.hasAttendanceData ? primaryAccent : theme.disabledColor,
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        user.attendancePercentage >= 75.0 ? 'Good Standing' : 'At-Risk Warning',
+                        !user.hasAttendanceData
+                            ? 'No attendance history recorded'
+                            : user.attendancePercentage >= 75.0
+                                ? 'Good Standing'
+                                : 'At-Risk Warning',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: user.attendancePercentage >= 75.0 ? AppTheme.emerald : AppTheme.crimson,
+                          color: !user.hasAttendanceData
+                              ? theme.disabledColor
+                              : user.attendancePercentage >= 75.0
+                                  ? AppTheme.emerald
+                                  : AppTheme.crimson,
                         ),
                       ),
                     ],
@@ -900,6 +925,31 @@ class StudentProfileScreen extends StatelessWidget {
           ],
 
           // 5. Account & Security Section
+          // Edit Profile Button
+          Container(
+            width: double.infinity,
+            height: 52,
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ElevatedButton.icon(
+              onPressed: () => EditProfileModal.show(context, state),
+              icon: const Icon(Icons.edit_note_rounded, color: Colors.white, size: 22),
+              label: const Text(
+                'Edit Profile • መገለጫ አርትዕ',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+            ),
+          ),
+
           // User Guide Button
           Container(
             width: double.infinity,
@@ -928,6 +978,40 @@ class StudentProfileScreen extends StatelessWidget {
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
+              ),
+            ),
+          ),
+
+          // Sacred Tour & App Intro Button
+          Container(
+            width: double.infinity,
+            height: 52,
+            margin: const EdgeInsets.only(bottom: 12),
+            child: OutlinedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (ctx) => FellowshipOnboardingScreen(
+                      state: state,
+                      onFinish: () => Navigator.pop(context),
+                      onSignIn: () => Navigator.pop(context),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.auto_awesome, color: AppTheme.gold, size: 20),
+              label: const Text(
+                'Sacred Tour & Feature Intro • የመተግበሪያ ጉብኝት',
+                style: TextStyle(
+                  color: AppTheme.gold,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: AppTheme.gold, width: 1.2),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
             ),
           ),

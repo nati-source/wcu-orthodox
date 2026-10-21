@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
+import '../../services/notification_service.dart';
 import '../../widgets/interactive_fellowship_card.dart';
 import 'student_liturgical_calendar_screen.dart';
 import 'student_prayer_book_screen.dart';
@@ -18,12 +20,14 @@ class StudentHomeScreen extends StatefulWidget {
   final FellowshipState state;
   final Function(int) onNavigateTab;
   final VoidCallback onOpenScanner;
+  final bool showEmergencyBanner;
 
   const StudentHomeScreen({
     super.key,
     required this.state,
     required this.onNavigateTab,
     required this.onOpenScanner,
+    this.showEmergencyBanner = false,
   });
 
   @override
@@ -32,6 +36,22 @@ class StudentHomeScreen extends StatefulWidget {
 
 class _StudentHomeScreenState extends State<StudentHomeScreen> {
   bool _reminderEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReminderPreference();
+  }
+
+  Future<void> _loadReminderPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getBool('liturgy_reminder_enabled_v1');
+      if (saved != null && mounted) {
+        setState(() => _reminderEnabled = saved);
+      }
+    } catch (_) {}
+  }
 
   String _formatDuration(Duration d) {
     if (d.inSeconds <= 0) return '00:00:00';
@@ -77,8 +97,8 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
           ),
           const SizedBox(height: 12),
 
-          // EMERGENCY BROADCAST ALERT CARD (Shown when admin pushes an emergency broadcast)
-          if (state.latestEmergencyBroadcast != null) ...[
+          // EMERGENCY BROADCAST ALERT CARD (Shown when showEmergencyBanner is explicitly requested)
+          if (widget.showEmergencyBanner && state.latestEmergencyBroadcast != null) ...[
             Container(
               margin: const EdgeInsets.only(bottom: 14),
               padding: const EdgeInsets.all(16),
@@ -350,12 +370,17 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: primaryAccent.withOpacity(0.4), width: 1.2),
+              border: Border.all(color: primaryAccent.withOpacity(0.45), width: 1.2),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.35 : 0.08),
-                  blurRadius: 16,
+                  color: isDark ? primaryAccent.withOpacity(0.12) : Colors.black.withOpacity(0.06),
+                  blurRadius: 20,
                   offset: const Offset(0, 6),
+                ),
+                BoxShadow(
+                  color: isDark ? Colors.black.withOpacity(0.4) : Colors.black.withOpacity(0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -366,50 +391,94 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Text(
-                        'Upcoming Liturgy',
-                        style: TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onSurface,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Upcoming Liturgy',
+                            style: TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'የሚቀጥለው ቅዳሴና መርሐ ግብር',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: primaryAccent,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 8),
-                    // Liturgy Reminder Switch
-                    Transform.scale(
-                      scale: 0.85,
-                      child: Switch(
-                        value: _reminderEnabled,
-                        activeColor: isDark ? Colors.black : Colors.white,
-                        activeTrackColor: primaryAccent,
-                        inactiveThumbColor: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
-                        inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
-                        onChanged: (val) {
-                          setState(() => _reminderEnabled = val);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(val ? 'Liturgy reminder activated' : 'Reminder silenced'),
-                              duration: const Duration(seconds: 1),
-                              backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
-                            ),
-                          );
-                        },
+                    // Liturgy Reminder Switch with Tooltip
+                    Tooltip(
+                      message: _reminderEnabled ? 'Liturgy Reminder Active' : 'Enable Reminder',
+                      child: Transform.scale(
+                        scale: 0.85,
+                        child: Switch(
+                          value: _reminderEnabled,
+                          activeColor: isDark ? Colors.black : Colors.white,
+                          activeTrackColor: primaryAccent,
+                          inactiveThumbColor: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+                          inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
+                          onChanged: (val) async {
+                            HapticFeedback.mediumImpact();
+                            setState(() => _reminderEnabled = val);
+                            try {
+                              final prefs = await SharedPreferences.getInstance();
+                              await prefs.setBool('liturgy_reminder_enabled_v1', val);
+                            } catch (_) {}
+
+                            if (val) {
+                              await NotificationService.instance.showSystemNotification(
+                                id: 1001,
+                                title: '🔔 Holy Liturgy Reminder • የቅዳሴ ማስታወሻ',
+                                body: 'Sunday Holy Liturgy alert activated for St. Mary\'s Orthodox Church (12:30 AM / 6:30 AM). You will be notified.',
+                              );
+                            } else {
+                              await NotificationService.instance.cancelNotification(1001);
+                            }
+
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(val ? 'Liturgy reminder activated • Notification popped up' : 'Reminder silenced'),
+                                  duration: const Duration(seconds: 2),
+                                  backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                                ),
+                              );
+                            }
+                          },
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(Icons.location_on_outlined, color: primaryAccent, size: 16),
-                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: primaryAccent.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.church_outlined, color: primaryAccent, size: 15),
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'St. Mary\'s Orthodox Church',
+                        'St. Mary\'s Orthodox Church • ደብረ ምሕረት ቅድስት ማርያም',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
                           color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
                         ),
                         maxLines: 1,
@@ -420,35 +489,90 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 ),
                 const SizedBox(height: 18),
 
-                // Liturgy Countdown Numbers (e.g. 02:15:45)
+                // Liturgy Countdown Numbers (e.g. 02:15:45 or Live Now)
                 ValueListenableBuilder<Duration>(
                   valueListenable: state.liturgyCountdownNotifier,
                   builder: (context, duration, _) {
+                    final bool isLiveNow = duration == Duration.zero;
+                    if (isLiveNow) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF10B981).withOpacity(0.16),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFF10B981), width: 1.2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF10B981).withOpacity(0.2),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.circle, size: 9, color: Color(0xFF10B981)),
+                                SizedBox(width: 8),
+                                Text(
+                                  'NOW LIVE • መርሐ ግብሩ ተጀምሯል',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                    color: Color(0xFF10B981),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }
                     return FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Text(
-                        _formatDuration(duration),
-                        style: TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 42,
-                          fontWeight: FontWeight.w800,
-                          color: primaryAccent,
-                          letterSpacing: 2.0,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: primaryAccent.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: primaryAccent.withOpacity(0.25)),
+                        ),
+                        child: Text(
+                          _formatDuration(duration),
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 38,
+                            fontWeight: FontWeight.w800,
+                            color: primaryAccent,
+                            letterSpacing: 2.0,
+                          ),
                         ),
                       ),
                     );
                   },
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'TIME REMAINING',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary,
-                    letterSpacing: 1.5,
-                  ),
+                const SizedBox(height: 6),
+                ValueListenableBuilder<Duration>(
+                  valueListenable: state.liturgyCountdownNotifier,
+                  builder: (context, duration, _) {
+                    return Text(
+                      duration == Duration.zero ? 'PROGRAM IN SESSION • በረከቱን ያሳትፈን' : 'TIME REMAINING UNTIL SERVICE • የቀረው ጊዜ',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: duration == Duration.zero
+                            ? const Color(0xFF10B981)
+                            : (theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary),
+                        letterSpacing: 1.2,
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
@@ -891,14 +1015,21 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                   ),
                   IconButton(
                     icon: Icon(Icons.notifications_active_outlined, color: primaryAccent, size: 20),
-                    onPressed: () {
+                    onPressed: () async {
                       HapticFeedback.selectionClick();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Reminder set for ${prog.title}'),
-                          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
-                        ),
+                      await NotificationService.instance.showSystemNotification(
+                        id: prog.id.hashCode,
+                        title: '🔔 Program Reminder • ${prog.title}',
+                        body: '${prog.churchName} • Scheduled for ${prog.category}. You will be reminded.',
                       );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Reminder set for ${prog.title} • Notification popped up'),
+                            backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+                          ),
+                        );
+                      }
                     },
                   ),
                 ],
@@ -919,15 +1050,25 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final isDark = theme.brightness == Brightness.dark;
 
     return InteractiveFellowshipCard(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 6),
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6),
       margin: EdgeInsets.zero,
-      color: theme.cardTheme.color ?? theme.colorScheme.surface,
+      color: cardBg,
+      gradient: LinearGradient(
+        colors: [
+          cardBg,
+          isDark ? iconColor.withOpacity(0.04) : Colors.white,
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
       borderColor: theme.dividerColor,
       showWatermark: true,
-      watermarkSize: 55,
+      watermarkSize: 52,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -936,18 +1077,28 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
             decoration: BoxDecoration(
               color: iconColor.withOpacity(0.12),
               shape: BoxShape.circle,
+              border: Border.all(color: iconColor.withOpacity(0.25), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: iconColor.withOpacity(0.15),
+                  blurRadius: 8,
+                ),
+              ],
             ),
-            child: Icon(icon, color: iconColor, size: 24),
+            child: Icon(icon, color: iconColor, size: 22),
           ),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: theme.colorScheme.onSurface,
-              height: 1.25,
+          const SizedBox(height: 9),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface,
+                height: 1.25,
+              ),
             ),
           ),
         ],

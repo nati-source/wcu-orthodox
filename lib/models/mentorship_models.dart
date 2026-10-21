@@ -106,6 +106,9 @@ class MentorshipRequestModel {
   final String coursesNeeded;
   final MentorshipStatus status;
   final DateTime requestedAt;
+  final String? mentorPhone;
+  final String? mentorTelegram;
+  final String? juniorPhone;
 
   MentorshipRequestModel({
     required this.id,
@@ -119,6 +122,9 @@ class MentorshipRequestModel {
     required this.coursesNeeded,
     this.status = MentorshipStatus.pending,
     required this.requestedAt,
+    this.mentorPhone,
+    this.mentorTelegram,
+    this.juniorPhone,
   });
 
   MentorshipRequestModel copyWith({
@@ -133,6 +139,9 @@ class MentorshipRequestModel {
     String? coursesNeeded,
     MentorshipStatus? status,
     DateTime? requestedAt,
+    String? mentorPhone,
+    String? mentorTelegram,
+    String? juniorPhone,
   }) {
     return MentorshipRequestModel(
       id: id ?? this.id,
@@ -146,6 +155,9 @@ class MentorshipRequestModel {
       coursesNeeded: coursesNeeded ?? this.coursesNeeded,
       status: status ?? this.status,
       requestedAt: requestedAt ?? this.requestedAt,
+      mentorPhone: mentorPhone ?? this.mentorPhone,
+      mentorTelegram: mentorTelegram ?? this.mentorTelegram,
+      juniorPhone: juniorPhone ?? this.juniorPhone,
     );
   }
 
@@ -161,6 +173,9 @@ class MentorshipRequestModel {
       'coursesNeeded': coursesNeeded,
       'status': status.name,
       'requestedAt': requestedAt.toIso8601String(),
+      'mentorPhone': mentorPhone,
+      'mentorTelegram': mentorTelegram,
+      'juniorPhone': juniorPhone,
     };
   }
 
@@ -182,6 +197,9 @@ class MentorshipRequestModel {
       coursesNeeded: map['coursesNeeded'] ?? '',
       status: status,
       requestedAt: map['requestedAt'] != null ? DateTime.tryParse(map['requestedAt']) ?? DateTime.now() : DateTime.now(),
+      mentorPhone: map['mentorPhone'] as String?,
+      mentorTelegram: map['mentorTelegram'] as String?,
+      juniorPhone: map['juniorPhone'] as String?,
     );
   }
 }

@@ -5,6 +5,7 @@ void main() {
   group('AppAdminConstants Security Unit Tests', () {
     test('isAdminEmail identifies exact admin email correctly', () {
       expect(AppAdminConstants.isAdminEmail('natisita928@gmail.com'), isTrue);
+      expect(AppAdminConstants.isAdminEmail('alamrew0955958544@gmail.com'), isTrue);
     });
 
     test('isAdminEmail is case-insensitive and trims surrounding whitespace', () {

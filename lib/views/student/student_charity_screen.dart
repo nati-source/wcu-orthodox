@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
@@ -433,9 +434,11 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
           ),
           IconButton(
             icon: Icon(Icons.copy, size: 16, color: primaryAccent),
+            tooltip: 'Copy $title number',
             onPressed: () {
+              Clipboard.setData(ClipboardData(text: number));
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Copied $title ($number)'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
+                SnackBar(content: Text('Copied $title ($number) to clipboard!'), backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface),
               );
             },
           ),
@@ -694,7 +697,11 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                                 icon: const Icon(Icons.copy, size: 16, color: Color(0xFF10B981)),
                                 tooltip: 'Copy Account Number',
                                 onPressed: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account number copied to clipboard!')));
+                                  final num = selectedMethod == PaymentMethodType.telebirr ? '0911002233' : '1000234567890';
+                                  Clipboard.setData(ClipboardData(text: num));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Account number ($num) copied to clipboard!')),
+                                  );
                                 },
                               ),
                             ],
@@ -787,11 +794,53 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                           .toList(),
                       onChanged: (val) => setModalState(() => method = val!),
                     ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: refController,
-                    decoration: const InputDecoration(labelText: 'Transaction Reference Code', hintText: 'e.g. TB-849102384'),
-                  ),
+                    const SizedBox(height: 10),
+
+                    // Quick Copy Account Box for Dues
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: theme.dividerColor),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  method == PaymentMethodType.telebirr ? 'Telebirr: 0911223344' : 'CBE: 1000234567890',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  'WCU Orthodox Fellowship',
+                                  style: TextStyle(fontSize: 10, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.copy, size: 16, color: primaryAccent),
+                            tooltip: 'Copy Number',
+                            onPressed: () {
+                              final num = method == PaymentMethodType.telebirr ? '0911223344' : '1000234567890';
+                              Clipboard.setData(ClipboardData(text: num));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Account number ($num) copied to clipboard!')),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: refController,
+                      decoration: const InputDecoration(labelText: 'Transaction Reference Code', hintText: 'e.g. TB-849102384'),
+                    ),
                   const SizedBox(height: 18),
                   ElevatedButton(
                     onPressed: () {

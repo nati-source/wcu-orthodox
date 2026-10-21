@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class TriviaQuestionModel {
   final String id;
@@ -30,13 +31,17 @@ class TriviaQuestionModel {
     };
   }
 
-  factory TriviaQuestionModel.fromMap(Map<String, dynamic> map, [String? fallbackId]) {
+  factory TriviaQuestionModel.fromMap(
+    Map<String, dynamic> map, [
+    String? fallbackId,
+  ]) {
     return TriviaQuestionModel(
       id: map['id'] ?? fallbackId ?? '',
       questionAmharic: map['questionAmharic'] ?? '',
       questionEnglish: map['questionEnglish'] ?? '',
       options: List<String>.from(map['options'] ?? []),
-      correctOptionIndex: (map['correctOptionIndex'] as num?)?.toInt() ?? 0,
+      // Student-facing quiz documents intentionally omit answer keys.
+      correctOptionIndex: (map['correctOptionIndex'] as num?)?.toInt() ?? -1,
       explanation: map['explanation'] ?? '',
       bibleReference: map['bibleReference'] ?? '',
     );
@@ -131,7 +136,11 @@ class QuizAttemptModel {
       quizId: map['quizId'] ?? '',
       score: (map['score'] as num?)?.toInt() ?? 0,
       totalQuestions: (map['totalQuestions'] as num?)?.toInt() ?? 5,
-      completedAt: map['completedAt'] != null ? DateTime.tryParse(map['completedAt']) ?? DateTime.now() : DateTime.now(),
+      completedAt: map['completedAt'] is Timestamp
+          ? (map['completedAt'] as Timestamp).toDate()
+          : map['completedAt'] is String
+          ? DateTime.tryParse(map['completedAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 }
@@ -151,4 +160,3 @@ class FamilyLeaderboardEntry {
     required this.rank,
   });
 }
-

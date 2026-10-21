@@ -129,27 +129,31 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
-                                children: [
-                                  Text(
-                                    '${session.scans.length}',
-                                    style: TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryAccent,
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                                  textBaseline: TextBaseline.alphabetic,
+                                  children: [
+                                    Text(
+                                      '${session.scans.length}',
+                                      style: TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryAccent,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Students',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: textMuted,
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      'Students',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: textMuted,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -467,35 +471,41 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Recent Scans / የተመዘገቡ ተማሪዎች',
-                            style: TextStyle(
-                              fontFamily: 'serif',
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: textCol,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: primaryAccent.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: primaryAccent.withOpacity(0.3)),
-                            ),
-                            child: Text(
-                              '${session.scans.length}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: primaryAccent,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                'Recent Scans / የተመዘገቡ ተማሪዎች',
+                                style: TextStyle(
+                                  fontFamily: 'serif',
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: textCol,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: primaryAccent.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: primaryAccent.withOpacity(0.3)),
+                              ),
+                              child: Text(
+                                '${session.scans.length}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryAccent,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       if (session.scans.isNotEmpty)
                         TextButton.icon(
@@ -652,82 +662,91 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
 
   Widget _buildStatusBadge(bool isStandby, bool isLive, bool isExpired, Color primaryAccent) {
     if (isLive) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFF10B981).withOpacity(0.18),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF10B981)),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.circle, color: Color(0xFF10B981), size: 10),
-            SizedBox(width: 6),
-            Text(
-              'LIVE 30s WINDOW ACTIVE / ክፍለ ጊዜው ክፍት ነው',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF10B981),
-                letterSpacing: 1.0,
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFF10B981).withOpacity(0.18),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF10B981)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.circle, color: Color(0xFF10B981), size: 10),
+              SizedBox(width: 6),
+              Text(
+                'LIVE 30s WINDOW ACTIVE / ክፍለ ጊዜው ክፍት ነው',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF10B981),
+                  letterSpacing: 1.0,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
 
     if (isExpired) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFFEF4444).withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.6)),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.lock_clock, color: Color(0xFFEF4444), size: 12),
-            SizedBox(width: 6),
-            Text(
-              'WINDOW EXPIRED / የ30 ሰከንድ ጊዜ አልቋል',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFFEF4444),
-                letterSpacing: 1.0,
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEF4444).withOpacity(0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.6)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock_clock, color: Color(0xFFEF4444), size: 12),
+              SizedBox(width: 6),
+              Text(
+                'WINDOW EXPIRED / የ30 ሰከንድ ጊዜ አልቋል',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFEF4444),
+                  letterSpacing: 1.0,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
 
     // Standby
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.grey.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.withOpacity(0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.pause_circle_outline, color: Colors.grey.shade400, size: 12),
-          const SizedBox(width: 6),
-          Text(
-            'STANDBY • WAITING TO START / ዝግጁ',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Colors.grey.shade400,
-              letterSpacing: 1.0,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.grey.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.grey.withOpacity(0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.pause_circle_outline, color: Colors.grey.shade400, size: 12),
+            const SizedBox(width: 6),
+            Text(
+              'STANDBY • WAITING TO START / ዝግጁ',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: Colors.grey.shade400,
+                letterSpacing: 1.0,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

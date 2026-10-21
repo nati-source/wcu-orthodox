@@ -69,14 +69,36 @@ void main() {
       );
     });
 
-    test('all 10 departments have both English and Amharic titles defined', () {
-      expect(FellowshipDepartmentConstants.allDepartmentIds.length, 10);
+    test('all 11 departments have both English and Amharic titles defined', () {
+      expect(FellowshipDepartmentConstants.allDepartmentIds.length, 11);
       for (final id in FellowshipDepartmentConstants.allDepartmentIds) {
         expect(FellowshipDepartmentConstants.amharicNames[id], isNotNull);
         expect(FellowshipDepartmentConstants.amharicNames[id]!.isNotEmpty, isTrue);
         expect(FellowshipDepartmentConstants.englishNames[id], isNotNull);
         expect(FellowshipDepartmentConstants.englishNames[id]!.isNotEmpty, isTrue);
       }
+    });
+
+    test('separate Mezmur and Sacred Arts department constants and helpers', () {
+      expect(FellowshipDepartmentConstants.deptChoir, 'dept-mezmur');
+      expect(FellowshipDepartmentConstants.deptSacredArts, 'dept-arts');
+      expect(FellowshipDepartmentConstants.deptChoirArts, 'dept-music');
+
+      expect(FellowshipDepartmentConstants.isLegacyCombinedMusicScope('dept-music'), isTrue);
+      expect(FellowshipDepartmentConstants.isLegacyCombinedMusicScope('dept-mezmur'), isFalse);
+      expect(FellowshipDepartmentConstants.isLegacyCombinedMusicScope('dept-arts'), isFalse);
+
+      expect(FellowshipDepartmentConstants.isAuditScope('dept-audit'), isTrue);
+      expect(FellowshipDepartmentConstants.isAuditScope('dept-mezmur'), isFalse);
+
+      expect(
+        FellowshipDepartmentConstants.formatCoordinatorScope('dept-mezmur'),
+        contains('Mezmur / Choir'),
+      );
+      expect(
+        FellowshipDepartmentConstants.formatCoordinatorScope('dept-arts'),
+        contains('Sacred Arts'),
+      );
     });
   });
 
@@ -111,18 +133,18 @@ void main() {
     });
   });
 
-  group('UserModel Serialization & Admin Auto-Role Unit Tests', () {
-    test('UserModel.fromMap automatically assigns admin role for admin email', () {
+  group('UserModel Serialization & Server-Managed Role Unit Tests', () {
+    test('UserModel.fromMap strictly respects server-managed roles without client-side email escalation', () {
       final map = {
         'email': 'natnaeltedla25@gmail.com',
         'name': 'Natnael',
-        'role': 'student', // attempted lower privilege in DB
+        'role': 'student', // server role in DB
         'isApproved': false,
       };
 
-      final user = UserModel.fromMap(map, 'user-admin-01');
-      expect(user.role, UserRole.admin);
-      expect(user.isApproved, true);
+      final user = UserModel.fromMap(map, 'user-01');
+      expect(user.role, UserRole.student);
+      expect(user.isApproved, false);
       expect(user.fullName, 'Natnael');
     });
 

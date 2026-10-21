@@ -10,6 +10,7 @@ part 'approvals/approvals_emergency_aid_tab.dart';
 part 'approvals/approvals_roles_tab.dart';
 part 'approvals/approvals_priests_tab.dart';
 part 'approvals/approvals_proposals_tab.dart';
+part 'approvals/approvals_spiritual_qa_tab.dart';
 
 class AdminApprovalsScreen extends StatefulWidget {
   final FellowshipState state;
@@ -29,6 +30,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   String _proposalSearch = '';
   String _roleSearchQuery = '';
   String _roleFilter = 'All'; // 'All' or UserRole.name
+  String _spiritualQaFilter = 'All'; // 'All', 'Pending', 'Answered'
+  String _spiritualQaSearch = '';
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +52,8 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
         (isCoordinator &&
             (state.currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptDevelopment ||
                 state.currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptAudit));
+    final canSeeSpiritualQa = state.isAdmin || state.canSchedulePriests || state.currentUser.role == UserRole.spiritualParent ||
+        (isCoordinator && state.currentUser.coordinatorProfile?.departmentId == FellowshipDepartmentConstants.deptEducation);
 
     // Dynamically build visible governance tabs
     final List<Widget> tabs = [];
@@ -58,6 +63,12 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
     if (canSeeRegistrations) {
       tabs.add(Tab(text: 'Registrations (${state.pendingApprovals.length})'));
       views.add(_buildRegistrationsTab(context, state));
+    }
+
+    if (canSeeSpiritualQa) {
+      final pendingCount = state.spiritualQuestions.where((q) => !q.isAnswered).length;
+      tabs.add(Tab(text: 'Spiritual Q&A ($pendingCount)'));
+      views.add(_buildSpiritualQaTab(context, state));
     }
 
     if (canSeeProposals) {

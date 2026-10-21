@@ -1024,12 +1024,15 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                         style: TextStyle(fontSize: 10, color: primaryAccent, fontWeight: FontWeight.w600),
                       ),
                     ] else ...[
-                      Text(
-                        'Lead: ${min.teamLead} (${min.coordinatorBaptismalName})',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textCol),
-                      ),
+                      Builder(builder: (context) {
+                        final leadName = widget.state.getCoordinatorNameForMinistry(min.id, defaultName: min.teamLead);
+                        return Text(
+                          'Lead: $leadName',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textCol),
+                        );
+                      }),
                       Text(
                         '${min.activeCount} servants • ${min.openSlots} open slots',
                         style: TextStyle(fontSize: 10, color: textMuted),
@@ -1039,23 +1042,32 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
                 ),
               ),
               // Direct Inquiry Shortcuts
-              IconButton(
-                icon: Icon(Icons.phone_outlined, size: 18, color: primaryAccent),
-                tooltip: 'Call Coordinator',
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                padding: EdgeInsets.zero,
-                onPressed: () => widget.state.launchCall(min.coordinatorPhone),
-              ),
-              IconButton(
-                icon: Icon(Icons.sms_outlined, size: 18, color: primaryAccent),
-                tooltip: 'SMS Coordinator',
-                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                padding: EdgeInsets.zero,
-                onPressed: () => widget.state.launchSms(
-                  min.coordinatorPhone,
-                  body: 'Selam Coordinator ${min.teamLead}, I am inquiring about joining ${min.titleAmharic}.',
-                ),
-              ),
+              Builder(builder: (context) {
+                final coordinatorContact = widget.state.getCoordinatorPhoneForMinistry(min.id, defaultPhone: min.coordinatorPhone);
+                final coordinatorName = widget.state.getCoordinatorNameForMinistry(min.id, defaultName: min.teamLead);
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.phone_outlined, size: 18, color: primaryAccent),
+                      tooltip: 'Call Coordinator',
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                      onPressed: () => widget.state.launchCall(coordinatorContact),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.sms_outlined, size: 18, color: primaryAccent),
+                      tooltip: 'SMS Coordinator',
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      padding: EdgeInsets.zero,
+                      onPressed: () => widget.state.launchSms(
+                        coordinatorContact,
+                        body: 'Selam Coordinator $coordinatorName, I am inquiring about joining ${min.titleAmharic}.',
+                      ),
+                    ),
+                  ],
+                );
+              }),
               const SizedBox(width: 6),
               ElevatedButton(
                 onPressed: () => _openApplicationDialog(context, min),

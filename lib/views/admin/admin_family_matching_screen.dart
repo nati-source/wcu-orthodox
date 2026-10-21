@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
@@ -8,22 +9,30 @@ class AdminFamilyMatchingScreen extends StatefulWidget {
   final FellowshipState state;
   final VoidCallback? onBackPressed;
 
-  const AdminFamilyMatchingScreen({super.key, required this.state, this.onBackPressed});
+  const AdminFamilyMatchingScreen({
+    super.key,
+    required this.state,
+    this.onBackPressed,
+  });
 
   @override
-  State<AdminFamilyMatchingScreen> createState() => _AdminFamilyMatchingScreenState();
+  State<AdminFamilyMatchingScreen> createState() =>
+      _AdminFamilyMatchingScreenState();
 }
 
 class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
     with SingleTickerProviderStateMixin {
   String? _selectedStudentToSwap;
   String? _sourceFamilyId;
+  bool _isApplyingDraft = false;
+  bool _isPublishing = false;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
+    widget.state.addListener(_onStateChanged);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
@@ -35,7 +44,21 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
   }
 
   @override
+  void didUpdateWidget(covariant AdminFamilyMatchingScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) {
+      oldWidget.state.removeListener(_onStateChanged);
+      widget.state.addListener(_onStateChanged);
+    }
+  }
+
+  void _onStateChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    widget.state.removeListener(_onStateChanged);
     _pulseController.dispose();
     super.dispose();
   }
@@ -50,6 +73,7 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
         _sourceFamilyId = familyId;
       });
     } else {
+      if (!widget.state.canManageFamilyMatching) return;
       if (_selectedStudentToSwap == studentId) {
         // Deselect
         setState(() {
@@ -76,6 +100,17 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
           orElse: () => widget.state.families.last,
         );
 
+        if (familyA.id == familyB.id) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Choose the second student from a different family.',
+              ),
+            ),
+          );
+          return;
+        }
+
         _showSwapConfirmationBottomSheet(
           studentA: studentA,
           familyA: familyA,
@@ -95,7 +130,8 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
     final textCol = theme.colorScheme.onSurface;
-    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final textMuted =
+        theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
     final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
     final isDark = theme.brightness == Brightness.dark;
 
@@ -109,10 +145,15 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
           decoration: BoxDecoration(
             color: cardBg,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(color: primaryAccent.withOpacity(0.4), width: 1.5),
+            border: Border.all(
+              color: primaryAccent.withOpacity(0.4),
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
-                color: isDark ? Colors.black.withOpacity(0.5) : Colors.black.withOpacity(0.1),
+                color: isDark
+                    ? Colors.black.withOpacity(0.5)
+                    : Colors.black.withOpacity(0.1),
                 blurRadius: 20,
                 offset: const Offset(0, -4),
               ),
@@ -125,161 +166,184 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Drag Handle
-                Center(
-                  child: Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: theme.dividerColor,
-                      borderRadius: BorderRadius.circular(2),
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.dividerColor,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 18),
+                  const SizedBox(height: 18),
 
-                // Title
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.swap_horiz_rounded, color: primaryAccent, size: 28),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Confirm Student Swap',
-                      style: TextStyle(
-                        fontFamily: 'serif',
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: textCol,
+                  // Title
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.swap_horiz_rounded,
+                        color: primaryAccent,
+                        size: 28,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'The following students will be atomically exchanged between their respective fellowship families:',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: textMuted),
-                ),
-                const SizedBox(height: 20),
-
-                // Side-by-Side Comparison Cards
-                Row(
-                  children: [
-                    // Student A Card
-                    Expanded(
-                      child: _buildStudentSwapCard(
-                        theme: theme,
-                        student: studentA,
-                        currentFamily: familyA.name,
-                        targetFamily: familyB.name,
-                        accentColor: primaryAccent,
-                        isDark: isDark,
-                      ),
-                    ),
-
-                    // Central Swap Arrow
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      margin: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: primaryAccent.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: primaryAccent.withOpacity(0.4)),
-                      ),
-                      child: Icon(Icons.swap_horiz, color: primaryAccent, size: 22),
-                    ),
-
-                    // Student B Card
-                    Expanded(
-                      child: _buildStudentSwapCard(
-                        theme: theme,
-                        student: studentB,
-                        currentFamily: familyB.name,
-                        targetFamily: familyA.name,
-                        accentColor: const Color(0xFF60A5FA),
-                        isDark: isDark,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Action Buttons (Confirm & Cancel)
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Confirm Student Swap',
+                        style: TextStyle(
+                          fontFamily: 'serif',
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textCol,
                         ),
-                        child: Text('Cancel', style: TextStyle(fontWeight: FontWeight.bold, color: textCol)),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          HapticFeedback.mediumImpact();
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'The following students will be atomically exchanged between their respective fellowship families:',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: textMuted),
+                  ),
+                  const SizedBox(height: 20),
 
-                          widget.state.swapStudentsBetweenFamilies(
-                            studentAId: studentA.id,
-                            familyAId: familyA.id,
-                            studentBId: studentB.id,
-                            familyBId: familyB.id,
-                          );
+                  // Side-by-Side Comparison Cards
+                  Row(
+                    children: [
+                      // Student A Card
+                      Expanded(
+                        child: _buildStudentSwapCard(
+                          theme: theme,
+                          student: studentA,
+                          currentFamily: familyA.name,
+                          targetFamily: familyB.name,
+                          accentColor: primaryAccent,
+                          isDark: isDark,
+                        ),
+                      ),
 
-                          setState(() {
-                            _selectedStudentToSwap = null;
-                            _sourceFamilyId = null;
-                          });
+                      // Central Swap Arrow
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: primaryAccent.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: primaryAccent.withOpacity(0.4),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.swap_horiz,
+                          color: primaryAccent,
+                          size: 22,
+                        ),
+                      ),
 
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  const Icon(Icons.check_circle, color: AppTheme.emerald, size: 20),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      'Swapped ${studentA.fullName.split(' ').first} ⇄ ${studentB.fullName.split(' ').first} between families!',
-                                      style: const TextStyle(fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              duration: const Duration(seconds: 3),
-                              backgroundColor: cardBg,
+                      // Student B Card
+                      Expanded(
+                        child: _buildStudentSwapCard(
+                          theme: theme,
+                          student: studentB,
+                          currentFamily: familyB.name,
+                          targetFamily: familyA.name,
+                          accentColor: const Color(0xFF60A5FA),
+                          isDark: isDark,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Action Buttons (Confirm & Cancel)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryAccent,
-                          foregroundColor: isDark ? Colors.black : Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: Text(
-                          'Confirm Swap',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: isDark ? Colors.black : Colors.white,
+                          ),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: textCol,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            HapticFeedback.mediumImpact();
+                            try {
+                              await widget.state.swapStudentsBetweenFamilies(
+                                studentAId: studentA.id,
+                                familyAId: familyA.id,
+                                studentBId: studentB.id,
+                                familyBId: familyB.id,
+                              );
+                              if (!mounted) return;
+                              setState(() {
+                                _selectedStudentToSwap = null;
+                                _sourceFamilyId = null;
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Swap saved as an unpublished draft. Review and publish the roster when ready.',
+                                  ),
+                                  duration: const Duration(seconds: 3),
+                                  backgroundColor: cardBg,
+                                ),
+                              );
+                            } catch (error) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Could not save the swap: $error',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryAccent,
+                            foregroundColor: isDark
+                                ? Colors.black
+                                : Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: Text(
+                            'Confirm Swap',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.black : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      );
+        );
       },
     );
   }
@@ -309,7 +373,11 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             backgroundColor: accentColor.withOpacity(0.2),
             child: Text(
               student.fullName.isNotEmpty ? student.fullName[0] : 'S',
-              style: TextStyle(color: accentColor, fontWeight: FontWeight.bold, fontSize: 14),
+              style: TextStyle(
+                color: accentColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -336,7 +404,11 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
           const SizedBox(height: 6),
           Text(
             student.department,
-            style: TextStyle(fontSize: 10, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary),
+            style: TextStyle(
+              fontSize: 10,
+              color:
+                  theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -349,10 +421,179 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             ),
             child: Text(
               '→ $targetFamily',
-              style: const TextStyle(fontSize: 9, color: AppTheme.emerald, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 9,
+                color: AppTheme.emerald,
+                fontWeight: FontWeight.bold,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showMatchingPreview(FamilyMatchingPreview preview) async {
+    final theme = Theme.of(context);
+    final primary = theme.colorScheme.primary;
+    final muted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final cardColor = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final studentsById = {
+      for (final student in widget.state.allStudents) student.id: student,
+    };
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: cardColor,
+        title: const Text('Review family matching plan'),
+        content: SizedBox(
+          width: 440,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${preview.assignedStudentCount} of ${preview.eligibleStudentCount} approved students can be assigned.',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'The plan keeps department groups together where capacity allows and prefers an exact department match with a parent. Saving creates an unpublished draft.',
+                  style: TextStyle(color: muted, height: 1.4),
+                ),
+                const SizedBox(height: 16),
+                ...preview.families.map((family) {
+                  final assignedNames = preview.studentAssignments.entries
+                      .where((entry) => entry.value == family.id)
+                      .map(
+                        (entry) =>
+                            studentsById[entry.key]?.fullName ?? entry.key,
+                      )
+                      .toList();
+                  final visibleNames = assignedNames.take(4).join(', ');
+                  final remainingCount =
+                      assignedNames.length -
+                      (assignedNames.length < 4 ? assignedNames.length : 4);
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.groups_2_outlined, color: primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                family.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                '${family.spiritualFather.fullName} & ${family.spiritualMother.fullName}',
+                                style: TextStyle(fontSize: 12, color: muted),
+                              ),
+                              if (assignedNames.isNotEmpty)
+                                Text(
+                                  'Students: $visibleNames${remainingCount > 0 ? ' + $remainingCount more' : ''}',
+                                  style: TextStyle(fontSize: 12, color: muted),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                            ],
+                          ),
+                        ),
+                        Text('${family.memberCount}/${family.maxCapacity}'),
+                      ],
+                    ),
+                  );
+                }),
+                if (preview.unassignedStudents.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Unassigned students',
+                    style: TextStyle(
+                      color: AppTheme.pendingRose,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  ...preview.unassignedStudents.map(
+                    (student) => Padding(
+                      padding: const EdgeInsets.only(bottom: 3),
+                      child: Text(
+                        '• ${student.fullName} (${student.department})',
+                        style: TextStyle(color: muted),
+                      ),
+                    ),
+                  ),
+                ],
+                if (preview.warnings.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ...preview.warnings.map(
+                    (warning) => Padding(
+                      padding: const EdgeInsets.only(bottom: 5),
+                      child: Text(
+                        warning,
+                        style: TextStyle(
+                          color: AppTheme.pendingRose,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: preview.canApply && !_isApplyingDraft
+                ? () async {
+                    Navigator.of(dialogContext).pop();
+                    setState(() => _isApplyingDraft = true);
+                    try {
+                      await widget.state.applySmartMatchingPreview(preview);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Draft saved. The roster remains unpublished until you publish it.',
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (error) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Could not save the matching draft: $error',
+                            ),
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) setState(() => _isApplyingDraft = false);
+                    }
+                  }
+                : null,
+            icon: const Icon(Icons.save_outlined),
+            label: const Text('Save unpublished draft'),
           ),
         ],
       ),
@@ -363,7 +604,8 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
     final textCol = theme.colorScheme.onSurface;
-    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final textMuted =
+        theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
     final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
     final isDark = theme.brightness == Brightness.dark;
 
@@ -378,7 +620,7 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Publish & Broadcast Roster',
+                'Publish Family Roster',
                 style: TextStyle(
                   fontFamily: 'serif',
                   color: textCol,
@@ -392,7 +634,7 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
           ],
         ),
         content: Text(
-          'This will atomically release the family assignments to all active student devices, notify members via push alert, and unlock Spiritual Father & Mother contact cards. Proceed?',
+          'This publishes the validated family assignments and creates a regular Family Roster announcement in the same commit. Students can then view their roster. Continue?',
           style: TextStyle(color: textMuted, fontSize: 13, height: 1.45),
         ),
         actions: [
@@ -401,22 +643,45 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             child: Text('Cancel', style: TextStyle(color: textMuted)),
           ),
           ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              HapticFeedback.mediumImpact();
-              widget.state.publishAndBroadcastFamilies();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Atomic Broadcast Sent! Family rosters are now live for all students.'),
-                ),
-              );
-            },
+            onPressed: _isPublishing || !widget.state.canPublishFamilyRoster
+                ? null
+                : () async {
+                    Navigator.pop(ctx);
+                    HapticFeedback.mediumImpact();
+                    setState(() => _isPublishing = true);
+                    try {
+                      await widget.state.publishFamilyRoster();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Family roster and announcement published.',
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (error) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Could not publish the family roster: $error',
+                            ),
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) setState(() => _isPublishing = false);
+                    }
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: Text(
-              'Publish & Broadcast',
+              'Publish roster',
               style: TextStyle(
                 color: isDark ? Colors.black : Colors.white,
                 fontWeight: FontWeight.bold,
@@ -435,7 +700,8 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
     final textCol = theme.colorScheme.onSurface;
-    final textMuted = theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final textMuted =
+        theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
     final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
     final elevatedBg = theme.colorScheme.surfaceContainerHighest;
     final borderCol = theme.dividerColor;
@@ -451,7 +717,10 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Spiritual Parent Matching', style: TextStyle(color: textCol)),
+        title: Text(
+          'Spiritual Parent Matching',
+          style: TextStyle(color: textCol),
+        ),
         backgroundColor: cardBg,
         elevation: 0,
         leading: (Navigator.canPop(context) || widget.onBackPressed != null)
@@ -474,10 +743,15 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             if (_selectedStudentToSwap != null && selectedStudent != null)
               AnimatedContainer(
                 duration: const Duration(milliseconds: 250),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: primaryAccent.withOpacity(0.18),
-                  border: Border(bottom: BorderSide(color: primaryAccent.withOpacity(0.5))),
+                  border: Border(
+                    bottom: BorderSide(color: primaryAccent.withOpacity(0.5)),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -487,7 +761,11 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                         color: primaryAccent.withOpacity(0.2),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(Icons.swap_horiz, color: primaryAccent, size: 18),
+                      child: Icon(
+                        Icons.swap_horiz,
+                        color: primaryAccent,
+                        size: 18,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -532,7 +810,10 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
             // Scrollable Roster Content
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 12,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -550,42 +831,54 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                     const SizedBox(height: 8),
 
                     // Status pill: Assigned • Pending
-                    Row(
+                    Wrap(
+                      spacing: 14,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.emerald,
-                            shape: BoxShape.circle,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: AppTheme.emerald,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${state.assignedFamilyStudentCount}/${state.eligibleFamilyStudents.length} Students Assigned',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${state.allStudents.length} Assigned',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: textMuted,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppTheme.pendingRose,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${state.pendingApprovals.length} Pending',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: textMuted,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: AppTheme.pendingRose,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${state.pendingApprovals.length} Pending',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: textMuted,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -596,23 +889,36 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                     SizedBox(
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: state.isMatchingRunning
+                        onPressed:
+                            state.isMatchingRunning ||
+                                _isApplyingDraft ||
+                                !state.canManageFamilyMatching
                             ? null
                             : () async {
                                 HapticFeedback.selectionClick();
-                                await state.runSmartMatching();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: const Text('Constrained matching complete: Students balanced by department & faculty.'),
-                                      backgroundColor: cardBg,
-                                    ),
-                                  );
+                                try {
+                                  final preview = await state
+                                      .previewSmartMatching();
+                                  if (preview != null && context.mounted) {
+                                    await _showMatchingPreview(preview);
+                                  }
+                                } catch (error) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Could not build a matching preview: $error',
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 }
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryAccent,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                         child: state.isMatchingRunning
                             ? Row(
@@ -621,20 +927,27 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                   SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(color: isDark ? Colors.black : Colors.white, strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      color: isDark
+                                          ? Colors.black
+                                          : Colors.white,
+                                      strokeWidth: 2,
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Text(
-                                    'Executing Constrained Solver...',
+                                    'Preparing matching preview...',
                                     style: TextStyle(
-                                      color: isDark ? Colors.black : Colors.white,
+                                      color: isDark
+                                          ? Colors.black
+                                          : Colors.white,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ],
                               )
                             : Text(
-                                'Run Smart Matching',
+                                'Preview Smart Matching',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -649,7 +962,9 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
 
                     // Family Group Cards with Select-to-Swap
                     ...families.map((family) {
-                      final members = state.allStudents.where((s) => family.memberIds.contains(s.id)).toList();
+                      final members = state.eligibleFamilyStudents
+                          .where((student) => family.memberIds.contains(student.id))
+                          .toList();
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 20),
@@ -668,7 +983,8 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         family.name,
@@ -687,14 +1003,23 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                           Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              const Icon(Icons.male, color: Color(0xFF38A3E5), size: 14),
+                                              const Icon(
+                                                Icons.male,
+                                                color: Color(0xFF38A3E5),
+                                                size: 14,
+                                              ),
                                               const SizedBox(width: 3),
                                               Flexible(
                                                 child: Text(
                                                   'Father: ${family.spiritualFather.fullName.split(' ').first}',
-                                                  style: TextStyle(fontSize: 12, color: textMuted, fontWeight: FontWeight.w600),
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: textMuted,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -702,14 +1027,23 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                           Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              const Icon(Icons.female, color: Color(0xFFE056FD), size: 14),
+                                              const Icon(
+                                                Icons.female,
+                                                color: Color(0xFFE056FD),
+                                                size: 14,
+                                              ),
                                               const SizedBox(width: 3),
                                               Flexible(
                                                 child: Text(
                                                   'Mother: ${family.spiritualMother.fullName.split(' ').first}',
-                                                  style: TextStyle(fontSize: 12, color: textMuted, fontWeight: FontWeight.w600),
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: textMuted,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                                   maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                 ),
                                               ),
                                             ],
@@ -720,15 +1054,24 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: primaryAccent.withOpacity(0.15),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: primaryAccent.withOpacity(0.4)),
+                                    border: Border.all(
+                                      color: primaryAccent.withOpacity(0.4),
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
-                                      Icon(Icons.people, size: 14, color: primaryAccent),
+                                      Icon(
+                                        Icons.people,
+                                        size: 14,
+                                        color: primaryAccent,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         '${members.length}/${family.maxCapacity}',
@@ -748,15 +1091,24 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
 
                             // Telegram Group Invite Link Row
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
                               decoration: BoxDecoration(
                                 color: elevatedBg,
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: borderCol.withOpacity(0.6)),
+                                border: Border.all(
+                                  color: borderCol.withOpacity(0.6),
+                                ),
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.send_rounded, color: Color(0xFF229ED9), size: 16),
+                                  const Icon(
+                                    Icons.send_rounded,
+                                    color: Color(0xFF229ED9),
+                                    size: 16,
+                                  ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
@@ -765,7 +1117,10 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                           : 'No Telegram link set',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        color: family.telegramGroupUrl.isNotEmpty ? primaryAccent : textMuted,
+                                        color:
+                                            family.telegramGroupUrl.isNotEmpty
+                                            ? primaryAccent
+                                            : textMuted,
                                         fontWeight: FontWeight.w500,
                                       ),
                                       maxLines: 1,
@@ -774,10 +1129,19 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                   ),
                                   const SizedBox(width: 6),
                                   InkWell(
-                                    onTap: () => _openEditTelegramDialog(context, state, family),
+                                    onTap: state.canManageFamilies
+                                        ? () => _openEditTelegramDialog(
+                                            context,
+                                            state,
+                                            family,
+                                          )
+                                        : null,
                                     borderRadius: BorderRadius.circular(8),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: primaryAccent.withOpacity(0.12),
                                         borderRadius: BorderRadius.circular(8),
@@ -785,9 +1149,20 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.edit, size: 12, color: primaryAccent),
+                                          Icon(
+                                            Icons.edit,
+                                            size: 12,
+                                            color: primaryAccent,
+                                          ),
                                           const SizedBox(width: 4),
-                                          Text('Edit Link', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent)),
+                                          Text(
+                                            'Edit Link',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: primaryAccent,
+                                            ),
+                                          ),
                                         ],
                                       ),
                                     ),
@@ -800,39 +1175,63 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
 
                             // List of Students with Swap Trigger Buttons & Pulse Border
                             ...members.map((student) {
-                              final isSelectedForSwap = _selectedStudentToSwap == student.id;
+                              final isSelectedForSwap =
+                                  _selectedStudentToSwap == student.id;
 
                               return AnimatedBuilder(
                                 animation: _pulseAnimation,
                                 builder: (context, child) {
-                                  final pulseOpacity = isSelectedForSwap ? _pulseAnimation.value : 0.0;
+                                  final pulseOpacity = isSelectedForSwap
+                                      ? _pulseAnimation.value
+                                      : 0.0;
 
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 8),
                                     child: Material(
                                       color: Colors.transparent,
                                       child: InkWell(
-                                        onTap: () => _handleStudentSwapTap(student.id, family.id),
+                                        onTap: state.canManageFamilyMatching
+                                            ? () => _handleStudentSwapTap(
+                                                student.id,
+                                                family.id,
+                                              )
+                                            : null,
                                         borderRadius: BorderRadius.circular(14),
                                         child: AnimatedContainer(
-                                          duration: const Duration(milliseconds: 180),
-                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                                          duration: const Duration(
+                                            milliseconds: 180,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 11,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: isSelectedForSwap
                                                 ? primaryAccent.withOpacity(0.2)
                                                 : elevatedBg,
-                                            borderRadius: BorderRadius.circular(14),
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
                                             border: Border.all(
                                               color: isSelectedForSwap
-                                                  ? primaryAccent.withOpacity(0.4 + (pulseOpacity * 0.6))
+                                                  ? primaryAccent.withOpacity(
+                                                      0.4 +
+                                                          (pulseOpacity * 0.6),
+                                                    )
                                                   : borderCol,
-                                              width: isSelectedForSwap ? 2.0 : 1.0,
+                                              width: isSelectedForSwap
+                                                  ? 2.0
+                                                  : 1.0,
                                             ),
                                             boxShadow: isSelectedForSwap
                                                 ? [
                                                     BoxShadow(
-                                                      color: primaryAccent.withOpacity(0.3 * pulseOpacity),
-                                                      blurRadius: 10 * pulseOpacity,
+                                                      color: primaryAccent
+                                                          .withOpacity(
+                                                            0.3 * pulseOpacity,
+                                                          ),
+                                                      blurRadius:
+                                                          10 * pulseOpacity,
                                                       spreadRadius: 1,
                                                     ),
                                                   ]
@@ -842,13 +1241,15 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                             children: [
                                               Expanded(
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
                                                       student.fullName,
                                                       style: TextStyle(
                                                         fontSize: 14,
-                                                        fontWeight: FontWeight.w600,
+                                                        fontWeight:
+                                                            FontWeight.w600,
                                                         color: isSelectedForSwap
                                                             ? primaryAccent
                                                             : textCol,
@@ -865,16 +1266,21 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                                 ),
                                               ),
                                               Container(
-                                                padding: const EdgeInsets.all(6),
+                                                padding: const EdgeInsets.all(
+                                                  6,
+                                                ),
                                                 decoration: BoxDecoration(
                                                   color: isSelectedForSwap
-                                                      ? primaryAccent.withOpacity(0.25)
+                                                      ? primaryAccent
+                                                            .withOpacity(0.25)
                                                       : Colors.transparent,
                                                   shape: BoxShape.circle,
                                                 ),
                                                 child: Icon(
                                                   Icons.swap_horiz,
-                                                  color: isSelectedForSwap ? primaryAccent : textMuted,
+                                                  color: isSelectedForSwap
+                                                      ? primaryAccent
+                                                      : textMuted,
                                                   size: 20,
                                                 ),
                                               ),
@@ -917,32 +1323,51 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          state.isFamilyPublished ? 'Roster is Live' : 'Roster is Staged',
+                          state.isFamilyPublished
+                              ? 'Roster is Live'
+                              : (state.canPublishFamilyRoster
+                                    ? 'Draft is Ready'
+                                    : 'Roster Needs Fixes'),
                           style: TextStyle(
                             fontFamily: 'serif',
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: state.isFamilyPublished ? AppTheme.emerald : primaryAccent,
+                            color: state.isFamilyPublished
+                                ? AppTheme.emerald
+                                : (state.canPublishFamilyRoster
+                                      ? primaryAccent
+                                      : AppTheme.pendingRose),
                           ),
                         ),
                         Text(
-                          state.isFamilyPublished ? 'All students can view their family' : 'Ready to push to student devices',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: textMuted,
-                          ),
+                          state.isFamilyPublished
+                              ? 'All students can view their family'
+                              : '${state.assignedFamilyStudentCount}/${state.eligibleFamilyStudents.length} students assigned',
+                          style: TextStyle(fontSize: 11, color: textMuted),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
-                    onPressed: _showPublishConfirmation,
-                    icon: Icon(Icons.send_rounded, size: 16, color: isDark ? Colors.black : Colors.white),
+                    onPressed:
+                        state.canManageFamilyMatching &&
+                            state.canPublishFamilyRoster &&
+                            !_isPublishing &&
+                            !_isApplyingDraft
+                        ? _showPublishConfirmation
+                        : null,
+                    icon: Icon(
+                      Icons.send_rounded,
+                      size: 16,
+                      color: isDark ? Colors.black : Colors.white,
+                    ),
                     label: FittedBox(
                       fit: BoxFit.scaleDown,
                       child: Text(
-                        state.isFamilyPublished ? 'Re-Broadcast' : 'Publish & Broadcast',
+                        state.isFamilyPublished
+                            ? 'Re-announce'
+                            : 'Publish roster',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: isDark ? Colors.black : Colors.white,
@@ -952,8 +1377,13 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primaryAccent,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ],
@@ -965,7 +1395,11 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
     );
   }
 
-  void _openEditTelegramDialog(BuildContext context, FellowshipState state, FamilyModel family) {
+  void _openEditTelegramDialog(
+    BuildContext context,
+    FellowshipState state,
+    FamilyModel family,
+  ) {
     final theme = Theme.of(context);
     final linkController = TextEditingController(text: family.telegramGroupUrl);
     final formKey = GlobalKey<FormState>();
@@ -1002,67 +1436,107 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              Text(
-                'Set or update the Telegram group invite link for ${family.name}. Spiritual children will tap "Join Telegram Group" to enter your family chat.',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary,
-                  height: 1.4,
+                Text(
+                  'Set or update the Telegram group invite link for ${family.name}. Spiritual children will tap "Join Telegram Group" to enter your family chat.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color:
+                        theme.textTheme.bodyMedium?.color ??
+                        AppTheme.textSecondary,
+                    height: 1.4,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: linkController,
-                style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 14),
-                decoration: InputDecoration(
-                  labelText: 'Telegram Invite Link',
-                  hintText: 'https://t.me/+...',
-                  prefixIcon: const Icon(Icons.link, color: Color(0xFF229ED9)),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: linkController,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface,
+                    fontSize: 14,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'Telegram Invite Link',
+                    hintText: 'https://t.me/+...',
+                    prefixIcon: const Icon(
+                      Icons.link,
+                      color: Color(0xFF229ED9),
+                    ),
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  validator: (val) {
+                    if (val == null || val.trim().isEmpty) {
+                      return 'Please enter a Telegram group link';
+                    }
+                    final uri = Uri.tryParse(val.trim());
+                    if (uri == null ||
+                        uri.scheme != 'https' ||
+                        uri.host != 't.me') {
+                      return 'Use a secure Telegram link starting with https://t.me/';
+                    }
+                    return null;
+                  },
                 ),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) {
-                    return 'Please enter a Telegram group link';
-                  }
-                  if (!val.trim().contains('t.me')) {
-                    return 'Must be a valid Telegram link (contains t.me)';
-                  }
-                  return null;
-                },
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
-      actions: [
+        actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text('Cancel', style: TextStyle(color: theme.textTheme.bodyMedium?.color)),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            ),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                final newLink = linkController.text.trim();
-                state.updateFamilyTelegramLink(family.id, newLink);
-                Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Updated Telegram link for ${family.name}'),
-                    backgroundColor: const Color(0xFF229ED9),
-                  ),
-                );
-              }
-            },
+            onPressed: state.canManageFamilies
+                ? () async {
+                    if (formKey.currentState?.validate() ?? false) {
+                      final newLink = linkController.text.trim();
+                      try {
+                        await state.updateFamilyTelegramLink(
+                          family.id,
+                          newLink,
+                        );
+                        if (!ctx.mounted || !mounted) return;
+                        Navigator.of(ctx).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Updated Telegram link for ${family.name}',
+                            ),
+                            backgroundColor: const Color(0xFF229ED9),
+                          ),
+                        );
+                      } catch (error) {
+                        if (ctx.mounted) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Could not update the Telegram link: $error',
+                              ),
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  }
+                : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             child: Text(
               'Save Link',
               style: TextStyle(
-                color: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+                color: theme.brightness == Brightness.dark
+                    ? Colors.black
+                    : Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),

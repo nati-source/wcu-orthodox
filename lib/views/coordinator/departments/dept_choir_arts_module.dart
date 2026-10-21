@@ -8,6 +8,39 @@ extension DeptChoirArtsModuleExt on _CoordinatorHubScreenState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Legacy Warning Banner
+        Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF59E0B).withOpacity(0.12),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Color(0xFFF59E0B), size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Legacy Combined Department Scope',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Music & Sacred Arts are now separated into two dedicated departments: "Mezmur/Choir" and "Sacred Arts". Admins can migrate this assignment in the Approvals & Roles dashboard.',
+                      style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, height: 1.3),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
         Text(
           'የዝማሬና ስነ-ጥበባት አስተዳደር (CHOIR & SACRED ARTS CONTROL)',
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: primaryAccent, letterSpacing: 1.1),

@@ -28,66 +28,57 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
   @override
   void initState() {
     super.initState();
-    if (AppAdminConstants.isAdminEmail(widget.email)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _autoUnlockAdmin();
-      });
-    }
-  }
-
-  Future<void> _autoUnlockAdmin() async {
-    setState(() => _isChecking = true);
-    try {
-      final user = AuthService().currentUser;
-      if (user != null) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
-          'id': user.uid,
-          'email': AppAdminConstants.adminEmail,
-          'role': 'admin',
-          'isApproved': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
-      }
-    } catch (_) {}
-    if (mounted) {
-      setState(() => _isChecking = false);
-      if (widget.onCheckStatus != null) {
-        widget.onCheckStatus!();
-      }
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkStatus();
+    });
   }
 
   Future<void> _checkStatus() async {
-    if (AppAdminConstants.isAdminEmail(widget.email)) {
-      await _autoUnlockAdmin();
-      return;
-    }
     setState(() => _isChecking = true);
+    bool approved = false;
+    try {
+      final user = AuthService().currentUser;
+      if (user != null) {
+        final snap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get(const GetOptions(source: Source.serverAndCache));
+        if (snap.exists && snap.data() != null) {
+          final data = snap.data()!;
+          if (data['isApproved'] == true) {
+            approved = true;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Check status fetch error: $e');
+    }
     if (widget.onCheckStatus != null) {
       widget.onCheckStatus!();
     }
-    await Future.delayed(const Duration(milliseconds: 1200));
     if (mounted) {
       setState(() => _isChecking = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.hourglass_top_rounded, color: AppTheme.gold, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Your registration is still awaiting admin review. Once approved, access is granted automatically.',
-                  style: TextStyle(fontSize: 12),
+      if (!approved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.hourglass_top_rounded, color: AppTheme.gold, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Your registration is still awaiting admin review. Once approved, access is granted automatically.',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: AppTheme.surfaceElevated,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          backgroundColor: AppTheme.surfaceElevated,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -254,24 +245,7 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
                     ),
                   ),
 
-                  if (AppAdminConstants.isAdminEmail(widget.email)) ...[
-                    ElevatedButton.icon(
-                      onPressed: _isChecking ? null : _autoUnlockAdmin,
-                      icon: const Icon(Icons.admin_panel_settings_rounded, size: 20),
-                      label: const Text(
-                        'Unlock Admin Access • እንደ አድሚን ይግቡ',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.emerald,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
+
 
                   // Check Status Button
                   ElevatedButton.icon(

@@ -97,8 +97,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final formattedBatch = _batchController.text.trim().isEmpty ? '2024' : _batchController.text.trim();
 
     try {
-      final bool isAdmin = AppAdminConstants.isAdminEmail(_emailController.text);
-      await _authService.signUpWithEmail(
+      final credential = await _authService.signUpWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         fullName: formattedFullName,
@@ -110,19 +109,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         batchYear: formattedBatch,
         campus: 'Main Campus (ዋናው ግቢ)',
         gender: _selectedGender,
-        initialRole: isAdmin ? UserRole.admin : UserRole.student,
+        initialRole: UserRole.student,
       );
+
+      final uid = credential.user?.uid;
 
       // Immediately sync state with the new registrant's data
       widget.state?.updateCurrentUserProfile(
+        id: uid,
         fullName: formattedFullName,
         baptismalName: formattedBaptismalName,
         phoneNumber: _phoneController.text.trim(),
         department: _selectedDepartment,
         academicYear: _selectedAcademicYear,
         batchYear: formattedBatch,
-        role: isAdmin ? UserRole.admin : UserRole.student,
-        isApproved: isAdmin ? true : false,
+        role: UserRole.student,
+        isApproved: false,
         gender: _selectedGender,
       );
 
@@ -139,6 +141,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
             _errorMessage = 'The password is too weak. Please use at least 8 characters including letters and numbers.';
           } else if (errStr.contains('invalid-email')) {
             _errorMessage = 'Please enter a valid email address.';
+          } else if (errStr.contains('permission-denied') || errStr.toLowerCase().contains('permission')) {
+            _errorMessage = 'Permission error: Firestore security rules or App Check in Firebase Console blocked account creation. Please publish your firestore.rules in Firebase Console.';
           } else {
             _errorMessage = 'Registration error: ${errStr.replaceAll(RegExp(r'\[.*?\]'), '').trim()}';
           }
@@ -161,7 +165,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: AppTheme.surfaceElevated,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: BorderSide(color: AppTheme.gold.withOpacity(0.5), width: 1.5),
+          side: BorderSide(color: AppTheme.gold.withValues(alpha: 0.5), width: 1.5),
         ),
         contentPadding: const EdgeInsets.all(24),
         content: SingleChildScrollView(
@@ -186,7 +190,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 18),
             const Text(
-              'እንኳን በደህና መጡ!',
+              'ምዝገባዎ ተልኳል!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 22,
@@ -196,7 +200,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Welcome to WCU Orthodox Fellowship',
+              'Registration Submitted',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -259,22 +263,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            // Pending approval notice
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withOpacity(0.12),
+                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.5)),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.hourglass_top_rounded, color: Color(0xFFF59E0B), size: 18),
+                  Icon(Icons.hourglass_top_rounded, color: Color(0xFFF59E0B), size: 20),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Your account is pending admin approval. You\'ll gain full access once reviewed.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFFF59E0B), height: 1.4),
+                      'Your registration has been submitted and is awaiting administrator approval. You will gain full access once reviewed.',
+                      style: TextStyle(fontSize: 12, color: Color(0xFFF59E0B), height: 1.4, fontWeight: FontWeight.w500),
                     ),
                   ),
                 ],
@@ -300,7 +303,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     Flexible(
                       child: Text(
-                        'View Approval Status',
+                        'View Approval Status / ሁኔታውን ተመልከት',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -751,7 +754,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 24),
 
                     // Submit Button
                     ElevatedButton(

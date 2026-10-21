@@ -561,11 +561,216 @@ class _StudentConfessorScreenState extends State<StudentConfessorScreen> {
                 ] else ...[
                   Text('Pending answer from Confession Fathers committee...', style: TextStyle(fontSize: 11, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ?? AppTheme.textTertiary)),
                 ],
+                if (state.isAdmin || state.canSchedulePriests || state.currentUser.role == UserRole.spiritualParent) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 16, color: AppTheme.crimson),
+                        tooltip: 'Delete Question / ሰርዝ',
+                        onPressed: () => _confirmDeleteQuestion(context, state, q.id),
+                      ),
+                      const SizedBox(width: 4),
+                      TextButton.icon(
+                        icon: const Icon(Icons.edit_note, size: 16),
+                        label: Text(q.isAnswered ? 'Edit Answer / አሻሽል' : 'Answer Question / ምላሽ ስጥ', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                        onPressed: () => _showAnswerQuestionDialog(context, state, q),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           );
         }),
       ],
+    );
+  }
+
+  void _showAnswerQuestionDialog(BuildContext context, FellowshipState state, AnonymousSpiritualQuestionModel q) {
+    final theme = Theme.of(context);
+    final primaryAccent = theme.colorScheme.primary;
+    final answerController = TextEditingController(text: q.answerText ?? '');
+    final answeredByController = TextEditingController(
+      text: q.answeredBy ??
+          (state.currentUser.baptismalName.isNotEmpty
+              ? '${state.currentUser.fullName} (${state.currentUser.baptismalName})'
+              : state.currentUser.fullName),
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(Icons.menu_book, color: primaryAccent, size: 22),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Answer Spiritual Question',
+                  style: TextStyle(
+                    fontFamily: 'serif',
+                    fontSize: 16,
+                    color: theme.colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Category: ${q.category}',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: primaryAccent),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Q: ${q.questionText}',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                Text(
+                  'Pastoral / Theological Answer • መንፈሳዊ ምላሽ:',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: answerController,
+                  maxLines: 5,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Write Orthodox canonical counsel, scripture citations, or doctrinal answer here...',
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                Text(
+                  'Answered By • የመላሹ ስም ወይም ማዕረግ:',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: answeredByController,
+                  decoration: InputDecoration(
+                    hintText: 'e.g. ቀሲስ ... ወይም የትምህርትና ሐዋርያዊ አገልግሎት',
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel / ተመለስ'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final ans = answerController.text.trim();
+                final by = answeredByController.text.trim();
+                if (ans.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter an answer to publish.')),
+                  );
+                  return;
+                }
+
+                await state.answerSpiritualQuestion(
+                  questionId: q.id,
+                  answerText: ans,
+                  answeredBy: by.isNotEmpty ? by : 'Campus Fellowship Clergy',
+                );
+
+                if (dialogCtx.mounted) {
+                  Navigator.pop(dialogCtx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Spiritual question answered and published!')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryAccent,
+                foregroundColor: theme.brightness == Brightness.dark ? Colors.black : Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Publish Answer • ምላሹን ለጥፍ', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteQuestion(BuildContext context, FellowshipState state, String questionId) {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.delete_outline, color: AppTheme.crimson),
+              SizedBox(width: 8),
+              Text('Delete Question • ሰርዝ', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to permanently delete this anonymous question from the database?',
+            style: TextStyle(fontSize: 12),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await state.deleteSpiritualQuestion(questionId);
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Question deleted from database.')),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.crimson,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Delete / ሰርዝ', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
     );
   }
 

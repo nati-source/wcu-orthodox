@@ -66,9 +66,20 @@ extension ApprovalsEmergencyAidTabExt on _AdminApprovalsScreenState {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     OutlinedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         HapticFeedback.selectionClick();
-                        state.updateAidRequestStatus(req.id, EmergencyAidStatus.declined, adminNote: 'Declined by review committee.');
+                        try {
+                          await state.updateAidRequestStatus(
+                            req.id,
+                            EmergencyAidStatus.declined,
+                            adminNote: 'Declined by review committee.',
+                          );
+                        } catch (error) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Could not decline request: $error')),
+                          );
+                        }
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppTheme.crimson,
@@ -144,20 +155,34 @@ extension ApprovalsEmergencyAidTabExt on _AdminApprovalsScreenState {
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
             ElevatedButton(
-              onPressed: () {
-                final amt = double.tryParse(amountCtrl.text.trim()) ?? req.amountRequested;
+              onPressed: () async {
+                final amt = double.tryParse(amountCtrl.text.trim());
+                if (amt == null || amt <= 0 || amt > req.amountRequested) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Enter an amount no greater than the requested amount.')),
+                  );
+                  return;
+                }
                 final voucher = voucherCtrl.text.trim().isEmpty ? 'VCH-ADMIN-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}' : voucherCtrl.text.trim();
-                state.disburseEmergencyAid(
-                  requestId: req.id,
-                  amount: amt,
-                  paymentMethod: method.displayName,
-                  voucherReference: voucher,
-                  note: noteCtrl.text.trim(),
-                );
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Disbursement of ${amt.toStringAsFixed(0)} ETB recorded for ${req.studentName}.')),
-                );
+                try {
+                  await state.disburseEmergencyAid(
+                    requestId: req.id,
+                    amount: amt,
+                    paymentMethod: method.displayName,
+                    voucherReference: voucher,
+                    note: noteCtrl.text.trim(),
+                  );
+                  if (!ctx.mounted) return;
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Disbursement of ${amt.toStringAsFixed(0)} ETB recorded for ${req.studentName}.')),
+                  );
+                } catch (error) {
+                  if (!ctx.mounted) return;
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Disbursement failed: $error')),
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981)),
               child: const Text('Confirm Disbursement', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

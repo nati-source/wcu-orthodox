@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import '../models/app_models.dart';
+import 'notification_service.dart';
 
 class AuthService {
   FirebaseAuth? get _authInstance {
@@ -56,8 +58,9 @@ class AuthService {
     UserRole initialRole = UserRole.student,
     String gender = 'male',
   }) async {
+    UserCredential? credential;
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(
+      credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password,
       );
@@ -65,11 +68,8 @@ class AuthService {
       final uid = credential.user!.uid;
       await credential.user!.updateDisplayName(fullName);
 
-      final bool isAdminEmail = AppAdminConstants.isAdminEmail(email);
-      final effectiveRole = isAdminEmail ? UserRole.admin : initialRole;
-      final effectiveApproved = isAdminEmail ? true : false;
-
-      // Create user document in Firestore
+      // All client signups are initialized with student role and pending approval.
+      // Elevated roles (admin, coordinator) must be provisioned via Firebase Console / server-managed roles.
       final userDoc = _firestore.collection('users').doc(uid);
       await userDoc.set({
         'id': uid,
@@ -82,8 +82,8 @@ class AuthService {
         'department': department.trim(),
         'academicYear': academicYear,
         'batchYear': batchYear.trim(),
-        'role': effectiveRole.name,
-        'isApproved': effectiveApproved,  // Admin is approved immediately; students require approval
+        'role': UserRole.student.name,
+        'isApproved': false,
         'gender': gender.toLowerCase(),
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -91,6 +91,11 @@ class AuthService {
 
       return credential;
     } catch (e) {
+      if (credential?.user != null) {
+        try {
+          await credential!.user!.delete();
+        } catch (_) {}
+      }
       rethrow;
     }
   }
@@ -105,20 +110,6 @@ class AuthService {
         email: email.trim(),
         password: password,
       );
-      if (AppAdminConstants.isAdminEmail(email)) {
-        final uid = credential.user?.uid;
-        if (uid != null) {
-          try {
-            await _firestore.collection('users').doc(uid).set({
-              'id': uid,
-              'email': email.trim().toLowerCase(),
-              'role': 'admin',
-              'isApproved': true,
-              'updatedAt': FieldValue.serverTimestamp(),
-            }, SetOptions(merge: true));
-          } catch (_) {}
-        }
-      }
       return credential;
     } catch (e) {
       rethrow;
@@ -154,6 +145,24 @@ class AuthService {
 
   /// Sign Out
   Future<void> signOut() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        final profile = await _firestore.collection('users').doc(user.uid).get();
+        final data = profile.data() ?? const <String, dynamic>{};
+        final coordinatorProfile = data['coordinatorProfile'];
+        final departmentId = coordinatorProfile is Map
+            ? coordinatorProfile['departmentId']?.toString()
+            : null;
+        await NotificationService.instance.clearUserSubscriptions(
+          role: data['role']?.toString() ?? '',
+          assignedFamilyId: data['assignedFamilyId']?.toString(),
+          departmentId: departmentId,
+        );
+      } catch (e) {
+        debugPrint('Unable to clear notification subscriptions before sign out: $e');
+      }
+    }
     await _auth.signOut();
   }
 

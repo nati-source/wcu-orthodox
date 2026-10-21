@@ -1,11 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+
 import '../models/app_models.dart';
+import 'firebase_callable_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore? _customFirestore;
 
-  FirestoreService({FirebaseFirestore? firestore}) : _customFirestore = firestore;
+  FirestoreService({FirebaseFirestore? firestore})
+    : _customFirestore = firestore;
 
   FirebaseFirestore? get _firestoreInstance {
     if (_customFirestore != null) return _customFirestore;
@@ -26,6 +29,8 @@ class FirestoreService {
 
   FirebaseFirestore get firestore => _firestore;
 
+  bool get isAvailable => _firestoreInstance != null;
+
   // ===========================================================================
   // 1. PILGRIMAGE TRIPS & REGISTRATIONS
   // ===========================================================================
@@ -36,10 +41,10 @@ class FirestoreService {
 
   Future<void> upsertPilgrimageTrip(PilgrimageTripModel trip) async {
     try {
-      await _firestore.collection('pilgrimage_trips').doc(trip.id).set(
-        trip.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('pilgrimage_trips')
+          .doc(trip.id)
+          .set(trip.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert pilgrimage trip error: $e');
       rethrow;
@@ -52,7 +57,10 @@ class FirestoreService {
     try {
       await inst.collection('pilgrimage_trips').doc(tripId).delete();
       // Clean up orphaned registrations for this trip
-      final regsSnap = await inst.collection('trip_registrations').where('tripId', isEqualTo: tripId).get();
+      final regsSnap = await inst
+          .collection('trip_registrations')
+          .where('tripId', isEqualTo: tripId)
+          .get();
       final batch = inst.batch();
       for (final doc in regsSnap.docs) {
         batch.delete(doc.reference);
@@ -74,10 +82,10 @@ class FirestoreService {
     if (inst == null) return;
     try {
       // Write registration record
-      await inst.collection('trip_registrations').doc(reg.id).set(
-        reg.toMap(),
-        SetOptions(merge: true),
-      );
+      await inst
+          .collection('trip_registrations')
+          .doc(reg.id)
+          .set(reg.toMap(), SetOptions(merge: true));
 
       // Increment booked seats on the trip doc safely using merge
       await inst.collection('pilgrimage_trips').doc(tripId).set({
@@ -93,16 +101,17 @@ class FirestoreService {
     final inst = _firestoreInstance;
     if (inst == null) return;
     try {
-      await inst.collection('trip_registrations').doc(reg.id).set(
-        reg.toMap(),
-        SetOptions(merge: true),
-      );
+      await inst
+          .collection('trip_registrations')
+          .doc(reg.id)
+          .set(reg.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore update trip registration error: $e');
     }
   }
 
-  Future<void> upsertTripRegistration(TripRegistrationModel reg) => updateTripRegistration(reg);
+  Future<void> upsertTripRegistration(TripRegistrationModel reg) =>
+      updateTripRegistration(reg);
 
   Future<void> deleteTripRegistration(String regId, {String? tripId}) async {
     final inst = _firestoreInstance;
@@ -128,40 +137,110 @@ class FirestoreService {
     return _firestore.collection('families').snapshots();
   }
 
-  Future<void> upsertFamily(FamilyModel family) async {
+  /// Saves a complete, unpublished family roster and its student assignments
+  /// in one Firestore batch. A failure leaves the published roster untouched.
+  Future<void> saveFamilyRosterDraft({
+    required List<FamilyModel> families,
+    required Map<String, String> studentAssignments,
+  }) async {
     final inst = _firestoreInstance;
-    if (inst == null) return;
-    try {
-      await inst.collection('families').doc(family.id).set(
-        family.toMap(),
+    if (inst == null) return; // Local/demo mode.
+
+    const maxBatchWrites = 500;
+    final writeCount = families.length + studentAssignments.length + 1;
+    if (writeCount > maxBatchWrites) {
+      throw StateError(
+        'This roster needs $writeCount writes, exceeding Firestore\'s $maxBatchWrites-write batch limit. No changes were saved.',
+      );
+    }
+
+    final familyIds = families.map((family) => family.id).toSet();
+    if (familyIds.length != families.length ||
+        familyIds.any((id) => id.trim().isEmpty)) {
+      throw StateError(
+        'Family IDs must be unique and non-empty before saving the draft.',
+      );
+    }
+    for (final entry in studentAssignments.entries) {
+      if (entry.key.trim().isEmpty || !familyIds.contains(entry.value)) {
+        throw StateError(
+          'Every student assignment must reference a family in this roster.',
+        );
+      }
+    }
+
+    final batch = inst.batch();
+    for (final family in families) {
+      batch.set(
+        inst.collection('families').doc(family.id),
+        family.copyWith(isPublished: false).toMap(),
         SetOptions(merge: true),
       );
-    } catch (e) {
-      debugPrint('Firestore upsert family error: $e');
     }
+    for (final entry in studentAssignments.entries) {
+      batch.update(inst.collection('users').doc(entry.key), {
+        'assignedFamilyId': entry.value,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+    batch.set(inst.collection('app_config').doc('family_roster'), {
+      'isFamilyPublished': false,
+      'publishedAt': null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    await batch.commit();
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> streamFamilyConfig() {
     return _firestore.collection('app_config').doc('family_roster').snapshots();
   }
 
-  Future<void> publishFamiliesRoster(bool isPublished) async {
-    try {
-      await _firestore.collection('app_config').doc('family_roster').set({
-        'isFamilyPublished': isPublished,
-        'publishedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+  Future<void> updateFamilyTelegramLink(
+    String familyId,
+    String telegramUrl,
+  ) async {
+    final inst = _firestoreInstance;
+    if (inst == null) return; // Local/demo mode.
+    await inst.collection('families').doc(familyId).update({
+      'telegramGroupUrl': telegramUrl,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
-      // Also update all family documents
-      final snap = await _firestore.collection('families').get();
-      final batch = _firestore.batch();
-      for (final doc in snap.docs) {
-        batch.set(doc.reference, {'isPublished': isPublished}, SetOptions(merge: true));
-      }
-      await batch.commit();
-    } catch (e) {
-      debugPrint('Firestore publish families roster error: $e');
+  Future<void> publishFamiliesRoster(
+    bool isPublished, {
+    Map<String, dynamic>? announcement,
+  }) async {
+    final inst = _firestoreInstance;
+    if (inst == null) return; // Local/demo mode.
+
+    final snap = await inst.collection('families').get();
+    final writeCount = snap.docs.length + 1 + (announcement == null ? 0 : 1);
+    if (writeCount > 500) {
+      throw StateError(
+        'Publishing this roster needs $writeCount writes, exceeding Firestore\'s 500-write batch limit. Nothing was published.',
+      );
     }
+
+    final batch = inst.batch();
+    for (final doc in snap.docs) {
+      batch.set(doc.reference, {
+        'isPublished': isPublished,
+      }, SetOptions(merge: true));
+    }
+    batch.set(inst.collection('app_config').doc('family_roster'), {
+      'isFamilyPublished': isPublished,
+      'publishedAt': isPublished ? FieldValue.serverTimestamp() : null,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+    if (isPublished && announcement != null) {
+      final announcementRef = inst.collection('announcements').doc();
+      batch.set(announcementRef, {
+        ...announcement,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
   }
 
   // ===========================================================================
@@ -174,26 +253,13 @@ class FirestoreService {
 
   Future<void> upsertUser(UserModel user) async {
     try {
-      await _firestore.collection('users').doc(user.id).set(
-        user.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('users')
+          .doc(user.id)
+          .set(user.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert user error: $e');
       rethrow;
-    }
-  }
-
-  Future<void> updateUserFamilyAssignment(String userId, String familyId) async {
-    final inst = _firestoreInstance;
-    if (inst == null) return;
-    try {
-      await inst.collection('users').doc(userId).set({
-        'assignedFamilyId': familyId,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('Firestore update user family assignment error: $e');
     }
   }
 
@@ -210,22 +276,22 @@ class FirestoreService {
 
   Future<void> upsertAttendanceSession(AttendanceSessionModel session) async {
     try {
-      await _firestore.collection('attendance_sessions').doc(session.sessionId).set(
-        {
-          'sessionId': session.sessionId,
-          'courseName': session.courseName,
-          'courseCode': session.courseCode,
-          'faculty': session.faculty,
-          'code': session.code,
-          'rollingPin': session.rollingPin,
-          'generatedAt': session.generatedAt.toIso8601String(),
-          'refreshIntervalSeconds': session.refreshIntervalSeconds,
-          'totalEnrolled': session.totalEnrolled,
-          'isActive': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('attendance_sessions')
+          .doc(session.sessionId)
+          .set({
+            'sessionId': session.sessionId,
+            'courseName': session.courseName,
+            'courseCode': session.courseCode,
+            'faculty': session.faculty,
+            'code': session.code,
+            'rollingPin': session.rollingPin,
+            'generatedAt': session.generatedAt.toIso8601String(),
+            'refreshIntervalSeconds': session.refreshIntervalSeconds,
+            'totalEnrolled': session.totalEnrolled,
+            'isActive': true,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert attendance session error: $e');
     }
@@ -278,10 +344,10 @@ class FirestoreService {
 
   Future<void> upsertAcademicMentor(AcademicMentorModel mentor) async {
     try {
-      await _firestore.collection('academic_mentors').doc(mentor.id).set(
-        mentor.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('academic_mentors')
+          .doc(mentor.id)
+          .set(mentor.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert academic mentor error: $e');
     }
@@ -293,10 +359,10 @@ class FirestoreService {
 
   Future<void> submitMentorshipRequest(MentorshipRequestModel req) async {
     try {
-      await _firestore.collection('mentorship_requests').doc(req.id).set(
-        req.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('mentorship_requests')
+          .doc(req.id)
+          .set(req.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore submit mentorship request error: $e');
       rethrow;
@@ -313,10 +379,10 @@ class FirestoreService {
 
   Future<void> upsertConfessor(ConfessorFatherModel confessor) async {
     try {
-      await _firestore.collection('confessors').doc(confessor.id).set(
-        confessor.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('confessors')
+          .doc(confessor.id)
+          .set(confessor.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert confessor error: $e');
     }
@@ -326,12 +392,14 @@ class FirestoreService {
     return _firestore.collection('confession_appointments').snapshots();
   }
 
-  Future<void> upsertConfessionAppointment(ConfessionAppointmentModel appt) async {
+  Future<void> upsertConfessionAppointment(
+    ConfessionAppointmentModel appt,
+  ) async {
     try {
-      await _firestore.collection('confession_appointments').doc(appt.id).set(
-        appt.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('confession_appointments')
+          .doc(appt.id)
+          .set(appt.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert confession appointment error: $e');
     }
@@ -341,12 +409,14 @@ class FirestoreService {
     return _firestore.collection('spiritual_questions').snapshots();
   }
 
-  Future<void> submitSpiritualQuestion(AnonymousSpiritualQuestionModel question) async {
+  Future<void> submitSpiritualQuestion(
+    AnonymousSpiritualQuestionModel question,
+  ) async {
     try {
-      await _firestore.collection('spiritual_questions').doc(question.id).set(
-        question.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('spiritual_questions')
+          .doc(question.id)
+          .set(question.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore submit spiritual question error: $e');
     }
@@ -363,25 +433,30 @@ class FirestoreService {
   }
 
   Future<void> upsertCharityCampaign(CharityCampaignModel campaign) async {
-    final inst = _firestoreInstance;
-    if (inst == null) return;
     try {
-      await inst.collection('charity_campaigns').doc(campaign.id).set(
-        campaign.toMap(),
-        SetOptions(merge: true),
-      );
+      await FirebaseCallableService.instance.call('saveCharityCampaign', {
+        'campaignId': campaign.id,
+        'title': campaign.title,
+        'description': campaign.description,
+        'targetAmount': campaign.targetAmount,
+        'deadline': campaign.deadline.toIso8601String(),
+        'isEmergency': campaign.isEmergency,
+        'category': campaign.category,
+      });
     } catch (e) {
       debugPrint('Firestore upsert charity campaign error: $e');
+      rethrow;
     }
   }
 
   Future<void> deleteCharityCampaign(String campaignId) async {
-    final inst = _firestoreInstance;
-    if (inst == null) return;
     try {
-      await inst.collection('charity_campaigns').doc(campaignId).delete();
+      await FirebaseCallableService.instance.call('deleteCharityCampaign', {
+        'campaignId': campaignId,
+      });
     } catch (e) {
       debugPrint('Firestore delete charity campaign error: $e');
+      rethrow;
     }
   }
 
@@ -395,26 +470,28 @@ class FirestoreService {
     final inst = _firestoreInstance;
     if (inst == null) return;
     try {
-      await inst.collection('emergency_aid_requests').doc(req.id).set(
-        req.toMap(),
-        SetOptions(merge: true),
-      );
+      await inst
+          .collection('emergency_aid_requests')
+          .doc(req.id)
+          .set(req.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore submit aid request error: $e');
     }
   }
 
-  Future<void> updateAidRequestStatus(String reqId, String status, {String? adminNote}) async {
-    final inst = _firestoreInstance;
-    if (inst == null) return;
+  Future<void> updateAidRequestStatus(
+    String reqId,
+    String status, {
+    String? adminNote,
+  }) async {
     try {
-      await inst.collection('emergency_aid_requests').doc(reqId).set({
-        'status': status,
-        if (adminNote != null) 'adminNote': adminNote,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await FirebaseCallableService.instance.call(
+        'updateEmergencyAidRequestStatus',
+        {'requestId': reqId, 'status': status, 'adminNote': adminNote ?? ''},
+      );
     } catch (e) {
       debugPrint('Firestore update aid request status error: $e');
+      rethrow;
     }
   }
 
@@ -428,10 +505,10 @@ class FirestoreService {
     final inst = _firestoreInstance;
     if (inst == null) return;
     try {
-      await inst.collection('financial_dues').doc(due.id).set(
-        due.toMap(),
-        SetOptions(merge: true),
-      );
+      await inst
+          .collection('financial_dues')
+          .doc(due.id)
+          .set(due.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore record dues payment error: $e');
     }
@@ -453,27 +530,32 @@ class FirestoreService {
     return inst.collection('charity_disbursements').snapshots();
   }
 
-  Future<void> recordCharityDisbursement(CharityDisbursementModel disbursement) async {
-    final inst = _firestoreInstance;
-    if (inst == null) return;
+  Future<String> recordCharityDisbursement(
+    CharityDisbursementModel disbursement,
+  ) async {
     try {
-      await inst.collection('charity_disbursements').doc(disbursement.id).set(
-        disbursement.toMap(),
-        SetOptions(merge: true),
+      final result = await FirebaseCallableService.instance.call(
+        'createCharityDisbursement',
+        {
+          'beneficiaryName': disbursement.beneficiaryName,
+          'assistanceType': disbursement.assistanceType,
+          'amount': disbursement.amount,
+          'paymentMethod': disbursement.paymentMethod,
+          'voucherReference': disbursement.voucherReference,
+          'notes': disbursement.notes,
+        },
       );
+      return result['disbursementId'].toString();
     } catch (e) {
       debugPrint('Firestore record charity disbursement error: $e');
+      rethrow;
     }
   }
 
   Future<void> deleteCharityDisbursement(String disbursementId) async {
-    final inst = _firestoreInstance;
-    if (inst == null) return;
-    try {
-      await inst.collection('charity_disbursements').doc(disbursementId).delete();
-    } catch (e) {
-      debugPrint('Firestore delete charity disbursement error: $e');
-    }
+    throw StateError(
+      'Disbursement records are immutable and cannot be deleted from the app.',
+    );
   }
 
   // ===========================================================================
@@ -486,10 +568,10 @@ class FirestoreService {
 
   Future<void> upsertChurchProgram(ChurchProgramModel program) async {
     try {
-      await _firestore.collection('church_programs').doc(program.id).set(
-        program.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('church_programs')
+          .doc(program.id)
+          .set(program.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert church program error: $e');
     }
@@ -508,25 +590,29 @@ class FirestoreService {
   // ===========================================================================
 
   Stream<QuerySnapshot<Map<String, dynamic>>> streamTriviaQuizzes() {
-    return _firestore.collection('trivia_quizzes').snapshots();
+    return _firestore.collection('trivia_public_quizzes').snapshots();
   }
 
   Future<void> upsertTriviaQuiz(TriviaQuizModel quiz) async {
     try {
-      await _firestore.collection('trivia_quizzes').doc(quiz.id).set(
-        quiz.toMap(),
-        SetOptions(merge: true),
-      );
+      await FirebaseCallableService.instance.call('saveTriviaQuiz', {
+        'quizId': quiz.id,
+        ...quiz.toMap(),
+      });
     } catch (e) {
       debugPrint('Firestore upsert trivia quiz error: $e');
+      rethrow;
     }
   }
 
   Future<void> deleteTriviaQuiz(String quizId) async {
     try {
-      await _firestore.collection('trivia_quizzes').doc(quizId).delete();
+      await FirebaseCallableService.instance.call('deleteTriviaQuiz', {
+        'quizId': quizId,
+      });
     } catch (e) {
       debugPrint('Firestore delete trivia quiz error: $e');
+      rethrow;
     }
   }
 
@@ -536,10 +622,10 @@ class FirestoreService {
 
   Future<void> upsertLibraryItem(LibraryItemModel item) async {
     try {
-      await _firestore.collection('library_items').doc(item.id).set(
-        item.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('library_items')
+          .doc(item.id)
+          .set(item.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert library item error: $e');
     }
@@ -591,12 +677,14 @@ class FirestoreService {
     return _firestore.collection('department_broadcasts').snapshots();
   }
 
-  Future<void> upsertDepartmentBroadcast(DepartmentBroadcastMessageModel broadcast) async {
+  Future<void> upsertDepartmentBroadcast(
+    DepartmentBroadcastMessageModel broadcast,
+  ) async {
     try {
-      await _firestore.collection('department_broadcasts').doc(broadcast.id).set(
-        broadcast.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('department_broadcasts')
+          .doc(broadcast.id)
+          .set(broadcast.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert department broadcast error: $e');
     }
@@ -606,12 +694,14 @@ class FirestoreService {
     return _firestore.collection('department_applications').snapshots();
   }
 
-  Future<void> submitDepartmentApplication(VolunteerApplicationModel app) async {
+  Future<void> submitDepartmentApplication(
+    VolunteerApplicationModel app,
+  ) async {
     try {
-      await _firestore.collection('department_applications').doc(app.id).set(
-        app.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('department_applications')
+          .doc(app.id)
+          .set(app.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore submit department application error: $e');
     }
@@ -623,10 +713,10 @@ class FirestoreService {
 
   Future<void> upsertDepartmentMember(DepartmentMemberModel member) async {
     try {
-      await _firestore.collection('department_members').doc(member.id).set(
-        member.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('department_members')
+          .doc(member.id)
+          .set(member.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert department member error: $e');
     }
@@ -636,12 +726,14 @@ class FirestoreService {
     return _firestore.collection('fundraising_proposals').snapshots();
   }
 
-  Future<void> upsertFundraisingProposal(FundraisingProposalModel proposal) async {
+  Future<void> upsertFundraisingProposal(
+    FundraisingProposalModel proposal,
+  ) async {
     try {
-      await _firestore.collection('fundraising_proposals').doc(proposal.id).set(
-        proposal.toMap(),
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('fundraising_proposals')
+          .doc(proposal.id)
+          .set(proposal.toMap(), SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore upsert fundraising proposal error: $e');
     }
@@ -654,56 +746,14 @@ class FirestoreService {
   Stream<QuerySnapshot<Map<String, dynamic>>> streamTriviaLeaderboard() {
     return _firestore
         .collection('trivia_scores')
+        .where('trustedScoreVersion', isEqualTo: 1)
         .orderBy('totalScore', descending: true)
         .limit(50)
         .snapshots();
   }
 
-  Future<void> submitQuizScore({
-    required String studentUid,
-    required String studentName,
-    required String quizId,
-    required int score,
-    required int maxScore,
-  }) async {
-    try {
-      final scoreDoc = _firestore.collection('trivia_scores').doc(studentUid);
-      final doc = await scoreDoc.get();
-
-      if (doc.exists) {
-        await scoreDoc.update({
-          'studentName': studentName,
-          'totalScore': FieldValue.increment(score),
-          'quizzesCompleted': FieldValue.increment(1),
-          'lastActive': FieldValue.serverTimestamp(),
-        });
-      } else {
-        await scoreDoc.set({
-          'studentUid': studentUid,
-          'studentName': studentName,
-          'totalScore': score,
-          'quizzesCompleted': 1,
-          'lastActive': FieldValue.serverTimestamp(),
-        });
-      }
-    } catch (e) {
-      debugPrint('Firestore submit quiz score error: $e');
-    }
-  }
-
   Stream<QuerySnapshot<Map<String, dynamic>>> streamQuizAttempts() {
     return _firestore.collection('quiz_attempts').snapshots();
-  }
-
-  Future<void> recordQuizAttempt(QuizAttemptModel attempt) async {
-    try {
-      await _firestore.collection('quiz_attempts').doc(attempt.id).set(
-        attempt.toMap(),
-        SetOptions(merge: true),
-      );
-    } catch (e) {
-      debugPrint('Firestore record quiz attempt error: $e');
-    }
   }
 
   // ===========================================================================
@@ -739,17 +789,26 @@ class FirestoreService {
     try {
       // 1. Users
       for (final u in students) {
-        await _firestore.collection('users').doc(u.id).set(u.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('users')
+            .doc(u.id)
+            .set(u.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
       for (final u in pendingApprovals) {
-        await _firestore.collection('users').doc(u.id).set(u.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('users')
+            .doc(u.id)
+            .set(u.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 2. Families
       for (final f in families) {
-        await _firestore.collection('families').doc(f.id).set(f.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('families')
+            .doc(f.id)
+            .set(f.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
       await _firestore.collection('app_config').doc('family_roster').set({
@@ -759,142 +818,166 @@ class FirestoreService {
 
       // 3. Pilgrimage Trips
       for (final t in pilgrimageTrips) {
-        await _firestore.collection('pilgrimage_trips').doc(t.id).set(t.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('pilgrimage_trips')
+            .doc(t.id)
+            .set(t.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 4. Trip Registrations
       for (final r in tripRegistrations) {
-        await _firestore.collection('trip_registrations').doc(r.id).set(r.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('trip_registrations')
+            .doc(r.id)
+            .set(r.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 5. Library Items
       for (final l in libraryItems) {
-        await _firestore.collection('library_items').doc(l.id).set(l.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('library_items')
+            .doc(l.id)
+            .set(l.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 6. Church Programs
       for (final p in programs) {
-        await _firestore.collection('church_programs').doc(p.id).set(p.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('church_programs')
+            .doc(p.id)
+            .set(p.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 7. Department Broadcasts
       for (final b in broadcasts) {
-        await _firestore.collection('department_broadcasts').doc(b.id).set(b.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('department_broadcasts')
+            .doc(b.id)
+            .set(b.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 8. Fundraising Proposals
       for (final fp in proposals) {
-        await _firestore.collection('fundraising_proposals').doc(fp.id).set(fp.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('fundraising_proposals')
+            .doc(fp.id)
+            .set(fp.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 9. Department Applications
       for (final app in applications) {
-        await _firestore.collection('department_applications').doc(app.id).set(app.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('department_applications')
+            .doc(app.id)
+            .set(app.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 10. Department Members
       for (final m in members) {
-        await _firestore.collection('department_members').doc(m.id).set(m.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('department_members')
+            .doc(m.id)
+            .set(m.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 11. Confessors
       for (final cf in confessors) {
-        await _firestore.collection('confessors').doc(cf.id).set(cf.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('confessors')
+            .doc(cf.id)
+            .set(cf.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 12. Appointments
       for (final ca in appointments) {
-        await _firestore.collection('confession_appointments').doc(ca.id).set(ca.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('confession_appointments')
+            .doc(ca.id)
+            .set(ca.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 13. Questions
       for (final sq in questions) {
-        await _firestore.collection('spiritual_questions').doc(sq.id).set(sq.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('spiritual_questions')
+            .doc(sq.id)
+            .set(sq.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 14. Campaigns
       for (final cc in campaigns) {
-        await _firestore.collection('charity_campaigns').doc(cc.id).set(cc.toMap(), SetOptions(merge: true));
+        await upsertCharityCampaign(cc);
         totalDocs++;
       }
 
-      // 15. Financial Dues
-      for (final d in dues) {
-        await _firestore.collection('financial_dues').doc(d.id).set(d.toMap(), SetOptions(merge: true));
-        totalDocs++;
-      }
-
-      // 16. Disbursements
-      for (final cd in disbursements) {
-        await _firestore.collection('charity_disbursements').doc(cd.id).set(cd.toMap(), SetOptions(merge: true));
-        totalDocs++;
-      }
-
-      // 17. Aid Requests
-      for (final ear in aidRequests) {
-        await _firestore.collection('emergency_aid_requests').doc(ear.id).set(ear.toMap(), SetOptions(merge: true));
-        totalDocs++;
-      }
+      // Financial dues, disbursements, and aid requests are never bulk-seeded
+      // through a Firestore client. They require owner or server validation.
 
       // 18. Mentors
       for (final am in mentors) {
-        await _firestore.collection('academic_mentors').doc(am.id).set(am.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('academic_mentors')
+            .doc(am.id)
+            .set(am.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 19. Mentorship Requests
       for (final mr in mentorshipRequests) {
-        await _firestore.collection('mentorship_requests').doc(mr.id).set(mr.toMap(), SetOptions(merge: true));
-        totalDocs++;
-      }
-
-      // 20. Quiz Attempts
-      for (final qa in quizAttempts) {
-        await _firestore.collection('quiz_attempts').doc(qa.id).set(qa.toMap(), SetOptions(merge: true));
+        await _firestore
+            .collection('mentorship_requests')
+            .doc(mr.id)
+            .set(mr.toMap(), SetOptions(merge: true));
         totalDocs++;
       }
 
       // 20.1 Trivia Quizzes (Weekly Faith Challenges)
       for (final tq in triviaQuizzes) {
-        await _firestore.collection('trivia_quizzes').doc(tq.id).set(tq.toMap(), SetOptions(merge: true));
+        await upsertTriviaQuiz(tq);
         totalDocs++;
       }
 
       // 21. Active Attendance Session
-      await _firestore.collection('attendance_sessions').doc(activeSession.sessionId).set(
-        {
-          'sessionId': activeSession.sessionId,
-          'courseName': activeSession.courseName,
-          'courseCode': activeSession.courseCode,
-          'faculty': activeSession.faculty,
-          'code': activeSession.code,
-          'rollingPin': activeSession.rollingPin,
-          'generatedAt': activeSession.generatedAt.toIso8601String(),
-          'refreshIntervalSeconds': activeSession.refreshIntervalSeconds,
-          'totalEnrolled': activeSession.totalEnrolled,
-          'scans': activeSession.scans.map((s) => {
-            'studentId': s.studentId,
-            'studentName': s.studentName,
-            'timestamp': s.timestamp.toIso8601String(),
-            'status': s.status.name,
-          }).toList(),
-        },
-        SetOptions(merge: true),
-      );
+      await _firestore
+          .collection('attendance_sessions')
+          .doc(activeSession.sessionId)
+          .set({
+            'sessionId': activeSession.sessionId,
+            'courseName': activeSession.courseName,
+            'courseCode': activeSession.courseCode,
+            'faculty': activeSession.faculty,
+            'code': activeSession.code,
+            'rollingPin': activeSession.rollingPin,
+            'generatedAt': activeSession.generatedAt.toIso8601String(),
+            'refreshIntervalSeconds': activeSession.refreshIntervalSeconds,
+            'totalEnrolled': activeSession.totalEnrolled,
+            'scans': activeSession.scans
+                .map(
+                  (s) => {
+                    'studentId': s.studentId,
+                    'studentName': s.studentName,
+                    'timestamp': s.timestamp.toIso8601String(),
+                    'status': s.status.name,
+                  },
+                )
+                .toList(),
+          }, SetOptions(merge: true));
       totalDocs++;
 
-      debugPrint('Firestore bulk seeding complete! Total docs pushed: $totalDocs');
+      debugPrint(
+        'Firestore bulk seeding complete! Total docs pushed: $totalDocs',
+      );
     } catch (e) {
       debugPrint('Firestore seedCompleteDatabase notice: $e');
     }

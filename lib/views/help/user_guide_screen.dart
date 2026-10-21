@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
+import '../onboarding/fellowship_onboarding_screen.dart';
 
 /// Interactive In-App User Guide & Fellowship Manual (የተጠቃሚ መመሪያ)
 class UserGuideScreen extends StatefulWidget {
@@ -136,6 +137,33 @@ class _UserGuideScreenState extends State<UserGuideScreen> {
                       Text(
                         'የመተግበሪያውን አገልግሎቶች፣ የመገኘት ክትትል (Attendance)፣ መንፈሳዊ ቤተሰብ እና የንስሐ አባት አጠቃቀም ደረጃ በደረጃ ይወቁ።',
                         style: TextStyle(fontSize: 12, color: textMuted, height: 1.4),
+                      ),
+                      const SizedBox(height: 10),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FellowshipOnboardingScreen(
+                                state: widget.state,
+                                onFinish: () => Navigator.pop(context),
+                                onSignIn: () => Navigator.pop(context),
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.auto_awesome, size: 15, color: Colors.black),
+                        label: const Text(
+                          'Start Sacred App Tour • የመተግበሪያ ጉብኝት',
+                          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 11),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.gold,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
                       ),
                     ],
                   ),

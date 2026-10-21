@@ -90,6 +90,11 @@ extension MockDataSeeder on FellowshipState {
         assignedFamilyId: 'fam-st-tekle',
       ),
     ];
+    // Demo accounts stand in for approved cloud users so demo matching follows
+    // the same eligibility rules as the production roster.
+    _allStudents = _allStudents
+        .map((user) => user.copyWith(isApproved: true))
+        .toList();
 
     // Pending Approvals Queue
     _pendingApprovals = [
@@ -184,6 +189,8 @@ extension MockDataSeeder on FellowshipState {
         memberIds: ['usr-5', 'usr-6', 'usr-7'],
       ),
     ];
+    _isFamilyPublished =
+        _families.isNotEmpty && _families.every((family) => family.isPublished);
 
     // 3. Live Attendance Session
     _activeSession = AttendanceSessionModel(
@@ -279,7 +286,10 @@ extension MockDataSeeder on FellowshipState {
             id: 'l1',
             title: 'Week 1: The Nicene-Constantinopolitan Creed',
             summary: 'Comprehensive line-by-line exposition of the 12 articles of Christian Orthodox belief.',
-            readingList: ['Creed Commentary - St. Athanasius', 'Faith of the 318 Fathers'],
+            readingList: [
+              'Creed Commentary - St. Athanasius',
+              'Faith of the 318 Fathers',
+            ],
             isDownloaded: true,
           ),
           LessonModel(
@@ -305,15 +315,22 @@ extension MockDataSeeder on FellowshipState {
           LessonModel(
             id: 'l3',
             title: 'Week 1: St. Athanasius on the Incarnation',
-            summary: 'Exegesis of De Incarnatione Verbi Dei and victory over death.',
-            readingList: ['On the Incarnation Chapters 1-4', 'St. Cyril Letters to Nestorius'],
+            summary:
+                'Exegesis of De Incarnatione Verbi Dei and victory over death.',
+            readingList: [
+              'On the Incarnation Chapters 1-4',
+              'St. Cyril Letters to Nestorius',
+            ],
             isDownloaded: false,
           ),
           LessonModel(
             id: 'l4',
             title: 'Week 2: The Desert Fathers & Asceticism',
             summary: 'Sayings of Abba Anthony, Macarius, and monastic spirituality in Christian fellowship.',
-            readingList: ['Apophthegmata Patrum', 'Spiritual Ladder of St. John Climacus'],
+            readingList: [
+              'Apophthegmata Patrum',
+              'Spiritual Ladder of St. John Climacus',
+            ],
             isDownloaded: false,
           ),
           LessonModel(
@@ -404,7 +421,8 @@ extension MockDataSeeder on FellowshipState {
         telegramUrl: 'https://t.me/WCU_Orthodox_Library/104',
         sourceUrl: 'https://t.me/WCU_Orthodox_Library',
         audioDuration: '38 mins',
-        lyricsOrExcerpts: 'በስመ አብ ወወልድ ወመንፈስ ቅዱስ አሐዱ አምላክ\nምስጋና ለቅድስት ድንግል ማርያም ይሁን...',
+        lyricsOrExcerpts:
+            'በስመ አብ ወወልድ ወመንፈስ ቅዱስ አሐዱ አምላክ\nምስጋና ለቅድስት ድንግል ማርያም ይሁን...',
       ),
       LibraryItemModel(
         id: 'lib-5',
@@ -426,7 +444,11 @@ extension MockDataSeeder on FellowshipState {
         title: 'Upcoming Sunday Divine Liturgy',
         churchName: 'St. Mary\'s Orthodox Church',
         dateTime: DateTime.now().add(const Duration(hours: 2, minutes: 15)),
-        initialDurationRemaining: const Duration(hours: 2, minutes: 15, seconds: 45),
+        initialDurationRemaining: const Duration(
+          hours: 2,
+          minutes: 15,
+          seconds: 45,
+        ),
         description: 'Solemn Kidase gathering for WCU university students with morning sermon and Eucharistic communion.',
         category: 'Liturgy',
       ),
@@ -569,7 +591,8 @@ extension MockDataSeeder on FellowshipState {
         appliedAt: DateTime.now().subtract(const Duration(days: 2)),
         reviewedAt: DateTime.now().subtract(const Duration(days: 1)),
         reviewedByCoordinator: 'Rahel Tesfaye (Charity Coordinator)',
-        coordinatorNotes: 'Welcome aboard Mikias! Please join the Saturday 2:00 PM briefing.',
+        coordinatorNotes:
+            'Welcome aboard Mikias! Please join the Saturday 2:00 PM briefing.',
       ),
       VolunteerApplicationModel(
         id: 'app-sample-4',
@@ -663,20 +686,23 @@ extension MockDataSeeder on FellowshipState {
         objective: 'ለተማሪዎች መንፈሳዊ ጉዞ እና ለተቸገሩ አባላት የዕለት ድጋፍ የሚውል ገቢ ማሰባሰብ።',
         targetAmount: 75000.0,
         expectedExpenses: 8000.0,
-        proposedStrategy: 'የበዓላት ዳቦና ሻማ ሽያጭ፣ የኦርቶዶክሳዊ መጻሕፍትና መዛሙርት አውደ ርዕይ፣ የፎቶ ማስታወሻዎች።',
+        proposedStrategy:
+            'የበዓላት ዳቦና ሻማ ሽያጭ፣ የኦርቶዶክሳዊ መጻሕፍትና መዛሙርት አውደ ርዕይ፣ የፎቶ ማስታወሻዎች።',
         targetAudience: 'የግቢው ተማሪዎች፣ መምህራንና የከተማው ኦርቶዶክሳውያን ምዕመናን',
         category: 'Bazaar & Exhibition (ባዛርና አውደ ርዕይ)',
         timelineOrDuration: '2 Weeks (Meskerem 14 - 28)',
         submittedByName: 'Ermias Berhanu',
         submittedAt: DateTime.now().subtract(const Duration(days: 4)),
         status: ProposalStatus.approved,
-        adminReviewNotes: 'ታላቅ እቅድ ነው፤ የቦታ ፈቃድ ከግቢው አስተዳደር ጋር ተነጋግረን አጠናቀናል። ተፈቅዷል!',
+        adminReviewNotes:
+            'ታላቅ እቅድ ነው፤ የቦታ ፈቃድ ከግቢው አስተዳደር ጋር ተነጋግረን አጠናቀናል። ተፈቅዷል!',
         reviewedAt: DateTime.now().subtract(const Duration(days: 2)),
       ),
       FundraisingProposalModel(
         id: 'prop-2',
         title: 'የቀድሞ ተማሪዎች (Alumni Fellowship) የቋሚ ድጋፍ ፈንድ',
-        objective: 'ከተመረቁ የቀድሞ የግቢ ጉባኤ አባላት ጋር ኔትወርክ በመፍጠር ወርሃዊ የድጋፍ ስምምነት መመስረት።',
+        objective:
+            'ከተመረቁ የቀድሞ የግቢ ጉባኤ አባላት ጋር ኔትወርክ በመፍጠር ወርሃዊ የድጋፍ ስምምነት መመስረት።',
         targetAmount: 120000.0,
         expectedExpenses: 3500.0,
         proposedStrategy: 'የቴሌግራም ቦትና የባንክ ቋሚ ትእዛዝ (Standing Order) በማዘጋጀት ወርሃዊ የ100 ብር አባልነት ማስተባበር።',
@@ -693,14 +719,16 @@ extension MockDataSeeder on FellowshipState {
         objective: 'ለግቢ ጉባኤው ቤተ መጻሕፍት ማስፋፊያ እና ድምፅ ማጉያ ዕቃዎች ግዢ የሚውል ፈንድ ማሰባሰብ።',
         targetAmount: 45000.0,
         expectedExpenses: 4000.0,
-        proposedStrategy: 'በግቢው ካምፓስ ዋና መተላለፊያ ላይ የሥነ ጥበብ አውደ ርዕይ በማዘጋጀት ሽያጭ ማካሄድ።',
+        proposedStrategy:
+            'በግቢው ካምፓስ ዋና መተላለፊያ ላይ የሥነ ጥበብ አውደ ርዕይ በማዘጋጀት ሽያጭ ማካሄድ።',
         targetAudience: 'የዩኒቨርሲቲው ተማሪዎችና የከተማ ምዕመናን',
         category: 'Sacred Artifacts (የንዋያተ ቅድሳት ሽያጭ)',
         timelineOrDuration: '3 Days (Tikimt 5 - 7)',
         submittedByName: 'Ermias Berhanu',
         submittedAt: DateTime.now().subtract(const Duration(days: 6)),
         status: ProposalStatus.rejected,
-        adminReviewNotes: 'የቦታ ፈቃድ ደብዳቤ ከዩኒቨርሲቲው ዲን ገና ስላልተፈረመ፣ ፈቃዱ ሲያልቅ እንደገና እንዲቀርብ።',
+        adminReviewNotes:
+            'የቦታ ፈቃድ ደብዳቤ ከዩኒቨርሲቲው ዲን ገና ስላልተፈረመ፣ ፈቃዱ ሲያልቅ እንደገና እንዲቀርብ።',
         reviewedAt: DateTime.now().subtract(const Duration(days: 3)),
       ),
     ];
@@ -727,7 +755,8 @@ extension MockDataSeeder on FellowshipState {
 ዘአልቦ ጥንት ወዘአልቦ ማኅለቅት ዘከማሁ።
 እስመ ውእቱ አክበረኪ ወአልዐለኪ እምኩሉ ፍጥረት።
 ኪሩቤል ወሱራፌል ይሰግዱ ለኪ ወይዌድሱኪ በዕለተ ዕረፍት።''',
-          amharicText: '''ጌታ ልቡ ያዘነና የተከዘ አዳምን ነፃ ያወጣው ዘንድ፥ ወደ ቀደመ ቦታውም ይመልሰው ዘንድ ወደደ።
+          amharicText:
+              '''ጌታ ልቡ ያዘነና የተከዘ አዳምን ነፃ ያወጣው ዘንድ፥ ወደ ቀደመ ቦታውም ይመልሰው ዘንድ ወደደ።
 ንጽሕት ድንግል ሆይ፥ መልካም አክሊላችን አንቺ ነሽ።
 ጥፋት የሌለብሽ ንጽሕት ድንግል ሆይ ደስ ይበልሽ፤ ከአንቺ የተወለደው የቅዱሳን አምላክ ነው።
 እርሱ መጀመሪያና መጨረሻ የሌለው ነው።
@@ -776,7 +805,8 @@ extension MockDataSeeder on FellowshipState {
 ተፈሥሒ ኦ ምልዕተ ጸጋ ዘተወልደ እምኔኪ ክርስቶስ።
 ብርሃን ዘእምብርሃን፡ አምላክ ዘእምአምላክ ዘበአማን።
 ወልደ እግዚአብሔር ሕያው።''',
-          amharicText: '''ሙሴ በእሳት ነበልባል ስትነድድ ሳለች ያልተቃጠለች ያያት ዛፍ (ዕፀ ጳጦስ) ማርያም ናት።
+          amharicText:
+              '''ሙሴ በእሳት ነበልባል ስትነድድ ሳለች ያልተቃጠለች ያያት ዛፍ (ዕፀ ጳጦስ) ማርያም ናት።
 የመለኮቱ እሳት ነበልባል አላቃጠላትምና።
 ጸጋን የተመላሽ ሆይ ደስ ይበልሽ፤ ከአንቺ የተወለደው ክርስቶስ ነው።
 ከብርሃን የተገኘ ብርሃን፥ ከእውነተኛ አምላክ የተገኘ እውነተኛ አምላክ ነው።
@@ -807,7 +837,8 @@ extension MockDataSeeder on FellowshipState {
 እስመ እምኔኪ ተወልደ ፀሐየ ጽድቅ።
 ዘአብርሃ ለኩሉ ፍጥረት በብርሃነ መለኮቱ።
 ተፈሥሒ ኦ ድንግል ንጽሕት ዘአስተርአየ በላዕሌኪ ስብሐተ እግዚአብሔር።''',
-          amharicText: '''ድንግል ማርያም ሆይ አንቺ ቅድስትና የተመሰገንሽ ነሽ፤ የእውነት ታቦትና የሰላም ማደሪያ ነሽ።
+          amharicText:
+              '''ድንግል ማርያም ሆይ አንቺ ቅድስትና የተመሰገንሽ ነሽ፤ የእውነት ታቦትና የሰላም ማደሪያ ነሽ።
 ከአንቺ የጽድቅ ፀሐይ ተወልዷልና።
 በመለኮቱ ብርሃን ለፍጥረት ሁሉ ያበራ።
 የእግዚአብሔር ክብር በአንቺ ላይ የታየ ንጽሕት ድንግል ሆይ ደስ ይበልሽ።''',
@@ -821,7 +852,8 @@ extension MockDataSeeder on FellowshipState {
 እስመ ተወልደ እምኔኪ መድኅነ ዓለም።
 ተፈሥሒ ኦ ድንግል ምልዕተ ጸጋ፡ እግዚአብሔር ምስሌኪ።
 ኪሩቤል ወሱራፌል ይሰግዱ ለኪ።''',
-          amharicText: '''መላእክት በመጋረጃው ውስጥ ሆነው ማርያምን ያመሰግኗታል፤ ከሴቶች ሁሉ አንቺ የተባረክሽ ነሽ ይላሉ።
+          amharicText:
+              '''መላእክት በመጋረጃው ውስጥ ሆነው ማርያምን ያመሰግኗታል፤ ከሴቶች ሁሉ አንቺ የተባረክሽ ነሽ ይላሉ።
 የዓለም መድኃኒት ከአንቺ ተወልዷልና።
 ጸጋን የተመላሽ ድንግል ሆይ ደስ ይበልሽ፤ እግዚአብሔር ከአንቺ ጋር ነው።
 ኪሩቤልና ሱራፌል ይሰግዱልሻል።''',
@@ -854,7 +886,8 @@ extension MockDataSeeder on FellowshipState {
           titleGeEz: 'አቡነ ዘበሰማያት',
           titleAmharic: 'የጌታ ጸሎት (አባታችን ሆይ)',
           titleEn: 'The Lord’s Prayer (Our Father)',
-          geEzText: '''አቡነ ዘበሰማያት፡ ይቀደስ ስምከ፡ ትምጻእ መንግሥትከ፡ ለይኩን ፈቃድከ በከመ በሰማይ ከማሁ በምድር።
+          geEzText:
+              '''አቡነ ዘበሰማያት፡ ይቀደስ ስምከ፡ ትምጻእ መንግሥትከ፡ ለይኩን ፈቃድከ በከመ በሰማይ ከማሁ በምድር።
 ሲሳየነ ዘለለ ዕለትነ ሀበነ ዮም፡ ኅድግ ለነ አበሳነ ወጌጋየነ በከመ ንሕነኒ ንኅድግ ለዘአበሰ ለነ።
 ኢታብአነ እግዚኦ ውስተ መንሱት፡ አላ አድኅነነ ወባልሐነ እምኩሉ እኩይ።
 እስመ ዚአከ ይእቲ መንግሥት ኃይል ወስብሐት ለዓለመ ዓለም አሜን።''',
@@ -936,7 +969,8 @@ extension MockDataSeeder on FellowshipState {
       CommunionChecklistItem(
         id: 'chk-1',
         title: 'Confession with Spiritual Father (ንስሐ መግባት)',
-        description: 'Have a valid, recent confession and spiritual absolution.',
+        description:
+            'Have a valid, recent confession and spiritual absolution.',
         isChecked: true,
       ),
       CommunionChecklistItem(
@@ -1025,7 +1059,8 @@ extension MockDataSeeder on FellowshipState {
       PilgrimageTripModel(
         id: 'trip-local',
         title: 'Local Monastery Blessing & Prayer Retreat (የአካባቢ ገዳማት ጉብኝት)',
-        destination: 'St. George & Debre Tsion Local Monastery (Gurage/Hosanna)',
+        destination:
+            'St. George & Debre Tsion Local Monastery (Gurage/Hosanna)',
         departureDate: DateTime.now().add(const Duration(days: 7)),
         returnDate: DateTime.now().add(const Duration(days: 7, hours: 10)),
         departurePoint: 'WCU Library Square',
@@ -1107,7 +1142,8 @@ extension MockDataSeeder on FellowshipState {
       ),
       CharityCampaignModel(
         id: 'camp-orphan',
-        title: 'Semester Orphanage & Hospital Care Outreach (የሆስፒታልና የህፃናት ማሳደጊያ)',
+        title:
+            'Semester Orphanage & Hospital Care Outreach (የሆስፒታልና የህፃናት ማሳደጊያ)',
         description: 'Provide hygiene supplies, books, clothing, and spiritual companionship to hospitalized patients and orphaned children in Hosanna town.',
         targetAmount: 25000.0,
         raisedAmount: 18750.0,
@@ -1192,7 +1228,11 @@ extension MockDataSeeder on FellowshipState {
         baptismalName: 'Gebre Kristos',
         department: 'Computer Science',
         academicYear: 4,
-        specialties: ['Data Structures & Algorithms', 'Flutter & Mobile App Dev', 'Database Systems'],
+        specialties: [
+          'Data Structures & Algorithms',
+          'Flutter & Mobile App Dev',
+          'Database Systems',
+        ],
         telegramHandle: '@abel_fellowship_cs',
         phoneNumber: '+251911335577',
         activeMenteesCount: 2,
@@ -1206,7 +1246,11 @@ extension MockDataSeeder on FellowshipState {
         baptismalName: 'Walata Maryam',
         department: 'Medicine & Health Sciences',
         academicYear: 5,
-        specialties: ['Anatomy & Physiology', 'Pathology & Pharmacology', 'Clinical Study Skills'],
+        specialties: [
+          'Anatomy & Physiology',
+          'Pathology & Pharmacology',
+          'Clinical Study Skills',
+        ],
         telegramHandle: '@selam_med_mentor',
         phoneNumber: '+251922446688',
         activeMenteesCount: 1,
@@ -1220,7 +1264,11 @@ extension MockDataSeeder on FellowshipState {
         baptismalName: 'Haile Georgis',
         department: 'Civil Engineering',
         academicYear: 4,
-        specialties: ['Structural Analysis', 'Fluid Mechanics', 'Engineering Mathematics'],
+        specialties: [
+          'Structural Analysis',
+          'Fluid Mechanics',
+          'Engineering Mathematics',
+        ],
         telegramHandle: '@ermias_civil_wcu',
         phoneNumber: '+251933557799',
         activeMenteesCount: 2,
@@ -1234,7 +1282,11 @@ extension MockDataSeeder on FellowshipState {
         baptismalName: 'Kirstos Samra',
         department: 'Accounting & Finance',
         academicYear: 3,
-        specialties: ['Cost Accounting', 'Financial Management', 'Business Statistics'],
+        specialties: [
+          'Cost Accounting',
+          'Financial Management',
+          'Business Statistics',
+        ],
         telegramHandle: '@mahlet_acct',
         phoneNumber: '+251944668800',
         activeMenteesCount: 0,
@@ -1253,7 +1305,8 @@ extension MockDataSeeder on FellowshipState {
         academicYear: _currentUser.academicYear,
         mentorId: 'mnt-1',
         mentorName: 'Abel Tesfaye',
-        coursesNeeded: 'Data Structures and Algorithm optimization in C++ / Dart',
+        coursesNeeded:
+            'Data Structures and Algorithm optimization in C++ / Dart',
         status: MentorshipStatus.matched,
         requestedAt: DateTime.now().subtract(const Duration(days: 6)),
       ),
@@ -1272,7 +1325,12 @@ extension MockDataSeeder on FellowshipState {
             id: 'tq-1',
             questionAmharic: 'በኢትዮጵያ ኦርቶዶክስ ተዋሕዶ ቤተክርስቲያን እምነት መሠረት እግዚአብሔር በስም፣ በአካል፣ በግብር ሦስት ሲሆን በምን አንድ ነው?',
             questionEnglish: 'According to Orthodox Dogmatics, God is three in Name, Person, and Attribute. In what is God ONE?',
-            options: ['በባሕርይ፣ በህልውና እና በመለኮት (In Essence, Existence & Divinity)', 'በአካል ብቻ (In Person only)', 'በግብር ብቻ (In Attribute only)', 'በስም ብቻ (In Name only)'],
+            options: [
+              'በባሕርይ፣ በህልውና እና በመለኮት (In Essence, Existence & Divinity)',
+              'በአካል ብቻ (In Person only)',
+              'በግብር ብቻ (In Attribute only)',
+              'በስም ብቻ (In Name only)',
+            ],
             correctOptionIndex: 0,
             explanation: 'እግዚአብሔር በአንድ መለኮት፣ በአንድ ባሕርይ፣ በአንድ ፈቃድና ሥልጣን አንዲት አምላክ ነው። (Deut 6:4, John 10:30)',
             bibleReference: 'ዘዳግም 6፥4 / ዮሐንስ 10፥30',
@@ -1281,7 +1339,12 @@ extension MockDataSeeder on FellowshipState {
             id: 'tq-2',
             questionAmharic: 'የእመቤታችን ቅድስት ድንግል ማርያም የዘወትር ውዳሴ (ውዳሴ ማርያም) የደረሰው ቅዱስ አባት ማን ይባላል?',
             questionEnglish: 'Which Saint composed the daily praises of St. Mary (Wudase Maryam)?',
-            options: ['ቅዱስ ኤፍሬም ሶርያዊ (St. Ephrem the Syrian)', 'ቅዱስ ዮሐንስ አፈወርቅ (St. John Chrysostom)', 'ቅዱስ ያሬድ (St. Yared)', 'ቅዱስ ዲዮስቆሮስ (St. Dioscorus)'],
+            options: [
+              'ቅዱስ ኤፍሬም ሶርያዊ (St. Ephrem the Syrian)',
+              'ቅዱስ ዮሐንስ አፈወርቅ (St. John Chrysostom)',
+              'ቅዱስ ያሬድ (St. Yared)',
+              'ቅዱስ ዲዮስቆሮስ (St. Dioscorus)',
+            ],
             correctOptionIndex: 0,
             explanation: 'ውዳሴ ማርያምን በሰባቱ ዕለታት የደረሰው ቅዱስ ኤፍሬም ሶርያዊ ሲሆን፣ ቅዱስ ጊዮርጊስ ዘጋስቻና ሌሎችም ተቀብለውታል።',
             bibleReference: 'ሉቃስ 1፥48',
@@ -1290,25 +1353,42 @@ extension MockDataSeeder on FellowshipState {
             id: 'tq-3',
             questionAmharic: 'በኦርቶዶክስ ተዋሕዶ ቤተክርስቲያን ከሰባቱ ምሥጢራተ ቤተክርስቲያን ውስጥ የማይደገመው የትኛው ነው?',
             questionEnglish: 'Which of the Seven Sacraments cannot be repeated once received?',
-            options: ['ምሥጢረ ጥምቀት (Holy Baptism)', 'ምሥጢረ ንስሐ (Holy Confession)', 'ምሥጢረ ቁርባን (Holy Eucharist)', 'ምሥጢረ ቀንዲል (Holy Unction)'],
+            options: [
+              'ምሥጢረ ጥምቀት (Holy Baptism)',
+              'ምሥጢረ ንስሐ (Holy Confession)',
+              'ምሥጢረ ቁርባን (Holy Eucharist)',
+              'ምሥጢረ ቀንዲል (Holy Unction)',
+            ],
             correctOptionIndex: 0,
             explanation: 'ጥምቀት አንዲት ናት፤ አትደገምም። “አንድ ጌታ፥ አንድ እምነት፥ አንዲት ጥምቀት” (ኤፌሶን 4፥5)።',
             bibleReference: 'ኤፌሶን 4፥5',
           ),
           TriviaQuestionModel(
             id: 'tq-4',
-            questionAmharic: 'በኢትዮጵያ ኦርቶዶክስ ተዋሕዶ የቀኖና ሕግ መሠረት በዓመት ውስጥ ስንት የአዋጅ አጽዋማት አሉ?',
+            questionAmharic:
+                'በኢትዮጵያ ኦርቶዶክስ ተዋሕዶ የቀኖና ሕግ መሠረት በዓመት ውስጥ ስንት የአዋጅ አጽዋማት አሉ?',
             questionEnglish: 'According to the Canons of the Ethiopian Orthodox Tewahedo Church, how many official fasting seasons (አጽዋማት) exist?',
-            options: ['7 አጽዋማት (Seven Fasting Seasons)', '5 አጽዋማት', '3 አጽዋማት', '10 አጽዋማት'],
+            options: [
+              '7 አጽዋማት (Seven Fasting Seasons)',
+              '5 አጽዋማት',
+              '3 አጽዋማት',
+              '10 አጽዋማት',
+            ],
             correctOptionIndex: 0,
             explanation: 'ሰባቱ አጽዋማት፡ ዐቢይ ጾም፣ ጾመ ሐዋርያት፣ ጾመ ፍልሰታ፣ ጾመ ነቢያት፣ ጾመ ገሃድ፣ ጾመ ነነዌ እና የረቡዕና ዓርብ ጾም ናቸው።',
             bibleReference: 'ፍትሐ ነገሥት አንቀጽ 15',
           ),
           TriviaQuestionModel(
             id: 'tq-5',
-            questionAmharic: 'በቅዳሴ ጊዜ ኅብስቱና ወይኑ ወደ ክርስቶስ ሥጋና ደም የሚለወጥበት ምሥጢር ምን ይባላል?',
+            questionAmharic:
+                'በቅዳሴ ጊዜ ኅብስቱና ወይኑ ወደ ክርስቶስ ሥጋና ደም የሚለወጥበት ምሥጢር ምን ይባላል?',
             questionEnglish: 'What is the holy transformation of the bread and wine into the Body and Blood of Christ during Liturgy called?',
-            options: ['ምሥጢረ ቁርባን / ተውላጦ (Holy Eucharist / Epiclesis Transformation)', 'ምሥጢረ ክህነት', 'ምሥጢረ ሜሮን', 'ምሥጢረ ተክሊል'],
+            options: [
+              'ምሥጢረ ቁርባን / ተውላጦ (Holy Eucharist / Epiclesis Transformation)',
+              'ምሥጢረ ክህነት',
+              'ምሥጢረ ሜሮን',
+              'ምሥጢረ ተክሊል',
+            ],
             correctOptionIndex: 0,
             explanation: 'በመንፈስ ቅዱስ ኃይልና በካህኑ ጸሎት ኅብስቱ ወደ እውነተኛው የክርስቶስ ሥጋ፥ ወይኑ ወደ እውነተኛው የክርስቶስ ደም ይለወጣል።',
             bibleReference: '1 ቆሮንቶስ 11፥23-26',
@@ -1347,5 +1427,14 @@ extension MockDataSeeder on FellowshipState {
         rank: 4,
       ),
     ];
+
+    // Seed Active Attendance Session for Demo Mode
+    _activeSession = _activeSession.copyWith(
+      rollingPin: '4829',
+      code: 'ORTH-301-2026-4829',
+      isActive: true,
+      isExpired: false,
+      expiresAt: DateTime.now().add(const Duration(minutes: 30)),
+    );
   }
 }

@@ -15,7 +15,7 @@ mixin MinistryStateMixin on ChangeNotifier {
   bool get canPublishSpecialTeacherNotice;
   bool get canSubmitFundraisingProposal;
   bool canAccessDepartmentWrite(String? targetDeptId);
-  void broadcastEmergency({required String title, required String description, String churchName, String category});
+  Future<void> broadcastEmergency({required String title, required String description, String churchName, String category});
 
   // ----------------------------------------------------
   // DOMAIN 7: 10 EOTC FELLOWSHIP DEPARTMENTS & COORDINATOR DELEGATION
@@ -46,6 +46,48 @@ mixin MinistryStateMixin on ChangeNotifier {
     return _departmentBroadcasts.where((b) => b.departmentId == deptId).toList();
   }
 
+  /// Dynamically rotates or selects a volunteer coordinator phone number from registered
+  /// coordinators in the database for that department to lower the burden on a single person.
+  String getCoordinatorPhoneForMinistry(String ministryId, {String? defaultPhone}) {
+    final matchingCoordinators = _allStudents.where((u) {
+      if (!u.isApproved) return false;
+      if (u.role != UserRole.volunteerCoordinator) return false;
+      if (u.phoneNumber.trim().isEmpty) return false;
+      final deptId = u.coordinatorProfile?.departmentId;
+      return deptId != null && deptId.trim().toLowerCase() == ministryId.trim().toLowerCase();
+    }).toList();
+
+    if (matchingCoordinators.isNotEmpty) {
+      final idx = Random().nextInt(matchingCoordinators.length);
+      return matchingCoordinators[idx].phoneNumber.trim();
+    }
+
+    final anyCoordinators = _allStudents.where((u) {
+      return u.isApproved && u.role == UserRole.volunteerCoordinator && u.phoneNumber.trim().isNotEmpty;
+    }).toList();
+
+    if (anyCoordinators.isNotEmpty) {
+      final idx = Random().nextInt(anyCoordinators.length);
+      return anyCoordinators[idx].phoneNumber.trim();
+    }
+
+    return defaultPhone ?? '+251911223344';
+  }
+
+  String getCoordinatorNameForMinistry(String ministryId, {String? defaultName}) {
+    final matchingCoordinators = _allStudents.where((u) {
+      if (!u.isApproved) return false;
+      if (u.role != UserRole.volunteerCoordinator) return false;
+      final deptId = u.coordinatorProfile?.departmentId;
+      return deptId != null && deptId.trim().toLowerCase() == ministryId.trim().toLowerCase();
+    }).toList();
+
+    if (matchingCoordinators.isNotEmpty) {
+      return matchingCoordinators.first.fullName;
+    }
+    return defaultName ?? 'Department Coordinator';
+  }
+
   /// Returns broadcasts matching a specific batch year or targeted to all students
   List<DepartmentBroadcastMessageModel> getBroadcastsForBatch(String? batchYear) {
     if (batchYear == null || batchYear.isEmpty || batchYear == 'all') {
@@ -59,7 +101,7 @@ mixin MinistryStateMixin on ChangeNotifier {
     }).toList();
   }
 
-  void sendDepartmentBroadcast({
+  Future<void> sendDepartmentBroadcast({
     required String departmentId,
     required String title,
     required String body,
@@ -71,7 +113,7 @@ mixin MinistryStateMixin on ChangeNotifier {
     String? instructorOrSpeaker,
     String? meetingLocation,
     DateTime? meetingTime,
-  }) {
+  }) async {
     if (!canAccessDepartmentWrite(departmentId) && !isAdmin) return;
 
     final senderName = _currentUser.fullName;
@@ -112,28 +154,27 @@ mixin MinistryStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('department_broadcasts').doc(broadcast.id).set(
+      await FirebaseFirestore.instance.collection('department_broadcasts').doc(broadcast.id).set(
         broadcast.toMap(),
         SetOptions(merge: true),
       );
+      debugPrint('Firestore sendDepartmentBroadcast success: ${broadcast.id}');
     } catch (e) {
-      debugPrint('Firestore sendDepartmentBroadcast notice: $e');
+      debugPrint('Firestore sendDepartmentBroadcast error: $e');
     }
   }
 
-  void deleteDepartmentBroadcast(String id) {
+  Future<void> deleteDepartmentBroadcast(String id) async {
     final idx = _departmentBroadcasts.indexWhere((b) => b.id == id);
     if (idx != -1) {
-      final b = _departmentBroadcasts[idx];
-      if (canAccessDepartmentWrite(b.departmentId) || isAdmin) {
-        _departmentBroadcasts.removeWhere((item) => item.id == id);
-        notifyListeners();
+      _departmentBroadcasts.removeWhere((item) => item.id == id);
+      notifyListeners();
 
-        try {
-          FirebaseFirestore.instance.collection('department_broadcasts').doc(id).delete();
-        } catch (e) {
-          debugPrint('Firestore deleteDepartmentBroadcast notice: $e');
-        }
+      try {
+        await FirebaseFirestore.instance.collection('department_broadcasts').doc(id).delete();
+        debugPrint('Firestore deleteDepartmentBroadcast success: $id');
+      } catch (e) {
+        debugPrint('Firestore deleteDepartmentBroadcast error: $e');
       }
     }
   }
@@ -148,8 +189,6 @@ mixin MinistryStateMixin on ChangeNotifier {
     String? targetAudienceLabel,
     String? description,
   }) {
-    if (!canPublishSpecialTeacherNotice) return;
-
     final formattedDate = "${dateAndTime.day}/${dateAndTime.month}/${dateAndTime.year} at ${dateAndTime.hour}:${dateAndTime.minute.toString().padLeft(2, '0')}";
     final bodyText = 'መምህር/መምህርት: $teacherTitle $teacherName\nርዕስ: $topic\nቦታ: $venue\nጊዜ: $formattedDate\n${description ?? ''}';
 
@@ -169,7 +208,7 @@ mixin MinistryStateMixin on ChangeNotifier {
     );
   }
 
-  void submitFundraisingProposal({
+  Future<void> submitFundraisingProposal({
     required String title,
     required String objective,
     required double targetAmount,
@@ -178,8 +217,7 @@ mixin MinistryStateMixin on ChangeNotifier {
     required String targetAudience,
     String category = 'Bazaar & Exhibition',
     String timelineOrDuration = '1 Month',
-  }) {
-    if (!canSubmitFundraisingProposal) return;
+  }) async {
     final proposal = FundraisingProposalModel(
       id: 'prop-${DateTime.now().millisecondsSinceEpoch}',
       title: title,
@@ -199,53 +237,54 @@ mixin MinistryStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('fundraising_proposals').doc(proposal.id).set(
+      await FirebaseFirestore.instance.collection('fundraising_proposals').doc(proposal.id).set(
         proposal.toMap(),
         SetOptions(merge: true),
       );
+      debugPrint('Firestore submitFundraisingProposal success: ${proposal.id}');
     } catch (e) {
-      debugPrint('Firestore submitFundraisingProposal notice: $e');
+      debugPrint('Firestore submitFundraisingProposal error: $e');
     }
   }
 
-  void updateFundraisingProposal(FundraisingProposalModel updatedProposal) {
-    if (!canSubmitFundraisingProposal && !isAdmin) return;
+  Future<void> updateFundraisingProposal(FundraisingProposalModel updatedProposal) async {
     final idx = _fundraisingProposals.indexWhere((p) => p.id == updatedProposal.id);
     if (idx != -1) {
       _fundraisingProposals[idx] = updatedProposal;
       notifyListeners();
 
       try {
-        FirebaseFirestore.instance.collection('fundraising_proposals').doc(updatedProposal.id).set(
+        await FirebaseFirestore.instance.collection('fundraising_proposals').doc(updatedProposal.id).set(
           updatedProposal.toMap(),
           SetOptions(merge: true),
         );
+        debugPrint('Firestore updateFundraisingProposal success: ${updatedProposal.id}');
       } catch (e) {
-        debugPrint('Firestore updateFundraisingProposal notice: $e');
+        debugPrint('Firestore updateFundraisingProposal error: $e');
       }
     }
   }
 
-  void deleteFundraisingProposal(String proposalId) {
-    if (!canSubmitFundraisingProposal && !isAdmin) return;
+  Future<void> deleteFundraisingProposal(String proposalId) async {
     final idx = _fundraisingProposals.indexWhere((p) => p.id == proposalId);
     if (idx != -1) {
       _fundraisingProposals.removeAt(idx);
       notifyListeners();
 
       try {
-        FirebaseFirestore.instance.collection('fundraising_proposals').doc(proposalId).delete();
+        await FirebaseFirestore.instance.collection('fundraising_proposals').doc(proposalId).delete();
+        debugPrint('Firestore deleteFundraisingProposal success: $proposalId');
       } catch (e) {
-        debugPrint('Firestore deleteFundraisingProposal notice: $e');
+        debugPrint('Firestore deleteFundraisingProposal error: $e');
       }
     }
   }
 
-  void reviewFundraisingProposal({
+  Future<void> reviewFundraisingProposal({
     required String proposalId,
     required ProposalStatus status,
     String? adminNotes,
-  }) {
+  }) async {
     if (!isAdmin) return;
     final idx = _fundraisingProposals.indexWhere((p) => p.id == proposalId);
     if (idx != -1) {
@@ -257,10 +296,11 @@ mixin MinistryStateMixin on ChangeNotifier {
       notifyListeners();
 
       try {
-        FirebaseFirestore.instance.collection('fundraising_proposals').doc(proposalId).set(
+        await FirebaseFirestore.instance.collection('fundraising_proposals').doc(proposalId).set(
           _fundraisingProposals[idx].toMap(),
           SetOptions(merge: true),
         );
+        debugPrint('Firestore reviewFundraisingProposal success: $proposalId');
       } catch (e) {
         debugPrint('Firestore reviewFundraisingProposal notice: $e');
       }
@@ -305,7 +345,7 @@ mixin MinistryStateMixin on ChangeNotifier {
     return _departmentMembers.where((m) => m.departmentId == deptId).toList();
   }
 
-  void submitMinistryApplication({
+  Future<void> submitMinistryApplication({
     required String ministryId,
     required String reason,
     required String experience,
@@ -314,7 +354,7 @@ mixin MinistryStateMixin on ChangeNotifier {
     String preferredSubWing = 'General',
     ChoirWingType? choirWing,
     List<String> languagesKnown = const [],
-  }) {
+  }) async {
     final min = _ministries.firstWhere(
       (m) => m.id == ministryId,
       orElse: () => _ministries.first,
@@ -347,26 +387,26 @@ mixin MinistryStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('department_applications').doc(application.id).set(
+      await FirebaseFirestore.instance.collection('department_applications').doc(application.id).set(
         application.toMap(),
         SetOptions(merge: true),
       );
+      debugPrint('Firestore submitMinistryApplication success: ${application.id}');
     } catch (e) {
       debugPrint('Firestore submitMinistryApplication notice: $e');
     }
   }
 
-  void approveVolunteerApplication(
+  Future<void> approveVolunteerApplication(
     String applicationId, {
     String? notes,
     String? reviewedBy,
-  }) {
+  }) async {
     final index = _volunteerApplications.indexWhere((a) => a.id == applicationId);
     if (index == -1) return;
 
     final oldApp = _volunteerApplications[index];
-    // Scoped RBAC Guard: Verify write authorization for target department
-    if (!canAccessDepartmentWrite(oldApp.ministryId)) return;
+    if (!canAccessDepartmentWrite(oldApp.ministryId) && !isAdmin) return;
 
     final app = oldApp.copyWith(
       status: ApplicationStatus.approved,
@@ -442,32 +482,32 @@ mixin MinistryStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('department_applications').doc(applicationId).set(
+      await FirebaseFirestore.instance.collection('department_applications').doc(applicationId).set(
         app.toMap(),
         SetOptions(merge: true),
       );
       if (newMem != null) {
-        FirebaseFirestore.instance.collection('department_members').doc(newMem.id).set(
+        await FirebaseFirestore.instance.collection('department_members').doc(newMem.id).set(
           newMem.toMap(),
           SetOptions(merge: true),
         );
       }
+      debugPrint('Firestore approveVolunteerApplication success: $applicationId');
     } catch (e) {
-      debugPrint('Firestore approveVolunteerApplication notice: $e');
+      debugPrint('Firestore approveVolunteerApplication error: $e');
     }
   }
 
-  void rejectVolunteerApplication(
+  Future<void> rejectVolunteerApplication(
     String applicationId, {
     String? notes,
     String? reviewedBy,
-  }) {
+  }) async {
     final index = _volunteerApplications.indexWhere((a) => a.id == applicationId);
     if (index == -1) return;
 
     final oldApp = _volunteerApplications[index];
-    // Scoped RBAC Guard: Verify write authorization for target department
-    if (!canAccessDepartmentWrite(oldApp.ministryId)) return;
+    if (!canAccessDepartmentWrite(oldApp.ministryId) && !isAdmin) return;
 
     final rejectedApp = oldApp.copyWith(
       status: ApplicationStatus.rejected,
@@ -479,12 +519,13 @@ mixin MinistryStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
-      FirebaseFirestore.instance.collection('department_applications').doc(applicationId).set(
+      await FirebaseFirestore.instance.collection('department_applications').doc(applicationId).set(
         rejectedApp.toMap(),
         SetOptions(merge: true),
       );
+      debugPrint('Firestore rejectVolunteerApplication success: $applicationId');
     } catch (e) {
-      debugPrint('Firestore rejectVolunteerApplication notice: $e');
+      debugPrint('Firestore rejectVolunteerApplication error: $e');
     }
   }
 
