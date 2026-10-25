@@ -173,10 +173,10 @@ mixin ConfessorStateMixin on ChangeNotifier {
       notifyListeners();
 
       try {
-        await FirebaseFirestore.instance.collection('confession_appointments').doc(apptId).set(
-          updated.toMap(),
-          SetOptions(merge: true),
-        );
+        await FirebaseFirestore.instance
+            .collection('confession_appointments')
+            .doc(apptId)
+            .update({'status': status.name});
         debugPrint('Firestore updateConfessionStatus success: $apptId');
       } catch (e) {
         debugPrint('Firestore updateConfessionStatus error: $e');

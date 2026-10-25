@@ -1,4 +1,5 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_models.dart';
 
 enum MinistryPillar {
@@ -609,8 +610,16 @@ class VolunteerApplicationModel {
       experience: map['experience'] ?? '',
       availability: map['availability'] ?? '',
       status: status,
-      appliedAt: map['appliedAt'] != null ? DateTime.tryParse(map['appliedAt']) ?? DateTime.now() : DateTime.now(),
-      reviewedAt: map['reviewedAt'] != null ? DateTime.tryParse(map['reviewedAt']) : null,
+      appliedAt: map['appliedAt'] is Timestamp
+          ? (map['appliedAt'] as Timestamp).toDate()
+          : map['appliedAt'] is String
+          ? DateTime.tryParse(map['appliedAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
+      reviewedAt: map['reviewedAt'] is Timestamp
+          ? (map['reviewedAt'] as Timestamp).toDate()
+          : map['reviewedAt'] is String
+          ? DateTime.tryParse(map['reviewedAt'] as String)
+          : null,
       reviewedByCoordinator: map['reviewedByCoordinator'],
       coordinatorNotes: map['coordinatorNotes'],
     );
@@ -682,7 +691,11 @@ class DepartmentMemberModel {
       subWing: map['subWing'] ?? 'General',
       choirWing: choirWing,
       roleInDepartment: map['roleInDepartment'] ?? 'Member',
-      joinedDate: map['joinedDate'] != null ? DateTime.tryParse(map['joinedDate']) ?? DateTime.now() : DateTime.now(),
+      joinedDate: map['joinedDate'] is Timestamp
+          ? (map['joinedDate'] as Timestamp).toDate()
+          : map['joinedDate'] is String
+          ? DateTime.tryParse(map['joinedDate'] as String) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 }

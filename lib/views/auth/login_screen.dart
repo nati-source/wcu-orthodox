@@ -7,7 +7,6 @@ import '../../services/auth_service.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/wcu_brand_logo.dart';
-import '../onboarding/fellowship_onboarding_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -978,68 +977,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Interactive Sacred Tour & Feature Intro Card (Inspired by reference Bible app)
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFFE5A93C).withOpacity(0.12),
-                            const Color(0xFF10B981).withOpacity(0.08),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppTheme.gold.withOpacity(0.3), width: 1.0),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                        leading: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppTheme.gold.withOpacity(0.15),
-                            border: Border.all(color: AppTheme.gold.withOpacity(0.5), width: 1),
-                          ),
-                          child: const Icon(Icons.auto_awesome, color: AppTheme.gold, size: 18),
-                        ),
-                        title: const Text(
-                          'Sacred App Tour & Feature Intro',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.gold),
-                        ),
-                        subtitle: const Text(
-                          'የመተግበሪያውን አገልግሎቶች ይጎብኙ • Explore Church Ministries & Lectionary',
-                          style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
-                        ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 13, color: AppTheme.gold),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => FellowshipOnboardingScreen(
-                                state: widget.state ?? FellowshipState(),
-                                onFinish: () {
-                                  Navigator.pop(context);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => RegisterScreen(
-                                        state: widget.state,
-                                        onRegisterSuccess: widget.onLoginSuccess,
-                                      ),
-                                    ),
-                                  );
-                                },
-                                onSignIn: () => Navigator.pop(context),
-                              ),
-                            ),
-                          );
-                        },
                       ),
                     ),
                   ],

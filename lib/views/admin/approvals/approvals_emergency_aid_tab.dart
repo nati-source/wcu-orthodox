@@ -17,7 +17,8 @@ extension ApprovalsEmergencyAidTabExt on _AdminApprovalsScreenState {
       itemCount: requests.length,
       itemBuilder: (ctx, index) {
         final req = requests[index];
-        final isUnderReview = req.status == EmergencyAidStatus.underReview;
+        final isUnderReview = req.status == EmergencyAidStatus.underReview ||
+            req.status == EmergencyAidStatus.approved;
 
         return Container(
           margin: const EdgeInsets.only(bottom: 14),

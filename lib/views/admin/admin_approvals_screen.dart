@@ -34,6 +34,25 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   String _spiritualQaSearch = '';
 
   @override
+  void initState() {
+    super.initState();
+    widget.state.addListener(_onStateChanged);
+    widget.state.refreshScopedStreams();
+  }
+
+  @override
+  void dispose() {
+    widget.state.removeListener(_onStateChanged);
+    super.dispose();
+  }
+
+  void _onStateChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = widget.state;
     final theme = Theme.of(context);

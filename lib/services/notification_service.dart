@@ -6,6 +6,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import '../models/program_models.dart';
 
 /// Top-level background message handler required by Firebase Messaging.
 /// Must be outside any class and annotated with @pragma('vm:entry-point').
@@ -27,8 +30,8 @@ class NotificationService {
   /// Global navigator context accessor for displaying notifications anywhere in the app
   static BuildContext? Function()? globalContextProvider;
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseMessaging get _fcm => FirebaseMessaging.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   bool _localNotificationsInitialized = false;
 
@@ -64,6 +67,7 @@ class NotificationService {
     this.onNotificationOpened = onNotificationOpened;
 
     try {
+      tz.initializeTimeZones();
       // 1. Request notification permissions (required on iOS and Android 13+)
       final settings = await _fcm.requestPermission(
         alert: true,
@@ -299,6 +303,7 @@ class NotificationService {
     BuildContext? context,
     required String title,
     required String body,
+    String badgeLabel = 'FELLOWSHIP ALERT • ማስታወሻ',
     IconData icon = Icons.notifications_active,
     Color iconColor = const Color(0xFFC5A059),
     Duration duration = const Duration(seconds: 6),
@@ -347,9 +352,9 @@ class NotificationService {
                           color: const Color(0xFF10B981).withOpacity(0.2),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Text(
-                          'NOW LIVE • አሁን ጀምሯል',
-                          style: TextStyle(
+                        child: Text(
+                          badgeLabel,
+                          style: const TextStyle(
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF10B981),
@@ -443,6 +448,148 @@ class NotificationService {
       await _localNotifications.cancel(id: id);
     } catch (e) {
       debugPrint('Error cancelling notification: $e');
+    }
+  }
+
+  final Map<String, DateTime> _scheduledProgramDates = {};
+
+  static int _getNotificationId(String programId, int offsetMinutes) {
+    final base = (programId.hashCode & 0x7FFFFFFF) % 100000;
+    final offsetIndex = switch (offsetMinutes) {
+      60 => 1,
+      30 => 2,
+      15 => 3,
+      7 => 4,
+      _ => 0,
+    };
+    return base * 10 + offsetIndex;
+  }
+
+  /// Cancels all scheduled notification thresholds for a specific program
+  Future<void> cancelProgramNotifications(String programId) async {
+    _scheduledProgramDates.remove(programId);
+    for (final offset in [60, 30, 15, 7, 0]) {
+      await cancelNotification(_getNotificationId(programId, offset));
+    }
+  }
+
+  /// Synchronizes scheduled background alarms/notifications for upcoming church programs.
+  /// Tracks a signature map so unchanged programs are not redundantly rescheduled.
+  Future<void> syncScheduledProgramNotifications(
+    List<ChurchProgramModel> programs, {
+    bool masterReminderEnabled = true,
+  }) async {
+    if (!masterReminderEnabled) {
+      final scheduledIds = List<String>.from(_scheduledProgramDates.keys);
+      for (final id in scheduledIds) {
+        await cancelProgramNotifications(id);
+      }
+      _scheduledProgramDates.clear();
+      return;
+    }
+
+    final programsSnapshot = List<ChurchProgramModel>.from(programs);
+    final now = DateTime.now();
+    final activeIds = programsSnapshot
+        .where((p) => p.reminderEnabled && !p.isEmergency && p.dateTime.isAfter(now))
+        .map((p) => p.id)
+        .toSet();
+
+    // Cancel notifications for any removed or disabled programs
+    final removedIds = _scheduledProgramDates.keys.where((id) => !activeIds.contains(id)).toList();
+    for (final id in removedIds) {
+      await cancelProgramNotifications(id);
+    }
+
+    for (final program in programsSnapshot) {
+      if (!program.reminderEnabled || program.isEmergency) {
+        if (_scheduledProgramDates.containsKey(program.id)) {
+          await cancelProgramNotifications(program.id);
+        }
+        continue;
+      }
+
+      final programTime = program.dateTime;
+      if (!programTime.isAfter(now)) {
+        if (_scheduledProgramDates.containsKey(program.id)) {
+          await cancelProgramNotifications(program.id);
+        }
+        continue;
+      }
+
+      // Check if unchanged to avoid redundant rescheduling
+      if (_scheduledProgramDates[program.id] == programTime) {
+        continue;
+      }
+
+      // Cancel prior notifications for this program before rescheduling
+      if (_scheduledProgramDates.containsKey(program.id)) {
+        await cancelProgramNotifications(program.id);
+      }
+
+      final thresholds = [
+        (60, '🔔 60 Minutes Remaining • 1 ሰዓት ቀርቷል', '"${program.title}" በ ${program.churchName} በ1 ሰዓት ውስጥ ይጀምራል።'),
+        (30, '🔔 30 Minutes Remaining • 30 ደቂቃ ቀርቷል', '"${program.title}" በ ${program.churchName} በ30 ደቂቃ ውስጥ ይጀምራል።'),
+        (15, '🔔 15 Minutes Remaining • 15 ደቂቃ ቀርቷል', '"${program.title}" በ ${program.churchName} በ15 ደቂቃ ውስጥ ይጀምራል።'),
+        (7, '🔔 7 Minutes Remaining • ጥቂት ደቂቃዎች ቀሩ', '"${program.title}" በ ${program.churchName} በ7 ደቂቃ ውስጥ ይጀምራል።'),
+        (0, '🔔 የ${program.category} ሰዓት ደርሷል! (Program Started)', '"${program.title}" በ ${program.churchName} አሁን ተጀምሯል። እንኳን አደረሳችሁ!'),
+      ];
+
+      for (final item in thresholds) {
+        final offset = item.$1;
+        final title = item.$2;
+        final body = item.$3;
+        final scheduledTime = programTime.subtract(Duration(minutes: offset));
+        if (scheduledTime.isAfter(now)) {
+          await _scheduleLocalNotification(
+            id: _getNotificationId(program.id, offset),
+            title: title,
+            body: body,
+            scheduledDateTime: scheduledTime,
+          );
+        }
+      }
+
+      _scheduledProgramDates[program.id] = programTime;
+    }
+  }
+
+  Future<void> _scheduleLocalNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDateTime,
+  }) async {
+    try {
+      try {
+        tz.local;
+      } catch (_) {
+        tz.initializeTimeZones();
+      }
+      final tzDateTime = tz.TZDateTime.from(scheduledDateTime, tz.local);
+      final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+        _reminderChannel.id,
+        _reminderChannel.name,
+        channelDescription: _reminderChannel.description,
+        importance: Importance.max,
+        priority: Priority.high,
+        ticker: 'WCU Orthodox Reminder',
+        playSound: true,
+        enableVibration: true,
+        icon: '@mipmap/ic_launcher',
+        styleInformation: BigTextStyleInformation(body),
+      );
+      final NotificationDetails details = NotificationDetails(android: androidDetails);
+      await _localNotifications.zonedSchedule(
+        id: id,
+        title: title,
+        body: body,
+        scheduledDate: tzDateTime,
+        notificationDetails: details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    } catch (e) {
+      debugPrint('Error scheduling local notification: $e');
     }
   }
 

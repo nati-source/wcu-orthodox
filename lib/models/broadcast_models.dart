@@ -1,4 +1,6 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class DepartmentBroadcastMessageModel {
   final String id;
   final String departmentId;
@@ -38,6 +40,9 @@ class DepartmentBroadcastMessageModel {
       broadcastCategory == 'specialProgram' ||
       title.contains('ልዩ የትምህርትና ስብከት') ||
       title.contains('መምህር');
+
+  String get message => body;
+  String get departmentName => departmentId;
 
   DepartmentBroadcastMessageModel copyWith({
     String? id,
@@ -102,7 +107,11 @@ class DepartmentBroadcastMessageModel {
       body: map['body'] ?? '',
       senderName: map['senderName'] ?? '',
       senderRole: map['senderRole'] ?? 'Coordinator',
-      sentAt: map['sentAt'] != null ? DateTime.tryParse(map['sentAt']) ?? DateTime.now() : DateTime.now(),
+      sentAt: map['sentAt'] is Timestamp
+          ? (map['sentAt'] as Timestamp).toDate()
+          : map['sentAt'] is String
+          ? DateTime.tryParse(map['sentAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
       urgency: map['urgency'] ?? 'normal',
       targetBatch: map['targetBatch']?.toString() ?? 'all',
       targetAudienceLabel: map['targetAudienceLabel'] ?? 'All Students (ሁሉንም ተማሪዎች)',
@@ -110,7 +119,11 @@ class DepartmentBroadcastMessageModel {
       courseCode: map['courseCode'],
       instructorOrSpeaker: map['instructorOrSpeaker'],
       meetingLocation: map['meetingLocation'],
-      meetingTime: map['meetingTime'] != null ? DateTime.tryParse(map['meetingTime']) : null,
+      meetingTime: map['meetingTime'] is Timestamp
+          ? (map['meetingTime'] as Timestamp).toDate()
+          : map['meetingTime'] is String
+          ? DateTime.tryParse(map['meetingTime'] as String)
+          : null,
     );
   }
 }

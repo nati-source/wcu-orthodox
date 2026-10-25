@@ -40,6 +40,7 @@ dependencies:
   # Network image caching — avoid re-downloading on every screen visit
   cached_network_image: ^3.4.1
   flutter_local_notifications: ^22.3.2
+  timezone: 0.11.0
 
 dev_dependencies:
   flutter_test:

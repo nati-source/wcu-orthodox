@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum UserRole { student, admin, spiritualParent, volunteerCoordinator }
 
@@ -283,8 +284,10 @@ class CoordinatorProfileModel {
       departmentNameAmharic:
           map['departmentNameAmharic'] ?? map['departmentTitleAmharic'],
       coordinatorTitle: map['coordinatorTitle'] ?? 'Department Coordinator',
-      appointedDate: map['appointedDate'] != null
-          ? DateTime.tryParse(map['appointedDate'])
+      appointedDate: map['appointedDate'] is Timestamp
+          ? (map['appointedDate'] as Timestamp).toDate()
+          : map['appointedDate'] is String
+          ? DateTime.tryParse(map['appointedDate'] as String)
           : null,
       canApproveApplicants: map['canApproveApplicants'] ?? true,
       canManageRoster: map['canManageRoster'] ?? true,
@@ -577,9 +580,9 @@ class UserModel {
         ? parsedGender!
         : inferGender(nameStr, bapStr);
 
-    final bool isApproved = map['isApproved'] is bool
-        ? (map['isApproved'] as bool)
-        : false;
+    final bool isApproved = (map['isApproved'] is bool && (map['isApproved'] as bool)) ||
+        map['isApproved']?.toString().toLowerCase() == 'true' ||
+        map['isApproved'] == 1;
 
     return UserModel(
       id: docId.isNotEmpty ? docId : (map['id']?.toString() ?? ''),

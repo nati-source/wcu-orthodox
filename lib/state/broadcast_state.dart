@@ -19,17 +19,6 @@ mixin BroadcastStateMixin on ChangeNotifier {
       ValueNotifier<Duration>(Duration.zero);
   ChurchProgramModel? _latestEmergencyBroadcast;
   final Set<String> _dismissedEmergencyIds = {};
-  final Set<String> _notified60mIds = {};
-  final Set<String> _notified30mIds = {};
-  final Set<String> _notified15mIds = {};
-  final Set<String> _notifiedHalfTimeIds = {};
-  final Set<String> _notified7mIds = {};
-  final Set<String> _notifiedProgramCountdownIds = {};
-  bool _notifiedLiturgy60m = false;
-  bool _notifiedLiturgy30m = false;
-  bool _notifiedLiturgy15m = false;
-  bool _notifiedLiturgy7m = false;
-  bool _notifiedLiturgyFinished = false;
   // General announcements from the 'announcements' collection (admin-authored).
   List<Map<String, dynamic>> _announcements = [];
 
@@ -38,6 +27,14 @@ mixin BroadcastStateMixin on ChangeNotifier {
   ChurchProgramModel? get latestEmergencyBroadcast => _latestEmergencyBroadcast;
   /// Live general announcements from Firestore, ordered most-recent first.
   List<Map<String, dynamic>> get announcements => List.unmodifiable(_announcements);
+
+  bool get hasUpcomingProgram =>
+      _programs.any((p) => !p.isEmergency && p.dateTime.isAfter(DateTime.now()));
+
+  bool get isProgramCurrentlyLive => _programs.any((p) =>
+      !p.isEmergency &&
+      DateTime.now().difference(p.dateTime).inMinutes >= 0 &&
+      DateTime.now().difference(p.dateTime).inMinutes < 120);
 
   void _startCountdownTicker() {
     _countdownTimer?.cancel();
@@ -49,172 +46,21 @@ mixin BroadcastStateMixin on ChangeNotifier {
 
   void _tickCountdown() {
     final now = DateTime.now();
-
-    // Check all scheduled programs for countdown intervals: 1 hour, 30 min, 15 min, 7 min, half-time & Time is Up
-    for (final p in _programs) {
-      if (p.isEmergency) continue;
-      final diff = p.dateTime.difference(now);
-
-      // 1. 1 Hour Remaining Alert (when diff is between 55m and 60m)
-      if (diff.inMinutes <= 60 && diff.inMinutes >= 55) {
-        if (!_notified60mIds.contains(p.id)) {
-          _notified60mIds.add(p.id);
-          NotificationService.instance.showSystemNotification(
-            id: (p.id.hashCode & 0x7FFFFFFF) % 100000 + 60000,
-            title: '🔔 1 Hour Remaining • 1 ሰዓት ቀርቷል',
-            body: '"${p.title}" በ ${p.churchName} በ1 ሰዓት ውስጥ ይጀምራል። (Starts in 60 mins)',
-          );
-          NotificationService.showLocalInAppNotification(
-            title: '🔔 1 Hour Remaining • 1 ሰዓት ቀርቷል',
-            body: '"${p.title}" በ ${p.churchName} በ1 ሰዓት ውስጥ ይጀምራል። (Starts in 60 mins)',
-            icon: Icons.access_time_filled,
-            iconColor: const Color(0xFFC5A059),
-          );
-        }
-      }
-
-      // 2. 30 Minutes Remaining Alert (when diff is between 27m and 30m)
-      if (diff.inMinutes <= 30 && diff.inMinutes >= 27) {
-        if (!_notified30mIds.contains(p.id)) {
-          _notified30mIds.add(p.id);
-          NotificationService.instance.showSystemNotification(
-            id: (p.id.hashCode & 0x7FFFFFFF) % 100000 + 30000,
-            title: '🔔 30 Minutes Remaining • 30 ደቂቃ ቀርቷል',
-            body: '"${p.title}" በ ${p.churchName} በ30 ደቂቃ ውስጥ ይጀምራል። (Starts in 30 mins)',
-          );
-          NotificationService.showLocalInAppNotification(
-            title: '🔔 30 Minutes Remaining • 30 ደቂቃ ቀርቷል',
-            body: '"${p.title}" በ ${p.churchName} በ30 ደቂቃ ውስጥ ይጀምራል። (Starts in 30 mins)',
-            icon: Icons.timer,
-            iconColor: const Color(0xFFF59E0B),
-          );
-        }
-      }
-
-      // 3. 15 Minutes Remaining Alert (when diff is between 13m and 15m)
-      if (diff.inMinutes <= 15 && diff.inMinutes >= 13) {
-        if (!_notified15mIds.contains(p.id)) {
-          _notified15mIds.add(p.id);
-          NotificationService.instance.showSystemNotification(
-            id: (p.id.hashCode & 0x7FFFFFFF) % 100000 + 15000,
-            title: '🔔 15 Minutes Remaining • 15 ደቂቃ ቀርቷል',
-            body: '"${p.title}" በ ${p.churchName} በ15 ደቂቃ ውስጥ ይጀምራል። Church doors are open.',
-          );
-          NotificationService.showLocalInAppNotification(
-            title: '🔔 15 Minutes Remaining • 15 ደቂቃ ቀርቷል',
-            body: '"${p.title}" በ ${p.churchName} በ15 ደቂቃ ውስጥ ይጀምራል። Church doors are open.',
-            icon: Icons.notifications_active,
-            iconColor: const Color(0xFF10B981),
-          );
-        }
-      }
-
-      // 4. 7 Minutes Remaining Alert (half of 15m)
-      if (diff.inMinutes <= 7 && diff.inMinutes >= 5) {
-        if (!_notified7mIds.contains(p.id)) {
-          _notified7mIds.add(p.id);
-          NotificationService.instance.showSystemNotification(
-            id: (p.id.hashCode & 0x7FFFFFFF) % 100000 + 7000,
-            title: '🔔 7 Minutes Remaining • 7 ደቂቃ ቀርቷል',
-            body: '"${p.title}" በ ${p.churchName} በ7 ደቂቃ ውስጥ ይጀምራል። (Starts in 7 mins)',
-          );
-          NotificationService.showLocalInAppNotification(
-            title: '🔔 7 Minutes Remaining • 7 ደቂቃ ቀርቷል',
-            body: '"${p.title}" በ ${p.churchName} በ7 ደቂቃ ውስጥ ይጀምራል።',
-            icon: Icons.timelapse,
-            iconColor: const Color(0xFF10B981),
-          );
-        }
-      }
-
-      // 5. Custom Half-time Alert for short programs (e.g. 2 to 20 minute test programs)
-      if (p.initialDurationRemaining.inSeconds > 0 && p.initialDurationRemaining.inMinutes < 30) {
-        final halfSecs = p.initialDurationRemaining.inSeconds ~/ 2;
-        if (diff.inSeconds <= halfSecs && diff.inSeconds >= halfSecs - 25) {
-          if (!_notifiedHalfTimeIds.contains(p.id)) {
-            _notifiedHalfTimeIds.add(p.id);
-            final remainingDisplay = diff.inMinutes > 0 ? '${diff.inMinutes}m' : '${diff.inSeconds}s';
-            NotificationService.instance.showSystemNotification(
-              id: (p.id.hashCode & 0x7FFFFFFF) % 100000 + 50000,
-              title: '🔔 Half Time Remaining • ግማሽ ሰዓት ቀርቷል',
-              body: '"${p.title}" begins shortly — only $remainingDisplay remaining!',
-            );
-          }
-        }
-      }
-
-      // 6. TIME IS UP Alert (when countdown reaches 0: diff.inSeconds <= 0 and >= -180s)
-      if (diff.inSeconds <= 0 && diff.inSeconds >= -180) {
-        if (!_notifiedProgramCountdownIds.contains(p.id)) {
-          _notifiedProgramCountdownIds.add(p.id);
-          NotificationService.instance.showSystemNotification(
-            id: (p.id.hashCode & 0x7FFFFFFF) % 100000 + 90000,
-            title: '🔔 ሰዓቱ ደርሷል! Time is Up • Program Started',
-            body: '"${p.title}" በ ${p.churchName} አሁን ተጀምሯል! እንኳን አደረሳችሁ!',
-          );
-          NotificationService.showLocalInAppNotification(
-            title: '🔔 የ${p.category} ሰዓት ደርሷል! (Program Started)',
-            body: '"${p.title}" በ ${p.churchName} አሁን ተጀምሯል። እንኳን አደረሳችሁ!',
-            icon: Icons.church,
-            iconColor: const Color(0xFFC5A059),
-          );
-        }
-      }
-    }
-
-    final upcoming = _programs.where((p) => p.dateTime.isAfter(now) && !p.isEmergency).toList();
+    final upcoming = _programs
+        .where((p) => p.dateTime.isAfter(now) && !p.isEmergency)
+        .toList();
     if (upcoming.isNotEmpty) {
       upcoming.sort((a, b) => a.dateTime.compareTo(b.dateTime));
       final nextProgram = upcoming.firstWhere(
-        (p) => p.category.toLowerCase().contains('liturgy') || p.category.toLowerCase().contains('ቅዳሴ') || p.title.toLowerCase().contains('liturgy'),
+        (p) =>
+            p.category.toLowerCase().contains('liturgy') ||
+            p.category.toLowerCase().contains('ቅዳሴ') ||
+            p.title.toLowerCase().contains('liturgy'),
         orElse: () => upcoming.first,
       );
-      final remaining = nextProgram.dateTime.difference(now);
-      liturgyCountdownNotifier.value = remaining;
-
-      // Liturgy specific intervals
-      if (remaining.inMinutes <= 60 && remaining.inMinutes >= 55 && !_notifiedLiturgy60m) {
-        _notifiedLiturgy60m = true;
-        NotificationService.instance.showSystemNotification(
-          id: 70001,
-          title: '🔔 Holy Liturgy in 1 Hour • የቅዳሴ 1 ሰዓት ቀርቷል',
-          body: 'Sunday Holy Liturgy at St. Mary\'s Orthodox Church begins in 60 minutes.',
-        );
-      }
-      if (remaining.inMinutes <= 30 && remaining.inMinutes >= 27 && !_notifiedLiturgy30m) {
-        _notifiedLiturgy30m = true;
-        NotificationService.instance.showSystemNotification(
-          id: 70002,
-          title: '🔔 Holy Liturgy in 30 Minutes • የቅዳሴ 30 ደቂቃ ቀርቷል',
-          body: 'Liturgy starts in 30 minutes at St. Mary\'s Orthodox Church.',
-        );
-      }
-      if (remaining.inMinutes <= 15 && remaining.inMinutes >= 13 && !_notifiedLiturgy15m) {
-        _notifiedLiturgy15m = true;
-        NotificationService.instance.showSystemNotification(
-          id: 70003,
-          title: '🔔 Holy Liturgy in 15 Minutes • የቅዳሴ 15 ደቂቃ ቀርቷል',
-          body: 'Holy Liturgy begins in 15 minutes. Church doors are open.',
-        );
-      }
-      if (remaining.inMinutes <= 7 && remaining.inMinutes >= 5 && !_notifiedLiturgy7m) {
-        _notifiedLiturgy7m = true;
-        NotificationService.instance.showSystemNotification(
-          id: 70004,
-          title: '🔔 Holy Liturgy in 7 Minutes • የቅዳሴ 7 ደቂቃ ቀርቷል',
-          body: 'Holy Liturgy begins in approximately 7 minutes at St. Mary\'s Orthodox Church.',
-        );
-      }
+      liturgyCountdownNotifier.value = nextProgram.dateTime.difference(now);
     } else {
       liturgyCountdownNotifier.value = Duration.zero;
-      if (!_notifiedLiturgyFinished && _programs.isNotEmpty) {
-        _notifiedLiturgyFinished = true;
-        NotificationService.instance.showSystemNotification(
-          id: 70000,
-          title: '🔔 የቅዳሴ ሰዓት ደርሷል! Holy Liturgy Live Now',
-          body: 'Sunday Holy Liturgy at St. Mary\'s Orthodox Church has commenced. እንኳን አደረሳችሁ!',
-        );
-      }
     }
   }
 
@@ -244,6 +90,7 @@ mixin BroadcastStateMixin on ChangeNotifier {
 
     _programs.insert(0, program);
     _tickCountdown();
+    unawaited(NotificationService.instance.syncScheduledProgramNotifications(_programs));
     notifyListeners();
 
     try {
@@ -282,6 +129,7 @@ mixin BroadcastStateMixin on ChangeNotifier {
       );
       _programs[idx] = updated;
       _tickCountdown();
+      unawaited(NotificationService.instance.syncScheduledProgramNotifications(_programs));
       notifyListeners();
 
       try {
@@ -299,6 +147,7 @@ mixin BroadcastStateMixin on ChangeNotifier {
   Future<void> deleteChurchProgram(String id) async {
     _programs.removeWhere((p) => p.id == id);
     _tickCountdown();
+    unawaited(NotificationService.instance.cancelProgramNotifications(id));
     notifyListeners();
 
     try {
@@ -367,7 +216,6 @@ mixin BroadcastStateMixin on ChangeNotifier {
 
     try {
       await _firestoreService.deleteChurchProgram(broadcastId);
-      await FirebaseFirestore.instance.collection('church_programs').doc(broadcastId).delete();
       debugPrint('Emergency broadcast deleted: $broadcastId');
     } catch (e) {
       debugPrint('Firestore deleteEmergencyBroadcast notice: $e');

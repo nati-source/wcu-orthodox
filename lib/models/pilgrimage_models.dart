@@ -135,6 +135,7 @@ class PilgrimageTripModel {
   final String coordinatorName;
   final String coordinatorPhone;
   final String? bannerAssetPath;
+  final List<int> occupiedSeats;
 
   const PilgrimageTripModel({
     required this.id,
@@ -156,9 +157,26 @@ class PilgrimageTripModel {
     required this.coordinatorName,
     required this.coordinatorPhone,
     this.bannerAssetPath,
+    this.occupiedSeats = const [],
   });
 
   int get availableSeats => (totalSeats - bookedSeats).clamp(0, totalSeats);
+
+  static int computeNextSeat(List<int> occupiedSeats, int bookedSeats, int totalSeats) {
+    if (occupiedSeats.isEmpty && bookedSeats > 0) {
+      final next = bookedSeats + 1;
+      return next <= totalSeats ? next : totalSeats;
+    }
+    final occupiedSet = occupiedSeats.toSet();
+    for (int s = 1; s <= totalSeats; s++) {
+      if (!occupiedSet.contains(s)) {
+        return s;
+      }
+    }
+    return totalSeats + 1;
+  }
+
+  int nextAvailableSeat() => computeNextSeat(occupiedSeats, bookedSeats, totalSeats);
 
   PilgrimageTripModel copyWith({
     String? id,
@@ -180,6 +198,7 @@ class PilgrimageTripModel {
     String? coordinatorName,
     String? coordinatorPhone,
     String? bannerAssetPath,
+    List<int>? occupiedSeats,
   }) {
     return PilgrimageTripModel(
       id: id ?? this.id,
@@ -201,6 +220,7 @@ class PilgrimageTripModel {
       coordinatorName: coordinatorName ?? this.coordinatorName,
       coordinatorPhone: coordinatorPhone ?? this.coordinatorPhone,
       bannerAssetPath: bannerAssetPath ?? this.bannerAssetPath,
+      occupiedSeats: occupiedSeats ?? this.occupiedSeats,
     );
   }
 
@@ -219,6 +239,7 @@ class PilgrimageTripModel {
       'cbeAccountName': cbeAccountName,
       'totalSeats': totalSeats,
       'bookedSeats': bookedSeats,
+      'occupiedSeats': occupiedSeats,
       'itinerary': itinerary,
       'packingList': packingList,
       'coordinatorName': coordinatorName,
@@ -248,6 +269,11 @@ class PilgrimageTripModel {
       coordinatorName: map['coordinatorName']?.toString() ?? 'Coordinator',
       coordinatorPhone: map['coordinatorPhone']?.toString() ?? '',
       bannerAssetPath: map['bannerAssetPath']?.toString(),
+      occupiedSeats: (map['occupiedSeats'] as List?)
+              ?.map((e) => _parsePilgrimageInt(e, 0))
+              .where((s) => s > 0)
+              .toList() ??
+          const [],
     );
   }
 }

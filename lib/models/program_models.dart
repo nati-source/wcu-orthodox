@@ -1,4 +1,6 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ChurchProgramModel {
   final String id;
   final String title;
@@ -64,7 +66,11 @@ class ChurchProgramModel {
   }
 
   factory ChurchProgramModel.fromMap(Map<String, dynamic> map, String docId) {
-    final dt = map['dateTime'] != null ? DateTime.tryParse(map['dateTime']) ?? DateTime.now() : DateTime.now();
+    final dt = map['dateTime'] is Timestamp
+        ? (map['dateTime'] as Timestamp).toDate()
+        : map['dateTime'] is String
+        ? DateTime.tryParse(map['dateTime'] as String) ?? DateTime.now()
+        : DateTime.now();
     final remaining = dt.isAfter(DateTime.now()) ? dt.difference(DateTime.now()) : Duration.zero;
     return ChurchProgramModel(
       id: docId,

@@ -28,9 +28,12 @@ import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_performance/firebase_performance.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'views/auth/login_screen.dart';
+import 'views/auth/register_screen.dart';
 import 'views/auth/pending_approval_screen.dart';
+import 'views/onboarding/fellowship_onboarding_screen.dart';
 import 'views/help/user_guide_screen.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
@@ -70,10 +73,10 @@ void main() async {
     // App Check, Analytics, Performance, Notifications and Connectivity
     // all run concurrently — cutting startup wait from ~3-5s to <1s.
     Future.wait([
-      FirebaseAppCheck.instance.activate(
-        androidProvider:
-            kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      ),
+      if (kDebugMode)
+        FirebaseAppCheck.instance.activate(
+          androidProvider: AndroidProvider.debug,
+        ).catchError((_) {}),
       FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(!kDebugMode),
       FirebasePerformance.instance.setPerformanceCollectionEnabled(!kDebugMode),
       NotificationService.instance.initialize(),
@@ -105,10 +108,13 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
   bool _isDemoMode = false;
   String? _syncedUid;
   bool _isSyncingProfile = false;
+  bool _hasCompletedOnboarding = false;
+  bool _openRegisterAfterOnboarding = false;
 
   @override
   void initState() {
     super.initState();
+    _loadOnboardingStatus();
     NotificationService.globalContextProvider = () => _navigatorKey.currentContext;
     NotificationService.instance.onForegroundMessageReceived = (message) {
       final ctx = _navigatorKey.currentContext;
@@ -116,6 +122,18 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
         NotificationService.showForegroundInAppBanner(ctx, message);
       }
     };
+  }
+
+  Future<void> _loadOnboardingStatus() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hasCompleted = prefs.getBool('has_completed_onboarding_tour_v1') ?? false;
+      if (mounted) {
+        setState(() {
+          _hasCompletedOnboarding = hasCompleted;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -128,28 +146,54 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
   void _syncUserProfile(dynamic user) async {
     if (user == null) return;
 
+    final bool isAdminEmail = AppAdminConstants.isAdminEmail(user.email);
+    bool cachedApproved = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      cachedApproved = prefs.getBool('user_is_approved_${user.uid}') ?? false;
+    } catch (_) {}
+
+    // If designated admin, IMMEDIATELY initialize state with admin privileges and approval on initial load
+    if (isAdminEmail) {
+      _fellowshipState.markAsOriginalAdmin();
+      if (_fellowshipState.currentUser.id != user.uid || !_fellowshipState.currentUser.isApproved) {
+        _fellowshipState.updateCurrentUserProfile(
+          id: user.uid,
+          fullName: (user.displayName != null && (user.displayName as String).trim().isNotEmpty)
+              ? (user.displayName as String).trim()
+              : (user.email != null && (user.email as String).contains('@')
+                  ? (user.email as String).split('@').first
+                  : 'Nati (Admin)'),
+          role: UserRole.admin,
+          isApproved: true,
+        );
+      }
+      _fellowshipState.refreshScopedStreams();
+    } else {
+      if (_fellowshipState.currentUser.id != user.uid || _fellowshipState.currentUser.isApproved != cachedApproved) {
+        _fellowshipState.updateCurrentUserProfile(
+          id: user.uid,
+          fullName: (user.displayName != null && (user.displayName as String).trim().isNotEmpty)
+              ? (user.displayName as String).trim()
+              : (user.email != null && (user.email as String).contains('@')
+                  ? (user.email as String).split('@').first
+                  : 'Student Fellow'),
+          role: UserRole.student,
+          isApproved: cachedApproved,
+        );
+      }
+    }
+
     // Only run the full Firestore profile sync once per authenticated user session.
     if (_syncedUid == user.uid) return;
     _syncedUid = user.uid;
 
-    if (_fellowshipState.currentUser.id != user.uid) {
-      _fellowshipState.updateCurrentUserProfile(
-        id: user.uid,
-        fullName: (user.displayName != null && (user.displayName as String).trim().isNotEmpty)
-            ? (user.displayName as String).trim()
-            : (user.email != null && (user.email as String).contains('@')
-                ? (user.email as String).split('@').first
-                : 'Student Fellow'),
-        role: UserRole.student,
-        isApproved: false,
-      );
-    }
-
-    if (mounted) {
+    if (mounted && !isAdminEmail) {
       setState(() {
         _isSyncingProfile = true;
       });
-      Future.delayed(const Duration(milliseconds: 2000), () {
+      // Safety watchdog: ensure loading spinner is dismissed within 3 seconds under any network condition
+      Future.delayed(const Duration(seconds: 3), () {
         if (mounted && _isSyncingProfile) {
           setState(() {
             _isSyncingProfile = false;
@@ -162,8 +206,8 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
       final profile = await _authService.getUserProfile(user.uid);
 
       if (profile != null && mounted) {
-        final roleStr = profile['role']?.toString().trim() ?? 'student';
-        UserRole role = UserRole.student;
+        final roleStr = profile['role']?.toString().trim() ?? (isAdminEmail ? 'admin' : 'student');
+        UserRole role = isAdminEmail ? UserRole.admin : UserRole.student;
         for (final r in UserRole.values) {
           if (r.name.toLowerCase() == roleStr.toLowerCase()) {
             role = r;
@@ -171,11 +215,18 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
           }
         }
 
-        final isApproved = (profile['isApproved'] is bool)
-            ? (profile['isApproved'] as bool)
-            : false;
+        final rawApproved = profile['isApproved'];
+        final bool isApproved = (rawApproved is bool && rawApproved) ||
+            rawApproved?.toString().toLowerCase() == 'true' ||
+            rawApproved == 1 ||
+            (isAdminEmail || role == UserRole.admin);
 
-        if (role == UserRole.admin) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('user_is_approved_${user.uid}', isApproved);
+        } catch (_) {}
+
+        if (role == UserRole.admin || isAdminEmail) {
           _fellowshipState.markAsOriginalAdmin();
         } else {
           _fellowshipState.revokeAdminPrivileges();
@@ -193,6 +244,8 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
           isApproved: isApproved,
           assignedFamilyId: profile['assignedFamilyId'] ?? profile['familyId'] ?? profile['family'] ?? profile['assignedFamily'],
         );
+
+        _fellowshipState.refreshScopedStreams();
 
         // Only approved accounts receive role topics. The academic department
         // field is not a coordinator scope; use the explicit RBAC profile.
@@ -257,12 +310,14 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
               }
 
               if (user != null) {
-                final bool isAdmin = _fellowshipState.currentUser.role == UserRole.admin;
+                final bool isAdmin = AppAdminConstants.isAdminEmail(user.email) ||
+                    _fellowshipState.isAuthorizedAdmin ||
+                    _fellowshipState.currentUser.role == UserRole.admin;
 
                 _syncUserProfile(user);
 
-                // Show loading spinner ONLY while profile is being fetched for the very first time
-                if (!isAdmin && _isSyncingProfile && _fellowshipState.currentUser.id != user.uid) {
+                // Show safe loader while initial profile sync is happening if approval is not yet verified
+                if (!isAdmin && _isSyncingProfile && !_fellowshipState.currentUser.isApproved) {
                   return Scaffold(
                     backgroundColor: const Color(0xFF070F1E),
                     body: Center(
@@ -278,12 +333,14 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
                           const SizedBox(height: 20),
                           TextButton(
                             onPressed: () {
-                              setState(() {
-                                _isSyncingProfile = false;
-                              });
+                              if (mounted) {
+                                setState(() {
+                                  _isSyncingProfile = false;
+                                });
+                              }
                             },
                             child: const Text(
-                              'Skip & Continue / በቀጥታ ግባ',
+                              'Continue / በቀጥታ ግባ',
                               style: TextStyle(color: AppTheme.gold, fontSize: 12),
                             ),
                           ),
@@ -293,8 +350,8 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
                   );
                 }
 
-                // Show pending screen ONLY if an account was explicitly deactivated by admin (and not while initial profile is syncing)
-                if (!isAdmin && !_fellowshipState.currentUser.isApproved && !_isSyncingProfile) {
+                // Show pending screen if student is not yet approved
+                if (!isAdmin && !_fellowshipState.currentUser.isApproved) {
                   return PendingApprovalScreen(
                     fullName: _fellowshipState.currentUser.fullName,
                     email: user.email,
@@ -309,6 +366,54 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
               }
               if (_isDemoMode) {
                 return MainFellowshipScaffold(state: _fellowshipState);
+              }
+              if (!_hasCompletedOnboarding) {
+                return FellowshipOnboardingScreen(
+                  state: _fellowshipState,
+                  onFinish: () async {
+                    try {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('has_completed_onboarding_tour_v1', true);
+                    } catch (_) {}
+                    if (mounted) {
+                      setState(() {
+                        _hasCompletedOnboarding = true;
+                        _openRegisterAfterOnboarding = true;
+                      });
+                    }
+                  },
+                  onSignIn: () async {
+                    try {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setBool('has_completed_onboarding_tour_v1', true);
+                    } catch (_) {}
+                    if (mounted) {
+                      setState(() {
+                        _hasCompletedOnboarding = true;
+                        _openRegisterAfterOnboarding = false;
+                      });
+                    }
+                  },
+                );
+              }
+              if (_openRegisterAfterOnboarding) {
+                return RegisterScreen(
+                  state: _fellowshipState,
+                  onRegisterSuccess: () {
+                    if (mounted) {
+                      setState(() {
+                        _openRegisterAfterOnboarding = false;
+                      });
+                    }
+                  },
+                  onSignInTap: () {
+                    if (mounted) {
+                      setState(() {
+                        _openRegisterAfterOnboarding = false;
+                      });
+                    }
+                  },
+                );
               }
               return LoginScreen(
                 state: _fellowshipState,
@@ -393,167 +498,303 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
 
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: primaryAccent.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(Icons.notifications_active, color: primaryAccent, size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Fellowship Alerts & Notices',
-                        style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
-                      ),
-                    ],
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, size: 20),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (alert != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.crimson.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppTheme.crimson.withValues(alpha: 0.5)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.campaign, color: AppTheme.crimson, size: 24),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(alert.title, style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 13)),
-                            const SizedBox(height: 2),
-                            Text(alert.description, style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: theme.dividerColor),
-                ),
-                child: Row(
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.82,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.church_outlined, color: primaryAccent, size: 22),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Upcoming Sunday Divine Liturgy', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 13)),
-                          const SizedBox(height: 2),
-                          Text('St. Mary\'s Orthodox Church • Liturgy starts at 6:00 AM (12:00 LT)', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 11)),
-                        ],
-                      ),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: primaryAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(Icons.notifications_active, color: primaryAccent, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Fellowship Alerts & Notices',
+                          style: TextStyle(fontFamily: 'serif', fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
                     ),
                   ],
                 ),
-              ),
-              if (isAdmin) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppTheme.azure.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.verified_user_outlined, color: AppTheme.azure, size: 22),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          '$pendingCount student registrations & $volunteerCount department applications require admin review.',
-                          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 12),
+                const SizedBox(height: 16),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (alert != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.crimson.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppTheme.crimson.withValues(alpha: 0.5)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.campaign, color: AppTheme.crimson, size: 24),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(alert.title, style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 13)),
+                                      const SizedBox(height: 2),
+                                      Text(alert.description, style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 11)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        // Live General Announcements
+                        ...state.announcements.take(4).map((ann) {
+                          final isUrgent = ann['isUrgent'] == true;
+                          return Container(
+                            padding: const EdgeInsets.all(14),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: (isUrgent ? AppTheme.crimson : primaryAccent).withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  isUrgent ? Icons.warning_amber_rounded : Icons.campaign_outlined,
+                                  color: isUrgent ? AppTheme.crimson : primaryAccent,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              ann['title']?.toString() ?? 'Announcement',
+                                              style: TextStyle(
+                                                color: theme.colorScheme.onSurface,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                          if (ann['category'] != null)
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: primaryAccent.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                ann['category'].toString(),
+                                                style: TextStyle(color: primaryAccent, fontSize: 9, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        ann['content']?.toString() ?? '',
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        // Live Department Broadcasts
+                        ...state.departmentBroadcasts.take(4).map((bcast) {
+                          return Container(
+                            padding: const EdgeInsets.all(14),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: theme.dividerColor),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.mark_chat_unread_outlined, color: primaryAccent, size: 22),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              bcast.title,
+                                              style: TextStyle(
+                                                color: theme.colorScheme.onSurface,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                          if (bcast.departmentId.isNotEmpty)
+                                            Text(
+                                              bcast.departmentId,
+                                              style: TextStyle(color: primaryAccent, fontSize: 10, fontWeight: FontWeight.w600),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        bcast.body,
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 11),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        // Sunday Divine Liturgy regular notice
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: theme.dividerColor),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.church_outlined, color: primaryAccent, size: 22),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Upcoming Sunday Divine Liturgy', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 13)),
+                                    const SizedBox(height: 2),
+                                    Text('St. Mary\'s Orthodox Church • Liturgy starts at 6:00 AM (12:00 LT)', style: TextStyle(color: theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary, fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                        if (isAdmin) ...[
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppTheme.azure.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.verified_user_outlined, color: AppTheme.azure, size: 22),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    '$pendingCount student registrations & $volunteerCount department applications require admin review.',
+                                    style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else if (apptCount > 0) ...[
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: AppTheme.emerald.withValues(alpha: 0.4)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_month, color: AppTheme.emerald, size: 22),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'You have active Confession Father counseling appointments. Check your Prep & Checklist tab.',
+                                    style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-              ] else if (apptCount > 0) ...[
-                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppTheme.emerald.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.calendar_month, color: AppTheme.emerald, size: 22),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'You have active Confession Father counseling appointments. Check your Prep & Checklist tab.',
-                          style: TextStyle(color: theme.colorScheme.onSurface, fontSize: 12),
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(top: 14),
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => UserGuideScreen(state: widget.state, onOpenScanner: _openQrScanner),
                         ),
-                      ),
-                    ],
+                      );
+                    },
+                    icon: const Icon(Icons.menu_book_rounded, color: AppTheme.gold, size: 18),
+                    label: const Text(
+                      'User Guide & Manual • የተጠቃሚ መመሪያ',
+                      style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: AppTheme.gold.withValues(alpha: 0.5)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
+                const SizedBox(height: 8),
               ],
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(top: 14),
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => UserGuideScreen(state: widget.state, onOpenScanner: _openQrScanner),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.menu_book_rounded, color: AppTheme.gold, size: 18),
-                  label: const Text(
-                    'User Guide & Manual • የተጠቃሚ መመሪያ',
-                    style: TextStyle(color: AppTheme.gold, fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    side: BorderSide(color: AppTheme.gold.withValues(alpha: 0.5)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         );
       },

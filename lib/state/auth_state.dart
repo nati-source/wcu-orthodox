@@ -54,6 +54,9 @@ mixin AuthStateMixin on ChangeNotifier {
 
   void markAsOriginalAdmin() {
     _isOriginalAdmin = true;
+    _authenticatedRole = UserRole.admin;
+    _assignedRole = UserRole.admin;
+    _activeRole = UserRole.admin;
     notifyListeners();
   }
 
@@ -414,6 +417,7 @@ mixin AuthStateMixin on ChangeNotifier {
   // ROLE CAPABILITIES & PERMISSION CHECKERS (SCOPED RBAC)
   // ----------------------------------------------------
   bool get isAdmin =>
+      _isOriginalAdmin ||
       _activeRole == UserRole.admin ||
       _currentUser.role == UserRole.admin ||
       _authenticatedRole == UserRole.admin;
@@ -456,9 +460,12 @@ mixin AuthStateMixin on ChangeNotifier {
   /// Assigning or promoting roles is strictly ADMIN only.
   bool get canAssignRoles => isAdmin;
 
-  /// Emergency student aid review (Admin or Member Care Coordinator)
+  /// Emergency student aid review (Admin, Member Care, Charity, or Accounting Coordinators)
   bool get canManageEmergencyAid =>
-      isAdmin || isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare);
+      isAdmin ||
+      isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare) ||
+      isCoordinatorOf(FellowshipDepartmentConstants.deptCharity) ||
+      isCoordinatorOf(FellowshipDepartmentConstants.deptFinanceProperty);
 
   /// Pilgrimage trip management (Admin or Batch & Programs Coordinator)
   bool get canManagePilgrimages =>
@@ -830,8 +837,12 @@ mixin AuthStateMixin on ChangeNotifier {
     required int academicYear,
     String gender = 'male',
   }) {
+    String? authUid;
+    try {
+      authUid = FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {}
     final newStudent = UserModel(
-      id: 'usr-${DateTime.now().millisecondsSinceEpoch}',
+      id: authUid ?? 'usr-${DateTime.now().millisecondsSinceEpoch}',
       fullName: fullName,
       baptismalName: baptismalName,
       phoneNumber: phoneNumber,
@@ -849,23 +860,25 @@ mixin AuthStateMixin on ChangeNotifier {
     _currentUser = newStudent;
     notifyListeners();
 
+    if (authUid == null || authUid.isEmpty) {
+      return;
+    }
+
     // Write to Firestore asynchronously; surface errors to log
     try {
       FirebaseFirestore.instance
           .collection('users')
-          .doc(newStudent.id)
+          .doc(authUid)
           .set(newStudent.toMap(), SetOptions(merge: true))
           .then((_) {
             debugPrint(
-              'registerStudent: Firestore write succeeded for ${newStudent.id}',
+              'registerStudent: Firestore write succeeded for $authUid',
             );
           })
           .catchError((e) {
             debugPrint(
               'Firestore registerStudent error (offline or permission): $e',
             );
-            // Data is already saved locally via _pendingApprovals & _currentUser.
-            // The next time the user comes online, the Firestore stream will re-sync.
           });
     } catch (e) {
       debugPrint('Firestore registerStudent notice: $e');
@@ -876,10 +889,29 @@ mixin AuthStateMixin on ChangeNotifier {
     String studentId, {
     UserRole role = UserRole.student,
   }) async {
-    if (!canApproveGeneralStudents || role == UserRole.volunteerCoordinator)
+    if (!canApproveGeneralStudents || role == UserRole.volunteerCoordinator) {
       return false;
+    }
     final index = _pendingApprovals.indexWhere((u) => u.id == studentId);
     if (index == -1) return false;
+
+    final originalPendingStudent = _pendingApprovals[index];
+    final approvedStudent = originalPendingStudent.copyWith(isApproved: true, role: role);
+
+    // Optimistically update local lists
+    _pendingApprovals.removeAt(index);
+    final previousAllStudentIndex = _allStudents.indexWhere((user) => user.id == studentId);
+    final previousAllStudent = previousAllStudentIndex >= 0 ? _allStudents[previousAllStudentIndex] : null;
+    if (previousAllStudentIndex >= 0) {
+      _allStudents[previousAllStudentIndex] = approvedStudent;
+    } else {
+      _allStudents.add(approvedStudent);
+    }
+    final previousCurrentUser = _currentUser;
+    if (_currentUser.id == studentId) {
+      _currentUser = approvedStudent;
+    }
+    notifyListeners();
 
     try {
       await FirebaseFirestore.instance
@@ -890,19 +922,25 @@ mixin AuthStateMixin on ChangeNotifier {
             'role': role.name,
             'updatedAt': FieldValue.serverTimestamp(),
           });
+      return true;
     } catch (e) {
       debugPrint('Firestore approveStudent failed: $e');
+      // Rollback optimistic update
+      if (index <= _pendingApprovals.length) {
+        _pendingApprovals.insert(index, originalPendingStudent);
+      } else {
+        _pendingApprovals.add(originalPendingStudent);
+      }
+      _allStudents.removeWhere((user) => user.id == studentId);
+      if (previousAllStudent != null) {
+        _allStudents.add(previousAllStudent);
+      }
+      if (_currentUser.id == studentId) {
+        _currentUser = previousCurrentUser;
+      }
+      notifyListeners();
       return false;
     }
-
-    final student = _pendingApprovals
-        .removeAt(index)
-        .copyWith(isApproved: true, role: role);
-    _allStudents.removeWhere((user) => user.id == student.id);
-    _allStudents.add(student);
-    if (_currentUser.id == studentId) _currentUser = student;
-    notifyListeners();
-    return true;
   }
 
   Future<int> approveMultipleStudents(

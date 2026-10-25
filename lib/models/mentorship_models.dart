@@ -1,4 +1,6 @@
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AcademicMentorModel {
   final String id;
   final String studentId;
@@ -196,7 +198,11 @@ class MentorshipRequestModel {
       mentorName: map['mentorName'] ?? '',
       coursesNeeded: map['coursesNeeded'] ?? '',
       status: status,
-      requestedAt: map['requestedAt'] != null ? DateTime.tryParse(map['requestedAt']) ?? DateTime.now() : DateTime.now(),
+      requestedAt: map['requestedAt'] is Timestamp
+          ? (map['requestedAt'] as Timestamp).toDate()
+          : map['requestedAt'] is String
+          ? DateTime.tryParse(map['requestedAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
       mentorPhone: map['mentorPhone'] as String?,
       mentorTelegram: map['mentorTelegram'] as String?,
       juniorPhone: map['juniorPhone'] as String?,

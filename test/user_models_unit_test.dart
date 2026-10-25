@@ -195,5 +195,28 @@ void main() {
       expect(user.fullName, 'Initial Name'); // original immutable
       expect(user.isApproved, false);
     });
+
+    test('UserModel.fromMap flexibly handles bool, string and int for isApproved', () {
+      final userBool = UserModel.fromMap({'fullName': 'Student A', 'isApproved': true}, 'id-1');
+      expect(userBool.isApproved, true);
+
+      final userString = UserModel.fromMap({'fullName': 'Student B', 'isApproved': 'true'}, 'id-2');
+      expect(userString.isApproved, true);
+
+      final userStringCaps = UserModel.fromMap({'fullName': 'Student C', 'isApproved': 'True'}, 'id-3');
+      expect(userStringCaps.isApproved, true);
+
+      final userInt = UserModel.fromMap({'fullName': 'Student D', 'isApproved': 1}, 'id-4');
+      expect(userInt.isApproved, true);
+
+      final userFalse = UserModel.fromMap({'fullName': 'Student E', 'isApproved': false}, 'id-5');
+      expect(userFalse.isApproved, false);
+
+      final userFalseStr = UserModel.fromMap({'fullName': 'Student F', 'isApproved': 'false'}, 'id-6');
+      expect(userFalseStr.isApproved, false);
+
+      final userNull = UserModel.fromMap({'fullName': 'Student G'}, 'id-7');
+      expect(userNull.isApproved, false);
+    });
   });
 }

@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wcu_orthodox/models/app_models.dart';
 import 'package:wcu_orthodox/state/fellowship_state.dart';
 import 'package:wcu_orthodox/theme/app_theme.dart';
 import 'package:wcu_orthodox/views/onboarding/fellowship_onboarding_screen.dart';
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('FellowshipOnboardingScreen: Full Interactive Flow & Wizard Test', (tester) async {
     final state = FellowshipState();
     bool finished = false;
@@ -24,28 +29,30 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // 1. Verify Slide 1: Light for the Path
-    expect(find.text('LIGHT FOR THE PATH'), findsOneWidget);
-    expect(find.text('— መዝሙር ፻፲፱:፻፭'), findsOneWidget);
-    expect(find.text('መብራት'), findsOneWidget);
-    expect(find.text('ብርሃን'), findsOneWidget);
+    // 1. Verify Slide 1: Spiritual Family & Mentorship
+    expect(find.text('SPIRITUAL FAMILY & MENTORSHIP'), findsOneWidget);
+    expect(find.text('— መዝሙር ፻፴፪፥፩ • Psalm 133:1'), findsOneWidget);
+    expect(find.text('ወንድሞች'), findsOneWidget);
+    expect(find.text('በኅብረት'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);
 
     // Tap Continue -> Slide 2
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('STUDY DEEPER'), findsOneWidget);
-    expect(find.text('JOHN 1:1 • ዮሐንስ ፩:፩'), findsOneWidget);
-    expect(find.text("STRONG'S G3056 • ግዕዝ: ቃል"), findsOneWidget);
+    // 2. Verify Slide 2: Serve & Grow
+    expect(find.text('SERVE & GROW'), findsOneWidget);
+    expect(find.text('1 PETER 4:10 • ፩ ጴጥሮስ ፬፥፲'), findsOneWidget);
+    expect(find.text('CONFESSOR FATHERS & PATRISTICS • የንስሐ አባትና ነገረ አበው'), findsOneWidget);
 
     // Tap Continue -> Slide 3
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('EVERY DAY'), findsOneWidget);
-    expect(find.text('የዕለቱ ንባብና ስንክሳር'), findsOneWidget);
-    expect(find.text('ዮሐንስ ፫ • የቅዳሴ ዝማሬ'), findsOneWidget);
+    // 3. Verify Slide 3: Campus Fellowship Life
+    expect(find.text('CAMPUS FELLOWSHIP LIFE'), findsOneWidget);
+    expect(find.text('የዕለቱ ስንክሳር፣ ቅዳሴና የንግሥ ጉዞ'), findsOneWidget);
+    expect(find.text('ቅዱስ ያሬድ (St. Yared) • የሰንበት መዝሙርና ዲጂታል ላይብረሪ'), findsOneWidget);
 
     // Tap audio play button in preview
     await tester.tap(find.byIcon(Icons.play_arrow_rounded));
@@ -61,7 +68,8 @@ void main() {
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('MADE FOR YOU'), findsOneWidget);
+    // 4. Verify Slide 4: Made for WCU Fellows
+    expect(find.text('MADE FOR WCU FELLOWS'), findsOneWidget);
     expect(find.text('Set up my Fellowship'), findsOneWidget);
 
     // Tap Set up my Fellowship -> Transitions to Wizard Step 1: FOCUS
@@ -75,19 +83,19 @@ void main() {
     await tester.tap(find.text('Education & Apostolic (ትምህርት)'));
     await tester.pumpAndSettle();
 
-    // Tap Continue -> Wizard Step 2: DAILY
+    // Tap Continue -> Wizard Step 2: ALERTS
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('YOUR DAILY READING'), findsOneWidget);
-    expect(find.text('Daily Reading Reminder'), findsOneWidget);
+    expect(find.text('FELLOWSHIP ALERTS'), findsOneWidget);
+    expect(find.text('Liturgy & Fellowship Reminders'), findsOneWidget);
 
     // Tap Continue -> Wizard Step 3: SACRED LOOK
     await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
     expect(find.text('YOUR SACRED LOOK'), findsOneWidget);
-    expect(find.text('ዮሐንስ ፩:፲፬ • John 1:14'), findsOneWidget);
+    expect(find.text('ዮሐንስ ፩:፲፬ • John 1:14 — ቅዱስ ዮሐንስ ወንጌላዊ'), findsOneWidget);
 
     // Tap Axumite Emerald palette swatch
     await tester.tap(find.text('Axumite Emerald'));
@@ -98,6 +106,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(finished, isTrue);
+    expect(signedIn, isFalse);
     expect(state.currentThemePalette, equals(AppThemePalette.axumiteEmerald));
     state.dispose();
   });

@@ -148,7 +148,6 @@ mixin LibraryStateMixin on ChangeNotifier {
 
     try {
       await _firestoreService.deleteLibraryItem(bookId);
-      await FirebaseFirestore.instance.collection('library_items').doc(bookId).delete();
       debugPrint('Firestore deleteLibraryBook success: $bookId');
     } catch (e) {
       debugPrint('Firestore deleteLibraryBook error: $e');

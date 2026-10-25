@@ -881,7 +881,8 @@ extension DeptCharityModuleExt on _CoordinatorHubScreenState {
           else
             ...state.emergencyAidRequests.map((req) {
               final isUnderReview =
-                  req.status == EmergencyAidStatus.underReview;
+                  req.status == EmergencyAidStatus.underReview ||
+                  req.status == EmergencyAidStatus.approved;
               return InteractiveFellowshipCard(
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(14),
@@ -1507,6 +1508,7 @@ extension DeptCharityModuleExt on _CoordinatorHubScreenState {
                             purpose: purposeCtrl.text.trim(),
                             paymentMethod: method,
                             transactionReference: refCtrl.text.trim(),
+                            donorName: nameCtrl.text.trim(),
                           );
                           Navigator.pop(ctx);
                           ScaffoldMessenger.of(context).showSnackBar(

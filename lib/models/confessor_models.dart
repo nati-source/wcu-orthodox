@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 class ConfessorFatherModel {
@@ -201,7 +202,11 @@ class ConfessionAppointmentModel {
       studentPhone: map['studentPhone'] ?? '',
       fatherId: map['fatherId'] ?? '',
       fatherName: map['fatherName'] ?? '',
-      scheduledDate: map['scheduledDate'] != null ? DateTime.tryParse(map['scheduledDate']) ?? DateTime.now() : DateTime.now(),
+      scheduledDate: map['scheduledDate'] is Timestamp
+          ? (map['scheduledDate'] as Timestamp).toDate()
+          : map['scheduledDate'] is String
+          ? DateTime.tryParse(map['scheduledDate'] as String) ?? DateTime.now()
+          : DateTime.now(),
       timeSlot: map['timeSlot'] ?? '',
       topic: map['topic'] ?? 'General Confession',
       status: status,
@@ -270,7 +275,11 @@ class AnonymousSpiritualQuestionModel {
       id: docId,
       questionText: map['questionText'] ?? '',
       category: map['category'] ?? 'Theology & Dogma',
-      askedAt: map['askedAt'] != null ? DateTime.tryParse(map['askedAt']) ?? DateTime.now() : DateTime.now(),
+      askedAt: map['askedAt'] is Timestamp
+          ? (map['askedAt'] as Timestamp).toDate()
+          : map['askedAt'] is String
+          ? DateTime.tryParse(map['askedAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
       isAnswered: map['isAnswered'] ?? false,
       answerText: map['answerText'],
       answeredBy: map['answeredBy'],

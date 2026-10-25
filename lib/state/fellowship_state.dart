@@ -192,6 +192,46 @@ class FellowshipState extends ChangeNotifier
     }
 
     _listenToRegisteredUsers();
+    _startCountdownTicker();
+
+    if (!isDemoMode && !_currentUser.isApproved && !isAdmin) {
+      _cancelDeferredStreams();
+      return;
+    }
+
+    _subscribeApprovedStreams();
+  }
+
+  void _cancelDeferredStreams() {
+    _familiesSubscription?.cancel();
+    _familyConfigSubscription?.cancel();
+    _pilgrimageTripsSubscription?.cancel();
+    _tripRegistrationsSubscription?.cancel();
+    _libraryItemsSubscription?.cancel();
+    _programsSubscription?.cancel();
+    _departmentBroadcastsSubscription?.cancel();
+    _fundraisingProposalsSubscription?.cancel();
+    _volunteerApplicationsSubscription?.cancel();
+    _departmentMembersSubscription?.cancel();
+    _confessorFathersSubscription?.cancel();
+    _confessionAppointmentsSubscription?.cancel();
+    _spiritualQuestionsSubscription?.cancel();
+    _charityCampaignsSubscription?.cancel();
+    _duesPaymentsSubscription?.cancel();
+    _charityDisbursementsSubscription?.cancel();
+    _emergencyAidRequestsSubscription?.cancel();
+    _academicMentorsSubscription?.cancel();
+    _mentorshipRequestsSubscription?.cancel();
+    _quizAttemptsSubscription?.cancel();
+    _announcementsSubscription?.cancel();
+    _triviaLeaderboardSubscription?.cancel();
+    _attendanceSessionsSubscription?.cancel();
+    _attendanceScansSubscription?.cancel();
+    _triviaQuizzesSubscription?.cancel();
+    _ministriesSubscription?.cancel();
+  }
+
+  void _subscribeApprovedStreams() {
     _listenToFamilies();
     _listenToFamilyConfig();
     _listenToPilgrimageTrips();
@@ -217,7 +257,6 @@ class FellowshipState extends ChangeNotifier
     _listenToActiveSessions();
     _listenToTriviaQuizzes();
     _listenToMinistries();
-    _startCountdownTicker();
   }
 
   StreamSubscription? _usersSubscription;
@@ -380,6 +419,7 @@ class FellowshipState extends ChangeNotifier
                   }
                 }
                 if (_currentUser.id == user.id) {
+                  final transitionedToApproved = !_currentUser.isApproved && user.isApproved;
                   if (user.role == UserRole.admin) {
                     _isOriginalAdmin = true;
                     _authenticatedRole = UserRole.admin;
@@ -392,6 +432,16 @@ class FellowshipState extends ChangeNotifier
                     _assignedRole = user.role;
                     _activeRole = user.role;
                     _currentUser = user;
+                  }
+                  if (user.isApproved) {
+                    try {
+                      SharedPreferences.getInstance().then((prefs) {
+                        prefs.setBool('user_is_approved_${user.id}', true);
+                      });
+                    } catch (_) {}
+                  }
+                  if (transitionedToApproved) {
+                    refreshScopedStreams();
                   }
                 }
               }
@@ -416,7 +466,18 @@ class FellowshipState extends ChangeNotifier
               final user = UserModel.fromMap(doc.data(), doc.id);
               final idx = _allStudents.indexWhere((u) => u.id == user.id);
               if (user.id == _currentUser.id) {
+                final transitionedToApproved = !_currentUser.isApproved && user.isApproved;
                 _currentUser = user;
+                if (user.isApproved) {
+                  try {
+                    SharedPreferences.getInstance().then((prefs) {
+                      prefs.setBool('user_is_approved_${user.id}', true);
+                    });
+                  } catch (_) {}
+                }
+                if (transitionedToApproved) {
+                  refreshScopedStreams();
+                }
               }
               if (user.role == UserRole.student && idx >= 0) {
                 _allStudents[idx] = user;
@@ -558,6 +619,7 @@ class FellowshipState extends ChangeNotifier
                     )
                     .toList();
                 _tickCountdown();
+                unawaited(NotificationService.instance.syncScheduledProgramNotifications(_programs));
 
                 // Real-time synchronization of emergency broadcast across ALL student and user screens
                 final emergencies = _programs
@@ -578,6 +640,7 @@ class FellowshipState extends ChangeNotifier
               } else {
                 _programs = [];
                 _tickCountdown();
+                unawaited(NotificationService.instance.syncScheduledProgramNotifications(_programs));
                 _latestEmergencyBroadcast = null;
                 notifyListeners();
               }
@@ -621,30 +684,42 @@ class FellowshipState extends ChangeNotifier
 
   void _listenToFundraisingProposals() {
     try {
+      _fundraisingProposalsSubscription?.cancel();
+      final canAccess = isAdmin ||
+          isCoordinatorOf(FellowshipDepartmentConstants.deptDevelopment) ||
+          (_currentUser.coordinatorProfile?.isReadOnlyAudit == true) ||
+          FellowshipDepartmentConstants.isAuditScope(
+            _currentUser.coordinatorProfile?.departmentId,
+          );
+      if (!canAccess) {
+        _fundraisingProposals.clear();
+        notifyListeners();
+        return;
+      }
       _fundraisingProposalsSubscription = FirebaseFirestore.instance
           .collection('fundraising_proposals')
           .snapshots()
           .listen(
             (snapshot) {
-              if (snapshot.docs.isNotEmpty) {
-                final cloudProposals = snapshot.docs
-                    .map(
-                      (doc) =>
-                          FundraisingProposalModel.fromMap(doc.data(), doc.id),
-                    )
-                    .toList();
-                for (final prop in cloudProposals) {
-                  final idx = _fundraisingProposals.indexWhere(
-                    (p) => p.id == prop.id,
-                  );
-                  if (idx >= 0) {
-                    _fundraisingProposals[idx] = prop;
-                  } else {
-                    _fundraisingProposals.insert(0, prop);
-                  }
+              final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
+              _fundraisingProposals.removeWhere((p) => !currentDocIds.contains(p.id));
+              final cloudProposals = snapshot.docs
+                  .map(
+                    (doc) =>
+                        FundraisingProposalModel.fromMap(doc.data(), doc.id),
+                  )
+                  .toList();
+              for (final prop in cloudProposals) {
+                final idx = _fundraisingProposals.indexWhere(
+                  (p) => p.id == prop.id,
+                );
+                if (idx >= 0) {
+                  _fundraisingProposals[idx] = prop;
+                } else {
+                  _fundraisingProposals.insert(0, prop);
                 }
-                notifyListeners();
               }
+              notifyListeners();
             },
             onError: (err) {
               debugPrint('Firestore fundraising_proposals sync notice: $err');
@@ -675,25 +750,25 @@ class FellowshipState extends ChangeNotifier
       }
       _volunteerApplicationsSubscription = query.snapshots().listen(
         (snapshot) {
-          if (snapshot.docs.isNotEmpty) {
-            final cloudApps = snapshot.docs
-                .map(
-                  (doc) =>
-                      VolunteerApplicationModel.fromMap(doc.data(), doc.id),
-                )
-                .toList();
-            for (final app in cloudApps) {
-              final idx = _volunteerApplications.indexWhere(
-                (a) => a.id == app.id,
-              );
-              if (idx >= 0) {
-                _volunteerApplications[idx] = app;
-              } else {
-                _volunteerApplications.insert(0, app);
-              }
+          final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
+          _volunteerApplications.removeWhere((a) => !currentDocIds.contains(a.id));
+          final cloudApps = snapshot.docs
+              .map(
+                (doc) =>
+                    VolunteerApplicationModel.fromMap(doc.data(), doc.id),
+              )
+              .toList();
+          for (final app in cloudApps) {
+            final idx = _volunteerApplications.indexWhere(
+              (a) => a.id == app.id,
+            );
+            if (idx >= 0) {
+              _volunteerApplications[idx] = app;
+            } else {
+              _volunteerApplications.insert(0, app);
             }
-            notifyListeners();
           }
+          notifyListeners();
         },
         onError: (err) {
           debugPrint('Firestore department_applications sync notice: $err');
@@ -737,30 +812,31 @@ class FellowshipState extends ChangeNotifier
 
   void _listenToDepartmentMembers() {
     try {
+      _departmentMembersSubscription?.cancel();
       _departmentMembersSubscription = FirebaseFirestore.instance
           .collection('department_members')
           .snapshots()
           .listen(
             (snapshot) {
-              if (snapshot.docs.isNotEmpty) {
-                final cloudMembers = snapshot.docs
-                    .map(
-                      (doc) =>
-                          DepartmentMemberModel.fromMap(doc.data(), doc.id),
-                    )
-                    .toList();
-                for (final mem in cloudMembers) {
-                  final idx = _departmentMembers.indexWhere(
-                    (m) => m.id == mem.id,
-                  );
-                  if (idx >= 0) {
-                    _departmentMembers[idx] = mem;
-                  } else {
-                    _departmentMembers.insert(0, mem);
-                  }
+              final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
+              _departmentMembers.removeWhere((m) => !currentDocIds.contains(m.id));
+              final cloudMembers = snapshot.docs
+                  .map(
+                    (doc) =>
+                        DepartmentMemberModel.fromMap(doc.data(), doc.id),
+                  )
+                  .toList();
+              for (final mem in cloudMembers) {
+                final idx = _departmentMembers.indexWhere(
+                  (m) => m.id == mem.id,
+                );
+                if (idx >= 0) {
+                  _departmentMembers[idx] = mem;
+                } else {
+                  _departmentMembers.insert(0, mem);
                 }
-                notifyListeners();
               }
+              notifyListeners();
             },
             onError: (err) {
               debugPrint('Firestore department_members sync notice: $err');
@@ -981,27 +1057,28 @@ class FellowshipState extends ChangeNotifier
 
   void _listenToAcademicMentors() {
     try {
+      _academicMentorsSubscription?.cancel();
       _academicMentorsSubscription = FirebaseFirestore.instance
           .collection('academic_mentors')
           .snapshots()
           .listen(
             (snapshot) {
-              if (snapshot.docs.isNotEmpty) {
-                final cloudMentors = snapshot.docs
-                    .map(
-                      (doc) => AcademicMentorModel.fromMap(doc.data(), doc.id),
-                    )
-                    .toList();
-                for (final m in cloudMentors) {
-                  final idx = _academicMentors.indexWhere((x) => x.id == m.id);
-                  if (idx >= 0) {
-                    _academicMentors[idx] = m;
-                  } else {
-                    _academicMentors.add(m);
-                  }
+              final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
+              _academicMentors.removeWhere((m) => !currentDocIds.contains(m.id));
+              final cloudMentors = snapshot.docs
+                  .map(
+                    (doc) => AcademicMentorModel.fromMap(doc.data(), doc.id),
+                  )
+                  .toList();
+              for (final m in cloudMentors) {
+                final idx = _academicMentors.indexWhere((x) => x.id == m.id);
+                if (idx >= 0) {
+                  _academicMentors[idx] = m;
+                } else {
+                  _academicMentors.add(m);
                 }
-                notifyListeners();
               }
+              notifyListeners();
             },
             onError: (err) {
               debugPrint('Firestore academic_mentors sync notice: $err');
@@ -1020,8 +1097,15 @@ class FellowshipState extends ChangeNotifier
       );
       if (!isAdmin &&
           !isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare) &&
+          !(_currentUser.coordinatorProfile?.isReadOnlyAudit == true) &&
+          !FellowshipDepartmentConstants.isAuditScope(_currentUser.coordinatorProfile?.departmentId) &&
           _currentUser.id.isNotEmpty) {
-        query = query.where('juniorStudentId', isEqualTo: _currentUser.id);
+        query = query.where(
+          Filter.or(
+            Filter('juniorStudentId', isEqualTo: _currentUser.id),
+            Filter('mentorId', isEqualTo: _currentUser.id),
+          ),
+        );
       }
       _mentorshipRequestsSubscription = query.snapshots().listen(
         (snapshot) {
@@ -1053,20 +1137,20 @@ class FellowshipState extends ChangeNotifier
       }
       _quizAttemptsSubscription = query.snapshots().listen(
         (snapshot) {
-          if (snapshot.docs.isNotEmpty) {
-            final cloudAttempts = snapshot.docs
-                .map((doc) => QuizAttemptModel.fromMap(doc.data(), doc.id))
-                .toList();
-            for (final a in cloudAttempts) {
-              final idx = _quizAttempts.indexWhere((x) => x.id == a.id);
-              if (idx >= 0) {
-                _quizAttempts[idx] = a;
-              } else {
-                _quizAttempts.insert(0, a);
-              }
+          final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
+          _quizAttempts.removeWhere((a) => !currentDocIds.contains(a.id));
+          final cloudAttempts = snapshot.docs
+              .map((doc) => QuizAttemptModel.fromMap(doc.data(), doc.id))
+              .toList();
+          for (final a in cloudAttempts) {
+            final idx = _quizAttempts.indexWhere((x) => x.id == a.id);
+            if (idx >= 0) {
+              _quizAttempts[idx] = a;
+            } else {
+              _quizAttempts.insert(0, a);
             }
-            notifyListeners();
           }
+          notifyListeners();
         },
         onError: (err) {
           debugPrint('Firestore quiz_attempts sync notice: $err');
@@ -1080,14 +1164,11 @@ class FellowshipState extends ChangeNotifier
   /// Re-scopes and re-binds Firestore streams when the active user role or UID updates.
   void refreshScopedStreams() {
     _listenToRegisteredUsers();
-    _listenToTripRegistrations();
-    _listenToVolunteerApplications();
-    _listenToConfessionAppointments();
-    _listenToDuesPayments();
-    _listenToCharityDisbursements();
-    _listenToEmergencyAidRequests();
-    _listenToMentorshipRequests();
-    _listenToQuizAttempts();
+    if (!isDemoMode && !_currentUser.isApproved && !isAdmin) {
+      _cancelDeferredStreams();
+      return;
+    }
+    _subscribeApprovedStreams();
     if (isAdmin && !_legacyTriviaMigrationStarted) {
       _legacyTriviaMigrationStarted = true;
       unawaited(

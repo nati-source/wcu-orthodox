@@ -39,8 +39,14 @@ extension ApprovalsRegistrationsTabExt on _AdminApprovalsScreenState {
       }
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(18),
+    return RefreshIndicator(
+      onRefresh: () async {
+        state.refreshScopedStreams();
+        await Future.delayed(const Duration(milliseconds: 600));
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(18),
       children: [
         // 1. Header Overview & Summary Card
         Container(
@@ -247,7 +253,8 @@ extension ApprovalsRegistrationsTabExt on _AdminApprovalsScreenState {
         else
           ...filtered.map((student) => _buildRegistrationCard(context, state, student)),
       ],
-    );
+    ),
+  );
   }
 
   // --------------------------------------------------------------------------

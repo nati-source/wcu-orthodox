@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/auth_service.dart';
-import '../../models/app_models.dart';
 import '../../theme/app_theme.dart';
 
 /// Shown to students who have registered but whose account has not yet
@@ -24,13 +25,45 @@ class PendingApprovalScreen extends StatefulWidget {
 
 class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
   bool _isChecking = false;
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _statusSubscription;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkStatus();
-    });
+    _listenToApprovalStatus();
+  }
+
+  @override
+  void dispose() {
+    _statusSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenToApprovalStatus() {
+    final user = AuthService().currentUser;
+    if (user != null) {
+      _statusSubscription = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots()
+          .listen((doc) async {
+        if (!doc.exists || doc.data() == null) return;
+        final data = doc.data()!;
+        final rawApproved = data['isApproved'];
+        final bool isApproved = (rawApproved is bool && rawApproved) ||
+            rawApproved?.toString().toLowerCase() == 'true' ||
+            rawApproved == 1;
+        if (isApproved) {
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('user_is_approved_${user.uid}', true);
+          } catch (_) {}
+          if (mounted && widget.onCheckStatus != null) {
+            widget.onCheckStatus!();
+          }
+        }
+      }, onError: (_) {});
+    }
   }
 
   Future<void> _checkStatus() async {
@@ -45,15 +78,22 @@ class _PendingApprovalScreenState extends State<PendingApprovalScreen> {
             .get(const GetOptions(source: Source.serverAndCache));
         if (snap.exists && snap.data() != null) {
           final data = snap.data()!;
-          if (data['isApproved'] == true) {
+          final rawApproved = data['isApproved'];
+          if ((rawApproved is bool && rawApproved) ||
+              rawApproved?.toString().toLowerCase() == 'true' ||
+              rawApproved == 1) {
             approved = true;
+            try {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('user_is_approved_${user.uid}', true);
+            } catch (_) {}
           }
         }
       }
     } catch (e) {
       debugPrint('Check status fetch error: $e');
     }
-    if (widget.onCheckStatus != null) {
+    if (approved && widget.onCheckStatus != null) {
       widget.onCheckStatus!();
     }
     if (mounted) {

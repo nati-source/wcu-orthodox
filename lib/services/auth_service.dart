@@ -184,7 +184,8 @@ class AuthService {
         final cacheDoc = await _firestore
             .collection('users')
             .doc(uid)
-            .get(const GetOptions(source: Source.cache));
+            .get(const GetOptions(source: Source.cache))
+            .timeout(const Duration(seconds: 2));
         if (cacheDoc.exists && cacheDoc.data() != null) {
           return cacheDoc.data();
         }

@@ -126,10 +126,14 @@ mixin MentorshipStateMixin on ChangeNotifier {
       notifyListeners();
 
       try {
-        await FirebaseFirestore.instance.collection('mentorship_requests').doc(reqId).set(
-          updated.toMap(),
-          SetOptions(merge: true),
-        );
+        await FirebaseFirestore.instance
+            .collection('mentorship_requests')
+            .doc(reqId)
+            .update({
+              'status': status.name,
+              'mentorPhone': mentorPhone,
+              'mentorTelegram': mentorTelegram,
+            });
         debugPrint('Firestore updateMentorshipStatus success: $reqId');
       } catch (e) {
         debugPrint('Firestore updateMentorshipStatus error: $e');

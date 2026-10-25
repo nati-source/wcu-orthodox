@@ -156,8 +156,8 @@ mixin PilgrimageStateMixin on ChangeNotifier {
     // One deterministic record per student and trip prevents parallel taps or
     // retries from reserving two seats.
     final regId = existingLocalRegistration?.id ?? '${trip.id}_$studentUid';
-    int allocatedBus = (trip.bookedSeats ~/ 45) + 1;
-    int allocatedSeat = (trip.bookedSeats % 45) + 1;
+    int allocatedSeat = trip.nextAvailableSeat();
+    int allocatedBus = ((allocatedSeat - 1) ~/ 45) + 1;
     bool transactionSucceeded = false;
     bool localOnly = false;
     bool existingCloudBooking = false;
@@ -254,8 +254,17 @@ mixin PilgrimageStateMixin on ChangeNotifier {
           throw Exception('Trip is at full capacity');
         }
 
-        allocatedBus = (currentBooked ~/ 45) + 1;
-        allocatedSeat = (currentBooked % 45) + 1;
+        List<int> occupied = (data['occupiedSeats'] as List?)
+            ?.map((e) => (e as num).toInt())
+            .where((s) => s > 0)
+            .toList() ?? [];
+        if (occupied.isEmpty && currentBooked > 0) {
+          occupied = List<int>.generate(currentBooked, (i) => i + 1);
+        }
+
+        allocatedSeat = PilgrimageTripModel.computeNextSeat(occupied, currentBooked, totalCap);
+        allocatedBus = ((allocatedSeat - 1) ~/ 45) + 1;
+        final updatedOccupied = [...occupied, allocatedSeat]..sort();
 
         committedRegistration = makeRegistration(
           bus: allocatedBus,
@@ -263,7 +272,10 @@ mixin PilgrimageStateMixin on ChangeNotifier {
         );
 
         tx.set(regRef, committedRegistration!.toMap());
-        tx.update(tripRef, {'bookedSeats': currentBooked + 1});
+        tx.update(tripRef, {
+          'bookedSeats': currentBooked + 1,
+          'occupiedSeats': updatedOccupied,
+        });
       });
       transactionSucceeded = true;
     } catch (e) {
@@ -336,14 +348,21 @@ mixin PilgrimageStateMixin on ChangeNotifier {
     _pendingLocalRegIds.add(reg.id);
     await _saveTripRegistrationsLocally();
 
-    // Update booked seats locally
+    // Update booked seats and occupied seats locally
     final tripIdx = _pilgrimageTrips.indexWhere((t) => t.id == tripId);
     if (tripIdx != -1) {
-      _pilgrimageTrips[tripIdx] = _pilgrimageTrips[tripIdx].copyWith(
-        bookedSeats: max(
-          _pilgrimageTrips[tripIdx].bookedSeats + 1,
-          trip.bookedSeats + 1,
-        ),
+      final currentTrip = _pilgrimageTrips[tripIdx];
+      List<int> localOccupied = List<int>.from(currentTrip.occupiedSeats);
+      if (localOccupied.isEmpty && currentTrip.bookedSeats > 0) {
+        localOccupied = List<int>.generate(currentTrip.bookedSeats, (i) => i + 1);
+      }
+      if (!localOccupied.contains(reg.seatNumber)) {
+        localOccupied.add(reg.seatNumber);
+        localOccupied.sort();
+      }
+      _pilgrimageTrips[tripIdx] = currentTrip.copyWith(
+        bookedSeats: currentTrip.bookedSeats + 1,
+        occupiedSeats: localOccupied,
       );
     }
     notifyListeners();
@@ -434,11 +453,22 @@ mixin PilgrimageStateMixin on ChangeNotifier {
         final tripData = tripSnapshot.data() ?? const <String, dynamic>{};
         final bookedSeats = (tripData['bookedSeats'] as num?)?.toInt() ?? 0;
         final totalSeats = (tripData['totalSeats'] as num?)?.toInt() ?? 0;
-        if (bookedSeats < 0 || totalSeats <= 0 || bookedSeats >= totalSeats)
+        if (bookedSeats < 0 || totalSeats <= 0 || bookedSeats >= totalSeats) {
           return;
+        }
 
-        final seatNumber = bookedSeats + 1;
+        List<int> occupied = (tripData['occupiedSeats'] as List?)
+            ?.map((e) => (e as num).toInt())
+            .where((s) => s > 0)
+            .toList() ?? [];
+        if (occupied.isEmpty && bookedSeats > 0) {
+          occupied = List<int>.generate(bookedSeats, (i) => i + 1);
+        }
+
+        final seatNumber = PilgrimageTripModel.computeNextSeat(occupied, bookedSeats, totalSeats);
         final busNumber = ((seatNumber - 1) ~/ 45) + 1;
+        final updatedOccupied = [...occupied, seatNumber]..sort();
+
         savedRegistration = registration.copyWith(
           id: registrationId,
           busNumber: busNumber,
@@ -447,19 +477,30 @@ mixin PilgrimageStateMixin on ChangeNotifier {
           boardedAt: null,
         );
         transaction.set(registrationRef, savedRegistration.toMap());
-        transaction.update(tripRef, {'bookedSeats': seatNumber});
+        transaction.update(tripRef, {
+          'bookedSeats': bookedSeats + 1,
+          'occupiedSeats': updatedOccupied,
+        });
         persisted = true;
       });
     } catch (e) {
       final message = e.toString().toLowerCase();
       if (message.contains('no-app') || message.contains('not initialized')) {
         final trip = _pilgrimageTrips[tripIndex];
-        if (trip.totalSeats <= 0 || trip.bookedSeats >= trip.totalSeats)
+        if (trip.totalSeats <= 0 || trip.bookedSeats >= trip.totalSeats) {
           return null;
-        final seatNumber = trip.bookedSeats + 1;
+        }
+        List<int> localOccupied = List<int>.from(trip.occupiedSeats);
+        if (localOccupied.isEmpty && trip.bookedSeats > 0) {
+          localOccupied = List<int>.generate(trip.bookedSeats, (i) => i + 1);
+        }
+        final seatNumber = PilgrimageTripModel.computeNextSeat(localOccupied, trip.bookedSeats, trip.totalSeats);
+        final busNumber = ((seatNumber - 1) ~/ 45) + 1;
+        localOccupied.add(seatNumber);
+        localOccupied.sort();
         savedRegistration = registration.copyWith(
           id: '${registration.tripId}_${registration.studentId}',
-          busNumber: ((seatNumber - 1) ~/ 45) + 1,
+          busNumber: busNumber,
           seatNumber: seatNumber,
           isBoarded: false,
           boardedAt: null,
@@ -480,11 +521,18 @@ mixin PilgrimageStateMixin on ChangeNotifier {
     }
     _pendingLocalRegIds.add(savedRegistration.id);
     await _saveTripRegistrationsLocally();
-    _pilgrimageTrips[tripIndex] = _pilgrimageTrips[tripIndex].copyWith(
-      bookedSeats: max(
-        _pilgrimageTrips[tripIndex].bookedSeats + 1,
-        savedRegistration.seatNumber,
-      ),
+    final t = _pilgrimageTrips[tripIndex];
+    List<int> localOccupied = List<int>.from(t.occupiedSeats);
+    if (localOccupied.isEmpty && t.bookedSeats > 0) {
+      localOccupied = List<int>.generate(t.bookedSeats, (i) => i + 1);
+    }
+    if (!localOccupied.contains(savedRegistration.seatNumber)) {
+      localOccupied.add(savedRegistration.seatNumber);
+      localOccupied.sort();
+    }
+    _pilgrimageTrips[tripIndex] = t.copyWith(
+      bookedSeats: t.bookedSeats + 1,
+      occupiedSeats: localOccupied,
     );
     notifyListeners();
     return savedRegistration;
@@ -493,7 +541,10 @@ mixin PilgrimageStateMixin on ChangeNotifier {
   Future<void> deletePilgrimRegistration(String regId) async {
     if (!canManagePilgrimages && !isAdmin) return;
     final idx = _tripRegistrations.indexWhere(
-      (registration) => registration.id == regId,
+      (registration) =>
+          registration.id == regId ||
+          registration.studentId == regId ||
+          registration.id.endsWith('_$regId'),
     );
     if (idx == -1) return;
     final registration = _tripRegistrations[idx];
@@ -511,11 +562,18 @@ mixin PilgrimageStateMixin on ChangeNotifier {
         if (!registrationSnap.exists) return;
         final tripSnap = await transaction.get(tripRef);
         if (tripSnap.exists) {
+          final tripData = tripSnap.data() ?? const <String, dynamic>{};
           final currentBooked =
-              (tripSnap.data()?['bookedSeats'] as num?)?.toInt() ?? 0;
-          if (currentBooked > 0) {
-            transaction.update(tripRef, {'bookedSeats': currentBooked - 1});
-          }
+              (tripData['bookedSeats'] as num?)?.toInt() ?? 0;
+          List<int> occupied = (tripData['occupiedSeats'] as List?)
+              ?.map((e) => (e as num).toInt())
+              .where((s) => s > 0)
+              .toList() ?? [];
+          occupied.remove(registration.seatNumber);
+          transaction.update(tripRef, {
+            'bookedSeats': currentBooked > 0 ? currentBooked - 1 : 0,
+            'occupiedSeats': occupied,
+          });
         }
         transaction.delete(registrationRef);
       });
@@ -534,9 +592,12 @@ mixin PilgrimageStateMixin on ChangeNotifier {
       (trip) => trip.id == registration.tripId,
     );
     if (tripIdx != -1) {
-      final currentBooked = _pilgrimageTrips[tripIdx].bookedSeats;
-      _pilgrimageTrips[tripIdx] = _pilgrimageTrips[tripIdx].copyWith(
+      final currentTrip = _pilgrimageTrips[tripIdx];
+      final currentBooked = currentTrip.bookedSeats;
+      final localOccupied = List<int>.from(currentTrip.occupiedSeats)..remove(registration.seatNumber);
+      _pilgrimageTrips[tripIdx] = currentTrip.copyWith(
         bookedSeats: currentBooked > 0 ? currentBooked - 1 : 0,
+        occupiedSeats: localOccupied,
       );
     }
     await _saveMyRegisteredTripIds();

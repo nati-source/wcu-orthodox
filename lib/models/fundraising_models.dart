@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_models.dart';
 
 
@@ -116,10 +117,18 @@ class FundraisingProposalModel {
       timelineOrDuration: map['timelineOrDuration'] ?? '1 Month',
       submittedByName: map['submittedByName'] ?? '',
       submittedByDept: map['submittedByDept'] ?? FellowshipDepartmentConstants.deptDevelopment,
-      submittedAt: map['submittedAt'] != null ? DateTime.tryParse(map['submittedAt']) ?? DateTime.now() : DateTime.now(),
+      submittedAt: map['submittedAt'] is Timestamp
+          ? (map['submittedAt'] as Timestamp).toDate()
+          : map['submittedAt'] is String
+          ? DateTime.tryParse(map['submittedAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
       status: status,
       adminReviewNotes: map['adminReviewNotes'],
-      reviewedAt: map['reviewedAt'] != null ? DateTime.tryParse(map['reviewedAt']) : null,
+      reviewedAt: map['reviewedAt'] is Timestamp
+          ? (map['reviewedAt'] as Timestamp).toDate()
+          : map['reviewedAt'] is String
+          ? DateTime.tryParse(map['reviewedAt'] as String)
+          : null,
     );
   }
 }

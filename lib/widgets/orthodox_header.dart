@@ -335,18 +335,22 @@ class OrthodoxHeader extends StatelessWidget {
                         ),
                         child: Icon(Icons.notifications_none, color: theme.colorScheme.onSurface, size: 20),
                       ),
-                      Positioned(
-                        right: 4,
-                        top: 4,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: primaryColor,
-                            shape: BoxShape.circle,
+                      if (state.latestEmergencyBroadcast != null ||
+                          state.announcements.isNotEmpty ||
+                          state.departmentBroadcasts.isNotEmpty ||
+                          (state.isAdmin && state.pendingApprovals.isNotEmpty))
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: primaryColor,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                   onPressed: onNotificationTap,

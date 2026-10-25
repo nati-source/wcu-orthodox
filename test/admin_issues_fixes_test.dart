@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wcu_orthodox/models/app_models.dart';
-import 'package:wcu_orthodox/models/pilgrimage_models.dart';
 import 'package:wcu_orthodox/state/fellowship_state.dart';
 
 void main() {

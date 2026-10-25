@@ -58,6 +58,13 @@ service cloud.firestore {
       );
     }
 
+    function isAuditCoordinator() {
+      return isCoordinator() &&
+        currentUserDoc().coordinatorProfile != null &&
+        (currentUserDoc().coordinatorProfile.departmentId == 'dept-audit' ||
+         currentUserDoc().coordinatorProfile.isReadOnlyAudit == true);
+    }
+
     // Member Care may update only the family assignment fields of an approved
     // student, and only when the target family remains an unpublished draft.
     function isFamilyDraftStudentAssignment(userId) {
@@ -156,6 +163,7 @@ service cloud.firestore {
       allow read: if isApprovedUser() && (
         isAdmin() ||
         isCoordinatorOf('dept-membercare') ||
+        isAuditCoordinator() ||
         (resource.data.memberIds is list && resource.data.memberIds.hasAny([request.auth.uid])) ||
         resource.data.spiritualFather.id == request.auth.uid ||
         resource.data.spiritualMother.id == request.auth.uid
@@ -194,14 +202,18 @@ service cloud.firestore {
       allow create, delete: if isAdmin() || isCoordinatorOf('dept-programs');
       allow update: if isAdmin() || isCoordinatorOf('dept-programs') || (
         isApprovedUser() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bookedSeats']) &&
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bookedSeats', 'occupiedSeats']) ||
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bookedSeats'])) &&
         request.resource.data.bookedSeats is int &&
         request.resource.data.bookedSeats == resource.data.bookedSeats + 1 &&
         request.resource.data.bookedSeats <= resource.data.totalSeats &&
         existsAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)) &&
         getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.tripId == tripId &&
         getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.studentId == request.auth.uid &&
-        getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.seatNumber == resource.data.bookedSeats + 1
+        getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.seatNumber is int &&
+        getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.seatNumber >= 1 &&
+        getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.seatNumber <= resource.data.totalSeats &&
+        (!('occupiedSeats' in resource.data) || !(getAfter(/databases/$(database)/documents/trip_registrations/$(tripId + '_' + request.auth.uid)).data.seatNumber in resource.data.occupiedSeats))
       );
     }
 
@@ -211,7 +223,8 @@ service cloud.firestore {
         regId.matches('^[^/]+_' + request.auth.uid + '$') ||
         resource.data.studentId == request.auth.uid ||
         isAdmin() ||
-        isCoordinatorOf('dept-programs')
+        isCoordinatorOf('dept-programs') ||
+        isAuditCoordinator()
       );
 
       // Initial registration by student must be pendingVerification or free, and cannot claim boarded status
@@ -226,9 +239,12 @@ service cloud.firestore {
           request.resource.data.feeAmount is number &&
           request.resource.data.feeAmount >= 0 &&
           exists(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)) &&
+          request.resource.data.seatNumber is int &&
+          request.resource.data.seatNumber >= 1 &&
+          request.resource.data.seatNumber <= get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.totalSeats &&
+          (!('occupiedSeats' in get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data) || !(request.resource.data.seatNumber in get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.occupiedSeats)) &&
           getAfter(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.bookedSeats ==
             get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.bookedSeats + 1 &&
-          request.resource.data.seatNumber == get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.bookedSeats + 1 &&
           request.resource.data.isBoarded == false &&
           (!('boardedAt' in request.resource.data) || request.resource.data.boardedAt == null)
         )
@@ -263,7 +279,8 @@ service cloud.firestore {
         resource.data.studentId == request.auth.uid ||
         isAdmin() ||
         isCoordinatorOf('dept-charity') ||
-        isCoordinatorOf('dept-accounting')
+        isCoordinatorOf('dept-accounting') ||
+        isAuditCoordinator()
       );
 
       // Student can submit dues/donation, but status MUST be pendingVerification or Pending
@@ -272,7 +289,7 @@ service cloud.firestore {
         (request.resource.data.status in ['Pending', 'Pending Verification', 'pendingVerification', 'pending']) &&
         request.resource.data.amount is number &&
         request.resource.data.amount > 0 &&
-        request.resource.data.studentName == currentUserDoc().fullName &&
+        (request.resource.data.studentName == currentUserDoc().fullName || isAdmin() || isCoordinatorOf('dept-charity') || isCoordinatorOf('dept-accounting')) &&
         request.resource.data.transactionReference is string &&
         request.resource.data.transactionReference.size() > 0;
 
@@ -292,7 +309,8 @@ service cloud.firestore {
         isAdmin() ||
         isCoordinatorOf('dept-charity') ||
         isCoordinatorOf('dept-membercare') ||
-        isCoordinatorOf('dept-accounting')
+        isCoordinatorOf('dept-accounting') ||
+        isAuditCoordinator()
       );
       // Disbursement records are written only in validated server transactions.
       allow write: if false;
@@ -310,7 +328,8 @@ service cloud.firestore {
         isAdmin() ||
         isCoordinatorOf('dept-membercare') ||
         isCoordinatorOf('dept-charity') ||
-        isCoordinatorOf('dept-accounting')
+        isCoordinatorOf('dept-accounting') ||
+        isAuditCoordinator()
       );
       // Student can submit aid request only in initial review status
       allow create: if isApprovedUser() &&
@@ -372,7 +391,8 @@ service cloud.firestore {
         resource.data.studentId == request.auth.uid ||
         isAdmin() ||
         isCoordinatorOf(resource.data.ministryId) ||
-        ('departmentId' in resource.data && isCoordinatorOf(resource.data.departmentId))
+        ('departmentId' in resource.data && isCoordinatorOf(resource.data.departmentId)) ||
+        isAuditCoordinator()
       );
       allow create: if isApprovedUser() && request.resource.data.studentId == request.auth.uid;
       // Dual-scope validation: validate both existing and requested scope
@@ -396,7 +416,7 @@ service cloud.firestore {
     }
 
     match /fundraising_proposals/{proposalId} {
-      allow read: if isApprovedUser() && (isAdmin() || isCoordinatorOf('dept-development'));
+      allow read: if isApprovedUser() && (isAdmin() || isCoordinatorOf('dept-development') || isAuditCoordinator());
       allow create, update, delete: if isAdmin() || isCoordinatorOf('dept-development');
     }
 
@@ -443,7 +463,8 @@ service cloud.firestore {
         resource.data.juniorStudentId == request.auth.uid ||
         resource.data.mentorId == request.auth.uid ||
         isAdmin() ||
-        isCoordinatorOf('dept-membercare')
+        isCoordinatorOf('dept-membercare') ||
+        isAuditCoordinator()
       );
       allow create: if isApprovedUser() &&
         request.resource.data.juniorStudentId == request.auth.uid &&
@@ -489,12 +510,12 @@ service cloud.firestore {
     // Public session status deliberately omits the short-lived check-in code.
     match /attendance_session_status/{sessionId} {
       allow read: if isApprovedUser();
-      allow write: if isAdmin() || isCoordinatorOf('dept-education');
+      allow write: if isAdmin() || isCoordinatorOf('dept-apostolic') || isCoordinatorOf('dept-education');
     }
 
     match /attendance_sessions/{sessionId} {
-      allow read: if isAdmin() || isCoordinatorOf('dept-education');
-      allow write: if isAdmin() || isCoordinatorOf('dept-education');
+      allow read: if isAdmin() || isCoordinatorOf('dept-apostolic') || isCoordinatorOf('dept-education');
+      allow write: if isAdmin() || isCoordinatorOf('dept-apostolic') || isCoordinatorOf('dept-education');
 
       // Subcollection for individual scan records — each student writes their own.
       // Admin & coordinators can read all scans for reporting.
@@ -502,6 +523,7 @@ service cloud.firestore {
         allow read: if isApprovedUser() && (
           scanId == request.auth.uid ||
           isAdmin() ||
+          isCoordinatorOf('dept-apostolic') ||
           isCoordinatorOf('dept-education')
         );
         // Student can only write their scan if approved, recording their own UID,
@@ -524,7 +546,7 @@ service cloud.firestore {
           request.resource.data.timestamp == request.time &&
           request.resource.data.status == 'present' &&
           request.resource.data.method in ['qr', 'pin'];
-        allow update, delete: if isAdmin() || isCoordinatorOf('dept-education');
+        allow update, delete: if isAdmin() || isCoordinatorOf('dept-apostolic') || isCoordinatorOf('dept-education');
       }
     }
 

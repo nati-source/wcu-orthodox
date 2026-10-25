@@ -75,8 +75,10 @@ class CharityCampaignModel {
       targetAmount: (map['targetAmount'] as num?)?.toDouble() ?? 0.0,
       raisedAmount: (map['raisedAmount'] as num?)?.toDouble() ?? 0.0,
       donorsCount: (map['donorsCount'] as num?)?.toInt() ?? 0,
-      deadline: map['deadline'] != null
-          ? DateTime.tryParse(map['deadline']) ?? DateTime.now()
+      deadline: map['deadline'] is Timestamp
+          ? (map['deadline'] as Timestamp).toDate()
+          : map['deadline'] is String
+          ? DateTime.tryParse(map['deadline'] as String) ?? DateTime.now()
           : DateTime.now(),
       isEmergency: map['isEmergency'] ?? false,
       category: map['category'] ?? 'Student Mutual Aid',
@@ -420,8 +422,10 @@ class EmergencyAidRequestModel {
       description: map['description'] ?? '',
       amountRequested: (map['amountRequested'] as num?)?.toDouble() ?? 0.0,
       status: status,
-      submittedAt: map['submittedAt'] != null
-          ? DateTime.tryParse(map['submittedAt']) ?? DateTime.now()
+      submittedAt: map['submittedAt'] is Timestamp
+          ? (map['submittedAt'] as Timestamp).toDate()
+          : map['submittedAt'] is String
+          ? DateTime.tryParse(map['submittedAt'] as String) ?? DateTime.now()
           : DateTime.now(),
       adminNote: map['adminNote'],
     );

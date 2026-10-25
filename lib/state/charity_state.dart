@@ -179,11 +179,16 @@ mixin CharityStateMixin on ChangeNotifier {
     required String purpose,
     required PaymentMethodType paymentMethod,
     required String transactionReference,
+    String? donorName,
   }) async {
+    final effectiveStudentName =
+        (donorName != null && donorName.trim().isNotEmpty)
+            ? donorName.trim()
+            : _currentUser.fullName;
     final payment = DuesPaymentModel(
       id: 'due-${DateTime.now().millisecondsSinceEpoch}',
       studentId: _currentUser.id,
-      studentName: _currentUser.fullName,
+      studentName: effectiveStudentName,
       amount: amount,
       purpose: purpose,
       paymentMethod: paymentMethod,

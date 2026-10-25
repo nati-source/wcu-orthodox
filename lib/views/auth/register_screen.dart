@@ -6,11 +6,13 @@ import '../../theme/app_theme.dart';
 
 class RegisterScreen extends StatefulWidget {
   final VoidCallback onRegisterSuccess;
+  final VoidCallback? onSignInTap;
   final FellowshipState? state;
 
   const RegisterScreen({
     super.key,
     required this.onRegisterSuccess,
+    this.onSignInTap,
     this.state,
   });
 
@@ -333,7 +335,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.gold),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            if (widget.onSignInTap != null && !Navigator.canPop(context)) {
+              widget.onSignInTap!();
+            } else if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
+          },
         ),
         title: const Text(
           'Fellowship Registration',
@@ -801,7 +809,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           style: TextStyle(color: AppTheme.textSecondary),
                         ),
                         GestureDetector(
-                          onTap: () => Navigator.pop(context),
+                          onTap: () {
+                            if (widget.onSignInTap != null) {
+                              widget.onSignInTap!();
+                            } else if (Navigator.canPop(context)) {
+                              Navigator.pop(context);
+                            }
+                          },
                           child: const Text(
                             'Sign In / ግባ',
                             style: TextStyle(

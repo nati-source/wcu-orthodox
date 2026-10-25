@@ -1094,7 +1094,9 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
                               itemCount: requests.length,
                               itemBuilder: (c, idx) {
                                 final req = requests[idx];
-                                final isPending = req.status == EmergencyAidStatus.underReview;
+                                final isPending =
+                                    req.status == EmergencyAidStatus.underReview ||
+                                    req.status == EmergencyAidStatus.approved;
 
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 10),

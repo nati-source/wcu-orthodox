@@ -436,20 +436,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                               await prefs.setBool('liturgy_reminder_enabled_v1', val);
                             } catch (_) {}
 
-                            if (val) {
-                              await NotificationService.instance.showSystemNotification(
-                                id: 1001,
-                                title: '🔔 Holy Liturgy Reminder • የቅዳሴ ማስታወሻ',
-                                body: 'Sunday Holy Liturgy alert activated for St. Mary\'s Orthodox Church (12:30 AM / 6:30 AM). You will be notified.',
-                              );
-                            } else {
-                              await NotificationService.instance.cancelNotification(1001);
-                            }
+                            await NotificationService.instance.syncScheduledProgramNotifications(
+                              state.programs,
+                              masterReminderEnabled: val,
+                            );
 
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text(val ? 'Liturgy reminder activated • Notification popped up' : 'Reminder silenced'),
+                                  content: Text(val ? 'Liturgy reminders enabled' : 'Reminder silenced'),
                                   duration: const Duration(seconds: 2),
                                   backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                                 ),
@@ -489,11 +484,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 ),
                 const SizedBox(height: 18),
 
-                // Liturgy Countdown Numbers (e.g. 02:15:45 or Live Now)
+                // Liturgy Countdown Numbers (e.g. 02:15:45 or Live Now or Scheduled Weekly)
                 ValueListenableBuilder<Duration>(
                   valueListenable: state.liturgyCountdownNotifier,
                   builder: (context, duration, _) {
-                    final bool isLiveNow = duration == Duration.zero;
+                    final bool isLiveNow = state.isProgramCurrentlyLive;
                     if (isLiveNow) {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -533,6 +528,30 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                         ),
                       );
                     }
+                    if (duration == Duration.zero && !state.hasUpcomingProgram) {
+                      return FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: primaryAccent.withOpacity(0.08),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: primaryAccent.withOpacity(0.25)),
+                          ),
+                          child: Text(
+                            'SCHEDULED WEEKLY • እሑድ 12:00 LT (6:00 AM)',
+                            style: TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: primaryAccent,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ),
+                      );
+                    }
                     return FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
@@ -561,14 +580,24 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                 ValueListenableBuilder<Duration>(
                   valueListenable: state.liturgyCountdownNotifier,
                   builder: (context, duration, _) {
+                    final String subtitle;
+                    final Color subtitleColor;
+                    if (state.isProgramCurrentlyLive) {
+                      subtitle = 'PROGRAM IN SESSION • በረከቱን ያሳትፈን';
+                      subtitleColor = const Color(0xFF10B981);
+                    } else if (duration == Duration.zero && !state.hasUpcomingProgram) {
+                      subtitle = 'REGULAR SERVICE SCHEDULE • መደበኛ የቅዳሴ መርሐግብር';
+                      subtitleColor = theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary;
+                    } else {
+                      subtitle = 'TIME REMAINING UNTIL SERVICE • የቀረው ጊዜ';
+                      subtitleColor = theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary;
+                    }
                     return Text(
-                      duration == Duration.zero ? 'PROGRAM IN SESSION • በረከቱን ያሳትፈን' : 'TIME REMAINING UNTIL SERVICE • የቀረው ጊዜ',
+                      subtitle,
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w800,
-                        color: duration == Duration.zero
-                            ? const Color(0xFF10B981)
-                            : (theme.textTheme.bodyMedium?.color?.withOpacity(0.8) ?? AppTheme.textTertiary),
+                        color: subtitleColor,
                         letterSpacing: 1.2,
                       ),
                     );
@@ -1017,15 +1046,14 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                     icon: Icon(Icons.notifications_active_outlined, color: primaryAccent, size: 20),
                     onPressed: () async {
                       HapticFeedback.selectionClick();
-                      await NotificationService.instance.showSystemNotification(
-                        id: prog.id.hashCode,
-                        title: '🔔 Program Reminder • ${prog.title}',
-                        body: '${prog.churchName} • Scheduled for ${prog.category}. You will be reminded.',
+                      await NotificationService.instance.syncScheduledProgramNotifications(
+                        state.programs,
+                        masterReminderEnabled: _reminderEnabled,
                       );
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Reminder set for ${prog.title} • Notification popped up'),
+                            content: Text('Reminders scheduled for ${prog.title}'),
                             backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
                           ),
                         );

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
@@ -26,7 +27,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
   final PageController _pageController = PageController();
   int _currentPage = 0;
   bool _isInSetupWizard = false;
-  int _wizardStep = 0; // 0: Focus, 1: Daily Reading, 2: Sacred Look
+  int _wizardStep = 0; // 0: Focus, 1: Fellowship Alerts, 2: Sacred Look
 
   // Audio preview animation state
   bool _isPlayingAudio = false;
@@ -79,15 +80,21 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     }
   }
 
-  void _completeOnboarding() {
+  Future<void> _completeOnboarding() async {
     HapticFeedback.mediumImpact();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('preferred_ministry_focus_v1', _selectedMinistry);
+      await prefs.setBool('liturgy_reminder_enabled_v1', _dailyReminderEnabled);
+      await prefs.setBool('has_completed_onboarding_tour_v1', true);
+    } catch (_) {}
     widget.state.setThemePalette(_selectedPalette);
     widget.onFinish();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Elegant deep sacred background inspired by the reference video
+    // Deep radial emerald-and-gold gradient background
     const bgGradient = RadialGradient(
       center: Alignment(0, -0.2),
       radius: 1.2,
@@ -130,7 +137,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
-                              'መጽሐፈ ቅዱስ • ግቢ ጉባኤ',
+                              'WCU Gibi Gubae • የዋቸሞ ዩኒቨርሲቲ ግቢ ጉባኤ',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -170,10 +177,10 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                         controller: _pageController,
                         onPageChanged: (idx) => setState(() => _currentPage = idx),
                         children: [
-                          _buildSlide1LightForThePath(),
-                          _buildSlide2StudyDeeper(),
-                          _buildSlide3DailyRhythm(),
-                          _buildSlide4MakeItYours(),
+                          _buildSlide1SpiritualFamily(),
+                          _buildSlide2MinistriesAndFathers(),
+                          _buildSlide3LiturgyAndPilgrimage(),
+                          _buildSlide4MutualAidAndThemes(),
                         ],
                       ),
               ),
@@ -188,9 +195,9 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
   }
 
   // --------------------------------------------------------------------------
-  // SLIDE 1: LIGHT FOR THE PATH (መብራትና ብርሃን)
+  // SLIDE 1: SPIRITUAL FAMILY & MENTORSHIP (የመንፈስ ቤተሰብና አካዳሚክ ማማከር)
   // --------------------------------------------------------------------------
-  Widget _buildSlide1LightForThePath() {
+  Widget _buildSlide1SpiritualFamily() {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -220,7 +227,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                     ),
                     child: Column(
                       children: [
-                        // Glowing Cross Emblem Medallion
+                        // Glowing Medallion Icon
                         Container(
                           width: 54,
                           height: 54,
@@ -239,14 +246,14 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                             ],
                           ),
                           child: const Center(
-                            child: Icon(Icons.menu_book_rounded, color: Color(0xFF030D10), size: 28),
+                            child: Icon(Icons.family_restroom_rounded, color: Color(0xFF030D10), size: 28),
                           ),
                         ),
                         const SizedBox(height: 14),
 
                         // Scripture citation
                         const Text(
-                          '— መዝሙር ፻፲፱:፻፭',
+                          '— መዝሙር ፻፴፪፥፩ • Psalm 133:1',
                           style: TextStyle(
                             fontFamily: 'serif',
                             fontSize: 13,
@@ -263,13 +270,12 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                           text: TextSpan(
                             style: const TextStyle(
                               fontFamily: 'serif',
-                              fontSize: 16,
-                              height: 1.7,
+                              fontSize: 15,
+                              height: 1.6,
                               color: Colors.white,
                               fontWeight: FontWeight.w600,
                             ),
                             children: [
-                              const TextSpan(text: 'ሕግህ ለእግሬ '),
                               WidgetSpan(
                                 alignment: PlaceholderAlignment.middle,
                                 child: Container(
@@ -280,17 +286,17 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                                     border: Border.all(color: const Color(0xFFE5A93C), width: 1),
                                   ),
                                   child: const Text(
-                                    'መብራት',
+                                    'ወንድሞች',
                                     style: TextStyle(
                                       fontFamily: 'serif',
-                                      fontSize: 15,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFFF3C766),
                                     ),
                                   ),
                                 ),
                               ),
-                              const TextSpan(text: '\nለመንገዴም '),
+                              const TextSpan(text: ' '),
                               WidgetSpan(
                                 alignment: PlaceholderAlignment.middle,
                                 child: Container(
@@ -301,17 +307,63 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                                     border: Border.all(color: const Color(0xFF10B981), width: 1),
                                   ),
                                   child: const Text(
-                                    'ብርሃን',
+                                    'በኅብረት',
                                     style: TextStyle(
                                       fontFamily: 'serif',
-                                      fontSize: 15,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFF34D399),
                                     ),
                                   ),
                                 ),
                               ),
-                              const TextSpan(text: ' ነው።'),
+                              const TextSpan(text: ' ቢቀመጡ መልካም ነው፥ እንዴትም ያማረ ነው!'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          '"Behold, how good and pleasant it is for brethren to dwell together in unity!"',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 11, color: Colors.white60, fontStyle: FontStyle.italic),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Dark inset preview strip (#05171B)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF05171B),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.white.withOpacity(0.08)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.shield_outlined, color: Color(0xFFE5A93C), size: 14),
+                                  const SizedBox(width: 6),
+                                  const Expanded(
+                                    child: Text(
+                                      'Family of St. George • የቅዱስ ጊዮርጊስ ቤተሰብ',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _buildFeaturePill('ቅዱስ ጊዮርጊስ (St. George)'),
+                                  _buildFeaturePill('ቅድስት አርሴማ (St. Arsema)'),
+                                  _buildFeaturePill('Spiritual Parents (የመንፈስ አባትና እናት)'),
+                                  _buildFeaturePill('Senior Academic Mentors (አካዳሚክ ማማከር)'),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -323,7 +375,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
 
                   // Text Heading Block
                   const Text(
-                    'LIGHT FOR THE PATH',
+                    'SPIRITUAL FAMILY & MENTORSHIP',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -333,7 +385,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Scripture in the language\nof your heart.',
+                    'Your spiritual home at\nWachemo University.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'serif',
@@ -345,7 +397,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'A quiet, beautiful place to read the Bible in Amharic,\nfollow daily lectionaries, and live in fellowship.',
+                    'Get matched into a Saint-named Spiritual Family with campus parents,\nconnect with siblings on Telegram, and find senior academic mentors.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
@@ -365,9 +417,9 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
   }
 
   // --------------------------------------------------------------------------
-  // SLIDE 2: STUDY DEEPER (የቤተክርስቲያን አበውና 10 ክፍሎች)
+  // SLIDE 2: 10 EOTC MINISTRIES, PATRISTIC FATHERS & CONFESSOR (፲ የአገልግሎት ክፍሎችና የንስሐ አባት)
   // --------------------------------------------------------------------------
-  Widget _buildSlide2StudyDeeper() {
+  Widget _buildSlide2MinistriesAndFathers() {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -380,7 +432,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                 children: [
                   const Spacer(),
 
-                  // Patristics & Root Card
+                  // Patristics & Ministries Card
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
@@ -397,9 +449,9 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Verse with Word Selection Ring
+                        // Verse citation
                         const Text(
-                          'JOHN 1:1 • ዮሐንስ ፩:፩',
+                          '1 PETER 4:10 • ፩ ጴጥሮስ ፬፥፲',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -417,7 +469,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                               height: 1.5,
                             ),
                             children: [
-                              const TextSpan(text: 'In the beginning was the '),
+                              const TextSpan(text: 'እያንዳንዱ እንደ ተቀበለው የ'),
                               WidgetSpan(
                                 alignment: PlaceholderAlignment.middle,
                                 child: Container(
@@ -428,22 +480,42 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                                     border: Border.all(color: const Color(0xFFE5A93C), width: 1.5),
                                   ),
                                   child: const Text(
-                                    'Word',
+                                    'ጸጋ',
                                     style: TextStyle(
-                                      fontSize: 15,
+                                      fontFamily: 'serif',
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                       color: Color(0xFFF3C766),
                                     ),
                                   ),
                                 ),
                               ),
-                              const TextSpan(text: ' , and the Word was with God.'),
+                              const TextSpan(text: ' ስጦታ መጠን እርስ በርሳችሁ አገልግሉ።'),
                             ],
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          '"As each has received a gift, use it to serve one another."',
+                          style: TextStyle(fontSize: 11, color: Colors.white60, fontStyle: FontStyle.italic),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Ministry chips row
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            _buildDepartmentChip('ትምህርት (Education)'),
+                            _buildDepartmentChip('መዝሙር (Choir)'),
+                            _buildDepartmentChip('አባላት እንክብካቤ (Care)'),
+                            _buildDepartmentChip('ስነ ጥበባት (Arts)'),
+                            _buildDepartmentChip('በጎ አድራጎት (Charity)'),
+                          ],
+                        ),
                         const SizedBox(height: 14),
 
-                        // Concordance Pill
+                        // Bottom dark inset card (#05171B)
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -455,34 +527,39 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                "STRONG'S G3056 • ግዕዝ: ቃል",
+                                'CONFESSOR FATHERS & PATRISTICS • የንስሐ አባትና ነገረ አበው',
                                 style: TextStyle(fontSize: 10, color: Color(0xFFE5A93C), fontWeight: FontWeight.bold),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 6),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
-                                    'λόγος (Logos)',
-                                    style: TextStyle(fontFamily: 'serif', fontSize: 17, color: Colors.white, fontWeight: FontWeight.bold),
+                                  const Expanded(
+                                    child: Text(
+                                      '1-on-1 Confession & Spiritual Q&A',
+                                      style: TextStyle(fontFamily: 'serif', fontSize: 13, color: Colors.white, fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
+                                  const SizedBox(width: 6),
                                   Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      _buildFatherBadge('C', 'St. Chrysostom'),
+                                      _buildFatherBadge('ዮ', 'St. John Chrysostom • ቅዱስ ዮሐንስ አፈወርቅ'),
                                       const SizedBox(width: 4),
-                                      _buildFatherBadge('A', 'St. Athanasius'),
+                                      _buildFatherBadge('ቄ', 'St. Cyril • ቅዱስ ቄርሎስ'),
                                       const SizedBox(width: 4),
-                                      _buildFatherBadge('B', 'St. Basil'),
-                                      const SizedBox(width: 6),
-                                      const Text('Fathers', style: TextStyle(fontSize: 11, color: Colors.white70)),
+                                      _buildFatherBadge('ተ', 'Abune Teklehaimanot • አቡነ ተክለ ሃይማኖት'),
+                                      const SizedBox(width: 4),
+                                      const Text('Fathers', style: TextStyle(fontSize: 10, color: Colors.white70)),
                                     ],
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 4),
                               const Text(
-                                'logos · Divine Wisdom, Word, Reason',
-                                style: TextStyle(fontSize: 11, color: Colors.white60),
+                                '"No one heals a soul like a loving spiritual father." — Book private confession slots & ask questions anonymously.',
+                                style: TextStyle(fontSize: 11, color: Colors.white60, height: 1.3),
                               ),
                             ],
                           ),
@@ -494,7 +571,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   const Spacer(),
 
                   const Text(
-                    'STUDY DEEPER',
+                    'SERVE & GROW',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -504,7 +581,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Study with the whole\nChurch.',
+                    'Serve in 10 ministries &\nwalk with the Fathers.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'serif',
@@ -516,7 +593,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Discover the 10 fellowship departments, patristic writings,\nand ask spiritual questions to Confessor Fathers.',
+                    'Apply to serve in 10 EOTC fellowship departments, study patristic roadmaps,\nand book confidential appointments with campus Confessor Fathers.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
@@ -535,12 +612,42 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     );
   }
 
+  Widget _buildFeaturePill(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE5A93C).withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 9.5, color: Color(0xFFF3C766), fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildDepartmentChip(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF10B981).withOpacity(0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 10, color: Color(0xFF34D399), fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+
   Widget _buildFatherBadge(String initial, String tooltip) {
     return Tooltip(
       message: tooltip,
       child: Container(
-        width: 20,
-        height: 20,
+        width: 22,
+        height: 22,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: const Color(0xFFE5A93C).withOpacity(0.2),
@@ -549,7 +656,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
         child: Center(
           child: Text(
             initial,
-            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFF3C766)),
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFF3C766)),
           ),
         ),
       ),
@@ -557,9 +664,9 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
   }
 
   // --------------------------------------------------------------------------
-  // SLIDE 3: EVERY DAY (የዕለቱ ስርዓትና መዝሙር)
+  // SLIDE 3: HOLY LITURGY, ST. YARED MEZMUR, LIVE QR ATTENDANCE & PILGRIMAGE (ቅዳሴ፣ ቅዱስ ያሬድ፣ QR መገኘትና የንግሥ ጉዞ)
   // --------------------------------------------------------------------------
-  Widget _buildSlide3DailyRhythm() {
+  Widget _buildSlide3LiturgyAndPilgrimage() {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -589,29 +696,42 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Ge'ez Calendar Strip
+                        // Top Strip
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.calendar_today_outlined, size: 14, color: Color(0xFFE5A93C)),
-                                SizedBox(width: 6),
-                                Text(
-                                  'የዕለቱ ንባብና ስንክሳር',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFFE5A93C)),
-                                ),
-                              ],
+                            const Expanded(
+                              child: Row(
+                                children: [
+                                  Icon(Icons.church_outlined, size: 14, color: Color(0xFFE5A93C)),
+                                  SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'የዕለቱ ስንክሳር፣ ቅዳሴና የንግሥ ጉዞ',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFE5A93C)),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
+                            const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF10B981).withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Text('ጥቅምት ፲፫', style: TextStyle(fontSize: 10, color: Color(0xFF34D399), fontWeight: FontWeight.bold)),
+                              child: const Text('ጥቅምት ፲፬ • አቡነ አረጋዊ', style: TextStyle(fontSize: 9.5, color: Color(0xFF34D399), fontWeight: FontWeight.bold)),
                             ),
                           ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Psalm 122:1
+                        const Text(
+                          '“ወደ እግዚአብሔር ቤት እንሂድ ባሉኝ ጊዜ ደስ አለኝ።” — መዝሙር ፻፳፩፥፩ (Psalm 122:1)',
+                          style: TextStyle(fontFamily: 'serif', fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600, height: 1.3),
                         ),
                         const SizedBox(height: 12),
 
@@ -619,18 +739,28 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildDayChip('ሰ', '11', false),
-                            _buildDayChip('ማ', '12', false),
-                            _buildDayChip('ረ', '13', true), // Active selected
-                            _buildDayChip('ሐ', '14', false),
-                            _buildDayChip('ዓ', '15', false),
-                            _buildDayChip('ቀ', '16', false),
-                            _buildDayChip('እ', '17', false),
+                            _buildDayChip('ሰ', '12', false),
+                            _buildDayChip('ማ', '13', false),
+                            _buildDayChip('ረ', '14', true), // Active selected
+                            _buildDayChip('ሐ', '15', false),
+                            _buildDayChip('ዓ', '16', false),
+                            _buildDayChip('ቀ', '17', false),
+                            _buildDayChip('እ', '18', false),
                           ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
 
-                        // Audio Hymn / Mezmur Player Preview
+                        // Feature Pills Row
+                        const Row(
+                          children: [
+                            _AttendancePill(label: '⚡ 30s Live QR/PIN Attendance'),
+                            SizedBox(width: 8),
+                            _AttendancePill(label: '🚌 Monastery Pilgrimage Pass'),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Audio Hymn / St. Yared Mezmur Player Preview
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
@@ -644,15 +774,24 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
-                                    'ዮሐንስ ፫ • የቅዳሴ ዝማሬ',
-                                    style: TextStyle(fontFamily: 'serif', fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+                                  const Expanded(
+                                    child: Text(
+                                      'ቅዱስ ያሬድ (St. Yared) • የሰንበት መዝሙርና ዲጂታል ላይብረሪ',
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(fontFamily: 'serif', fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
                                   ),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    _isPlayingAudio ? '0:42 / 3:15' : 'Tap play to hear sample',
+                                    _isPlayingAudio ? '0:42 / 3:15' : 'Preview',
                                     style: const TextStyle(fontSize: 10, color: Colors.white60),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Tap play to preview • Wudase Maryam (ቅዱስ ኤፍሬም), Zema & Patristic PDFs',
+                                style: TextStyle(fontSize: 9.5, color: Colors.white60),
                               ),
                               const SizedBox(height: 10),
 
@@ -722,7 +861,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   const Spacer(),
 
                   const Text(
-                    'EVERY DAY',
+                    'CAMPUS FELLOWSHIP LIFE',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -732,7 +871,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'A daily rhythm of\nworship & reading.',
+                    'Liturgy, Live QR check-in\n& monastery pilgrimages.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'serif',
@@ -744,7 +883,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Follow the daily lectionary, hear liturgical hymns,\nand track upcoming Liturgies and fasting seasons.',
+                    'Commemorate daily Saints in the Synaxarium, check in with 30-second QR codes,\nbook monastery pilgrimage bus seats, and stream St. Yared Mezmurs.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
@@ -799,9 +938,9 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
   }
 
   // --------------------------------------------------------------------------
-  // SLIDE 4: MADE FOR YOU (Fanned 3D Stacked Cards)
+  // SLIDE 4: MUTUAL AID, FAITH TRIVIA & SACRED THEMES (መረዳጃ፣ የዕውቀት ውድድርና ገጽታ)
   // --------------------------------------------------------------------------
-  Widget _buildSlide4MakeItYours() {
+  Widget _buildSlide4MutualAidAndThemes() {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -814,48 +953,48 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                 children: [
                   const Spacer(),
 
-                  // Fanned 3D Perspective Cards
+                  // Fanned 3D Perspective Cards Named After Saints
                   SizedBox(
                     height: 180,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Card 1: Parchment & Incense (Left Tilted)
+                        // Card 1: St. Ephrem - Parchment & Incense (Left Tilted)
                         Transform(
                           alignment: Alignment.bottomCenter,
                           transform: Matrix4.identity()
                             ..translate(-55.0, 10.0, 0.0)
                             ..rotateZ(-0.14),
                           child: _buildStackCard(
-                            title: 'ብራናና ዕጣን',
-                            sub: 'Parchment',
+                            title: 'ቅዱስ ኤፍሬም',
+                            sub: 'Parchment & Incense',
                             bgColor: const Color(0xFFF9F5EC),
                             textColor: const Color(0xFF2C2419),
                             accentColor: const Color(0xFFB45309),
                           ),
                         ),
 
-                        // Card 3: Axumite Emerald (Right Tilted)
+                        // Card 3: Abune Teklehaimanot - Axumite Emerald (Right Tilted)
                         Transform(
                           alignment: Alignment.bottomCenter,
                           transform: Matrix4.identity()
                             ..translate(55.0, 10.0, 0.0)
                             ..rotateZ(0.14),
                           child: _buildStackCard(
-                            title: 'አክሱማዊ',
-                            sub: 'Emerald',
+                            title: 'አቡነ ተክለ ሃይማኖት',
+                            sub: 'Axumite Emerald',
                             bgColor: const Color(0xFF042018),
                             textColor: Colors.white,
                             accentColor: const Color(0xFF10B981),
                           ),
                         ),
 
-                        // Card 2: Midnight Fellowship (Center Elevated)
+                        // Card 2: St. Yared - Midnight Gold (Center Elevated)
                         Transform(
                           alignment: Alignment.center,
                           transform: Matrix4.identity()..translate(0.0, -10.0, 0.0),
                           child: _buildStackCard(
-                            title: 'መንፈሳዊ አንድነት',
+                            title: 'ቅዱስ ያሬድ',
                             sub: 'Midnight Gold',
                             bgColor: const Color(0xFF0A1828),
                             textColor: Colors.white,
@@ -867,25 +1006,38 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 12),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  const SizedBox(height: 10),
+
+                  // Galatians 6:2 Mutual Aid Scripture
+                  const Text(
+                    '“እርስ በርሳችሁ ሸክማችሁን ተሸካከሙ” — ገላትያ ፮፥፪ (Galatians 6:2)',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'serif',
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFE5A93C),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  const Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
                     children: [
-                      Text('FOCUS', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white60, fontWeight: FontWeight.bold)),
-                      SizedBox(width: 8),
+                      Text('MUTUAL AID', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white70, fontWeight: FontWeight.bold)),
                       Text('•', style: TextStyle(color: Color(0xFFE5A93C))),
-                      SizedBox(width: 8),
-                      Text('THEME', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white60, fontWeight: FontWeight.bold)),
-                      SizedBox(width: 8),
+                      Text('FAITH TRIVIA', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white70, fontWeight: FontWeight.bold)),
                       Text('•', style: TextStyle(color: Color(0xFFE5A93C))),
-                      Text('FONT', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white60, fontWeight: FontWeight.bold)),
+                      Text('SACRED THEMES', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white70, fontWeight: FontWeight.bold)),
                     ],
                   ),
 
                   const Spacer(),
 
                   const Text(
-                    'MADE FOR YOU',
+                    'MADE FOR WCU FELLOWS',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -895,7 +1047,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'Make it yours.',
+                    'Mutual aid, faith trivia &\nyour sacred theme.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'serif',
@@ -907,7 +1059,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Choose your primary fellowship focus, a daily reminder\nand a look that feels sacred. It takes about a minute.',
+                    'Support fellow students through confidential emergency aid, compete in\nweekly family faith trivia, and customize your fellowship experience.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
@@ -1000,7 +1152,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
             children: [
               _buildStepIndicator(0, 'Focus'),
               _buildStepDivider(),
-              _buildStepIndicator(1, 'Daily'),
+              _buildStepIndicator(1, 'Alerts'),
               _buildStepDivider(),
               _buildStepIndicator(2, 'Look'),
             ],
@@ -1008,7 +1160,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
           const SizedBox(height: 20),
 
           if (_wizardStep == 0) _buildWizardStep1Focus(),
-          if (_wizardStep == 1) _buildWizardStep2Daily(),
+          if (_wizardStep == 1) _buildWizardStep2Alerts(),
           if (_wizardStep == 2) _buildWizardStep3Look(),
         ],
       ),
@@ -1064,7 +1216,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     );
   }
 
-  // WIZARD STEP 1: CHOOSE FOCUS
+  // WIZARD STEP 1: CHOOSE FOCUS (YOUR FOCUS / የአገልግሎት ዘርፍ)
   Widget _buildWizardStep1Focus() {
     final ministries = [
       {'id': 'dept-choir', 'title': 'Choir & Mezmur (ዝማሬ)', 'sub': 'Liturgical hymns & audio practice', 'icon': Icons.music_note},
@@ -1144,23 +1296,23 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     );
   }
 
-  // WIZARD STEP 2: DAILY READING & LITURGY
-  Widget _buildWizardStep2Daily() {
+  // WIZARD STEP 2: FELLOWSHIP ALERTS (የቅዳሴና የመርሐ ግብር ማስታወሻ)
+  Widget _buildWizardStep2Alerts() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'YOUR DAILY READING',
+          'FELLOWSHIP ALERTS',
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFE5A93C), letterSpacing: 2.0),
         ),
         const SizedBox(height: 6),
         const Text(
-          'Follow the daily readings.',
+          'Walk in the rhythm of the Church.',
           style: TextStyle(fontFamily: 'serif', fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const SizedBox(height: 4),
         const Text(
-          'Choose the liturgical lectionary. You can view the full Ethiopian Orthodox calendar inside the app.',
+          'Receive reminders for Sunday Holy Liturgy, daily Saints commemoration (ስንክሳር), and live course attendance.',
           style: TextStyle(fontSize: 12, color: Colors.white70),
         ),
         const SizedBox(height: 18),
@@ -1182,12 +1334,12 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'ኦርቶዶክስ ተዋሕዶ (Orthodox Tewahedo)',
+                      'ኦርቶዶክስ ተዋሕዶ (Orthodox Tewahedo Lectionary)',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFF3C766)),
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Daily Synaxarium (ስንክሳር), Liturgy & Gospel readings',
+                      'Daily Synaxarium (ስንክሳር), Wudase Maryam, Sunday Liturgy & Fasting rules',
                       style: TextStyle(fontSize: 11, color: Colors.white60),
                     ),
                   ],
@@ -1199,7 +1351,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
         ),
         const SizedBox(height: 14),
 
-        // Daily reminder toggle card
+        // Liturgy & Fellowship Reminders Switch Card
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -1216,12 +1368,12 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Daily Reading Reminder',
+                      'Liturgy & Fellowship Reminders',
                       style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'A quiet note, once a day (07:00 AM).',
+                      'Notify me before Sunday Holy Liturgy and scheduled fellowship programs.',
                       style: TextStyle(fontSize: 11, color: Colors.white60),
                     ),
                   ],
@@ -1239,7 +1391,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     );
   }
 
-  // WIZARD STEP 3: SACRED LOOK (LIVE PREVIEW & PALETTES)
+  // WIZARD STEP 3: SACRED LOOK (YOUR SACRED LOOK / የመተግበሪያው ገጽታ)
   Widget _buildWizardStep3Look() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1250,12 +1402,12 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
         ),
         const SizedBox(height: 6),
         const Text(
-          'Shape your reading room.',
+          'Personalize your fellowship app.',
           style: TextStyle(fontFamily: 'serif', fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
         ),
         const SizedBox(height: 4),
         const Text(
-          'Pick a sacred palette and font size. See it rendered on a real verse.',
+          'Pick a sacred color palette and text size. Preview how your scripture and fellowship cards will look.',
           style: TextStyle(fontSize: 12, color: Colors.white70),
         ),
         const SizedBox(height: 18),
@@ -1288,14 +1440,18 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'ዮሐንስ ፩:፲፬ • John 1:14',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: _selectedPalette == AppThemePalette.parchmentIncense ? const Color(0xFFB45309) : const Color(0xFFE5A93C),
+                  Expanded(
+                    child: Text(
+                      'ዮሐንስ ፩:፲፬ • John 1:14 — ቅዱስ ዮሐንስ ወንጌላዊ',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: _selectedPalette == AppThemePalette.parchmentIncense ? const Color(0xFFB45309) : const Color(0xFFE5A93C),
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 6),
                   Text(
                     _selectedPalette.displayName,
                     style: TextStyle(
@@ -1314,6 +1470,27 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   height: 1.6,
                   color: _selectedPalette == AppThemePalette.parchmentIncense ? const Color(0xFF2C2419) : Colors.white,
                   fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: (_selectedPalette == AppThemePalette.parchmentIncense
+                          ? const Color(0xFFB45309)
+                          : (_selectedPalette == AppThemePalette.axumiteEmerald ? const Color(0xFF10B981) : const Color(0xFFE5A93C)))
+                      .withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'WCU Gibi Gubae • Family, 10 Ministries & Pilgrimage',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.bold,
+                    color: _selectedPalette == AppThemePalette.parchmentIncense
+                        ? const Color(0xFFB45309)
+                        : (_selectedPalette == AppThemePalette.axumiteEmerald ? const Color(0xFF34D399) : const Color(0xFFF3C766)),
+                  ),
                 ),
               ),
             ],
@@ -1456,7 +1633,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
 
           const SizedBox(height: 14),
 
-          // Primary Action Button (Continue > / Set up my Bible > / Enter Fellowship >)
+          // Primary Action Button (Continue > / Set up my Fellowship > / Enter Fellowship >)
           ElevatedButton(
             onPressed: _isInSetupWizard ? _nextWizardStep : _nextPage,
             style: ElevatedButton.styleFrom(
@@ -1504,6 +1681,31 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AttendancePill extends StatelessWidget {
+  final String label;
+
+  const _AttendancePill({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFF10B981).withOpacity(0.12),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF34D399)),
+        ),
       ),
     );
   }

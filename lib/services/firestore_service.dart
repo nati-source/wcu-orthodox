@@ -276,22 +276,41 @@ class FirestoreService {
 
   Future<void> upsertAttendanceSession(AttendanceSessionModel session) async {
     try {
-      await _firestore
+      final privateRef = _firestore
           .collection('attendance_sessions')
-          .doc(session.sessionId)
-          .set({
-            'sessionId': session.sessionId,
-            'courseName': session.courseName,
-            'courseCode': session.courseCode,
-            'faculty': session.faculty,
-            'code': session.code,
-            'rollingPin': session.rollingPin,
-            'generatedAt': session.generatedAt.toIso8601String(),
-            'refreshIntervalSeconds': session.refreshIntervalSeconds,
-            'totalEnrolled': session.totalEnrolled,
-            'isActive': true,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          .doc(session.sessionId);
+      final statusRef = _firestore
+          .collection('attendance_session_status')
+          .doc(session.sessionId);
+
+      final common = <String, dynamic>{
+        'sessionId': session.sessionId,
+        'courseName': session.courseName,
+        'courseCode': session.courseCode,
+        'faculty': session.faculty,
+        'generatedAt': Timestamp.fromDate(session.generatedAt),
+        'expiresAt': session.expiresAt != null
+            ? Timestamp.fromDate(session.expiresAt!)
+            : null,
+        'refreshIntervalSeconds': session.refreshIntervalSeconds,
+        'totalEnrolled': session.totalEnrolled,
+        'isActive': session.isActive,
+        'isExpired': session.isExpired,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final batch = _firestore.batch();
+      batch.set(
+        privateRef,
+        {
+          ...common,
+          'code': session.code,
+          'rollingPin': session.rollingPin,
+        },
+        SetOptions(merge: true),
+      );
+      batch.set(statusRef, common, SetOptions(merge: true));
+      await batch.commit();
     } catch (e) {
       debugPrint('Firestore upsert attendance session error: $e');
     }
@@ -300,10 +319,18 @@ class FirestoreService {
   /// Marks an attendance session as closed so it no longer appears in the active stream.
   Future<void> closeAttendanceSession(String sessionId) async {
     try {
-      await _firestore.collection('attendance_sessions').doc(sessionId).set({
+      final batch = _firestore.batch();
+      batch.set(_firestore.collection('attendance_sessions').doc(sessionId), {
         'isActive': false,
+        'isExpired': true,
         'closedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+      batch.set(_firestore.collection('attendance_session_status').doc(sessionId), {
+        'isActive': false,
+        'isExpired': true,
+        'closedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      await batch.commit();
     } catch (e) {
       debugPrint('Firestore close attendance session error: $e');
     }
@@ -312,6 +339,7 @@ class FirestoreService {
   Future<void> recordAttendanceCheckIn({
     required String sessionId,
     required AttendanceRecordModel scan,
+    String? enteredPin,
   }) async {
     try {
       await _firestore
@@ -322,8 +350,10 @@ class FirestoreService {
           .set({
             'studentId': scan.studentId,
             'studentName': scan.studentName,
-            'timestamp': scan.timestamp.toIso8601String(),
+            'timestamp': Timestamp.fromDate(scan.timestamp),
             'status': scan.status.name,
+            'method': scan.method.name,
+            if (enteredPin != null) 'enteredPin': enteredPin,
           }, SetOptions(merge: true));
 
       await _firestore.collection('attendance_sessions').doc(sessionId).set({
@@ -949,30 +979,23 @@ class FirestoreService {
       }
 
       // 21. Active Attendance Session
-      await _firestore
-          .collection('attendance_sessions')
-          .doc(activeSession.sessionId)
-          .set({
-            'sessionId': activeSession.sessionId,
-            'courseName': activeSession.courseName,
-            'courseCode': activeSession.courseCode,
-            'faculty': activeSession.faculty,
-            'code': activeSession.code,
-            'rollingPin': activeSession.rollingPin,
-            'generatedAt': activeSession.generatedAt.toIso8601String(),
-            'refreshIntervalSeconds': activeSession.refreshIntervalSeconds,
-            'totalEnrolled': activeSession.totalEnrolled,
-            'scans': activeSession.scans
-                .map(
-                  (s) => {
-                    'studentId': s.studentId,
-                    'studentName': s.studentName,
-                    'timestamp': s.timestamp.toIso8601String(),
-                    'status': s.status.name,
-                  },
-                )
-                .toList(),
-          }, SetOptions(merge: true));
+      await upsertAttendanceSession(activeSession);
+      for (final s in activeSession.scans) {
+        await _firestore
+            .collection('attendance_sessions')
+            .doc(activeSession.sessionId)
+            .collection('scans')
+            .doc(s.studentId)
+            .set({
+              'studentId': s.studentId,
+              'studentName': s.studentName,
+              'timestamp': Timestamp.fromDate(s.timestamp),
+              'status': s.status.name,
+              'method': s.method.name,
+              'enteredPin': activeSession.rollingPin,
+            }, SetOptions(merge: true));
+        totalDocs++;
+      }
       totalDocs++;
 
       debugPrint(

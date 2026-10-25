@@ -859,21 +859,25 @@ void main() {
       true,
     );
 
-    // Emergency Aid Verification & Disbursement (Scoped to DEPT_MEMBER_CARE only)
+    // Emergency Aid Verification & Disbursement: unauthorized coordinator is blocked
+    state.switchRole(
+      UserRole.volunteerCoordinator,
+      coordinatorDeptId: FellowshipDepartmentConstants.deptChoir,
+    );
     if (state.emergencyAidRequests.isNotEmpty) {
       final targetAid = state.emergencyAidRequests.first;
-      // DEPT_CHARITY coordinator is blocked from emergency aid
+      // DEPT_CHOIR coordinator is blocked from emergency aid
       expect(state.canManageEmergencyAid, false);
       state.verifyEmergencyAid(
         targetAid.id,
         EmergencyAidStatus.approved,
-        adminNote: 'Attempt by Charity coordinator',
+        adminNote: 'Attempt by Choir coordinator',
       );
       expect(
         state.emergencyAidRequests
                 .firstWhere((a) => a.id == targetAid.id)
                 .adminNote !=
-            'Attempt by Charity coordinator',
+            'Attempt by Choir coordinator',
         true,
       );
 

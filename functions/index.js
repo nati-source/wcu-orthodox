@@ -154,7 +154,9 @@ exports.migrateLegacyTriviaQuizzes = onCall({ region: REGION }, async (request) 
 
 exports.submitTriviaAttempt = onCall({ region: REGION }, async (request) => {
   const student = await callerProfile(request);
-  if (student.data.role !== 'student') fail('permission-denied', 'Only student accounts can submit quiz attempts.');
+  if (!['student', 'volunteerCoordinator', 'spiritualParent', 'admin'].includes(student.data.role)) {
+    fail('permission-denied', 'Only active fellowship accounts can submit quiz attempts.');
+  }
   const quizId = safeId(request.data?.quizId, 'quizId');
   const selectedAnswers = request.data?.selectedAnswers;
   if (!Array.isArray(selectedAnswers) || selectedAnswers.length < 1 || selectedAnswers.length > 100 || selectedAnswers.some(a => !Number.isInteger(a))) {
@@ -379,10 +381,9 @@ exports.disburseEmergencyAid = onCall({ region: REGION }, async (request) => {
     if (!aidSnap.exists) fail('not-found', 'Emergency aid request not found.');
     if (voucherSnap.exists) fail('already-exists', 'This voucher reference has already been used.');
     const aidStatus = String(aidSnap.get('status') || '');
-    const adminApproveAndDisburse = officer.data.role === 'admin' &&
-      ['underReview', 'submitted', 'pending'].includes(aidStatus);
-    if (aidStatus !== 'approved' && !adminApproveAndDisburse) {
-      fail('failed-precondition', 'Approve the aid request before disbursing it.');
+    const canAutoApproveAndDisburse = ['underReview', 'submitted', 'pending'].includes(aidStatus);
+    if (aidStatus !== 'approved' && !canAutoApproveAndDisburse) {
+      fail('failed-precondition', 'This aid request cannot be disbursed from its current status.');
     }
     const requestedAmount = Number(aidSnap.get('amountRequested'));
     if (!Number.isFinite(requestedAmount) || requestedAmount <= 0 || amount > requestedAmount) {
@@ -417,7 +418,7 @@ exports.disburseEmergencyAid = onCall({ region: REGION }, async (request) => {
     tx.update(aidRef, {
       status: 'disbursed',
       adminNote: note,
-      ...(adminApproveAndDisburse ? { reviewedBy: officer.uid, reviewedAt: FieldValue.serverTimestamp() } : {}),
+      ...(canAutoApproveAndDisburse ? { reviewedBy: officer.uid, reviewedAt: FieldValue.serverTimestamp() } : {}),
       updatedAt: FieldValue.serverTimestamp(),
     });
   });
@@ -425,7 +426,7 @@ exports.disburseEmergencyAid = onCall({ region: REGION }, async (request) => {
 });
 
 exports.updateEmergencyAidRequestStatus = onCall({ region: REGION }, async (request) => {
-  const reviewer = await requireRole(request, ['dept-membercare']);
+  const reviewer = await requireRole(request, ['dept-membercare', 'dept-charity', 'dept-accounting']);
   const requestId = safeId(request.data?.requestId, 'requestId');
   const status = request.data?.status;
   if (!['approved', 'declined'].includes(status)) fail('invalid-argument', 'Aid requests may be approved or declined.');
