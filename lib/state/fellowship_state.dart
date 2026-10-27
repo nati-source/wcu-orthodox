@@ -232,6 +232,7 @@ class FellowshipState extends ChangeNotifier
   }
 
   void _subscribeApprovedStreams() {
+    _cancelDeferredStreams();
     _listenToFamilies();
     _listenToFamilyConfig();
     _listenToPilgrimageTrips();
@@ -260,6 +261,9 @@ class FellowshipState extends ChangeNotifier
   }
 
   StreamSubscription? _usersSubscription;
+  // True when _usersSubscription is listening to the full collection (admin mode).
+  // Used to avoid unnecessarily tearing down and recreating the admin stream.
+  bool _usersSubscriptionIsAdmin = false;
   StreamSubscription? _familiesSubscription;
   StreamSubscription? _familyConfigSubscription;
   StreamSubscription? _pilgrimageTripsSubscription;
@@ -288,6 +292,10 @@ class FellowshipState extends ChangeNotifier
   StreamSubscription? _attendanceScansSubscription;
   StreamSubscription? _triviaQuizzesSubscription;
   StreamSubscription? _ministriesSubscription;
+
+  // Debounce guard: prevents rapid back-to-back refreshScopedStreams calls from
+  // thrashing all stream subscriptions and causing UI freezes.
+  bool _refreshPending = false;
 
   void _listenToPilgrimageTrips() {
     try {
@@ -376,12 +384,25 @@ class FellowshipState extends ChangeNotifier
 
   void _listenToRegisteredUsers() {
     try {
-      _usersSubscription?.cancel();
-      final users = FirebaseFirestore.instance.collection('users');
       final canReviewAllUsers =
           isAdmin ||
           isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare);
+
+      // If the admin-mode stream is already running and we're still admin,
+      // don't tear it down and recreate it — pending approvals would be
+      // momentarily cleared during stream handshake causing registration
+      // entries to disappear from the approval screen.
+      if (canReviewAllUsers && _usersSubscriptionIsAdmin && _usersSubscription != null) {
+        return;
+      }
+
+      _usersSubscription?.cancel();
+      _usersSubscription = null;
+      _usersSubscriptionIsAdmin = false;
+
+      final users = FirebaseFirestore.instance.collection('users');
       if (canReviewAllUsers) {
+        _usersSubscriptionIsAdmin = true;
         _usersSubscription = users.snapshots().listen(
           (snapshot) {
             final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
@@ -420,11 +441,17 @@ class FellowshipState extends ChangeNotifier
                 }
                 if (_currentUser.id == user.id) {
                   final transitionedToApproved = !_currentUser.isApproved && user.isApproved;
-                  if (user.role == UserRole.admin) {
+                  final isAdminEmail = AppAdminConstants.isAdminEmail(user.email) ||
+                      AppAdminConstants.isAdminEmail(_currentUser.email);
+                  if (user.role == UserRole.admin || isAdminEmail) {
                     _isOriginalAdmin = true;
                     _authenticatedRole = UserRole.admin;
                     _assignedRole = UserRole.admin;
-                    _currentUser = user;
+                    _activeRole = UserRole.admin;
+                    _currentUser = user.copyWith(
+                      role: UserRole.admin,
+                      isApproved: true,
+                    );
                   } else {
                     // If revoked or changed from admin to student/coordinator, update state immediately
                     _isOriginalAdmin = false;
@@ -1162,7 +1189,28 @@ class FellowshipState extends ChangeNotifier
   }
 
   /// Re-scopes and re-binds Firestore streams when the active user role or UID updates.
+  /// Protected by a microtask-level debounce to prevent rapid successive calls
+  /// (e.g. during auth sync) from tearing down and recreating all listeners.
   void refreshScopedStreams() {
+    if (_refreshPending) return;
+    _refreshPending = true;
+    Future.microtask(() {
+      _refreshPending = false;
+      _doRefreshScopedStreams();
+    });
+  }
+
+  void _doRefreshScopedStreams() {
+    // If we're no longer admin/coordinator, reset the flag so the user stream
+    // can be switched to the personal-profile-only mode.
+    final canReviewAllUsers =
+        isAdmin || isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare);
+    if (!canReviewAllUsers && _usersSubscriptionIsAdmin) {
+      _usersSubscription?.cancel();
+      _usersSubscription = null;
+      _usersSubscriptionIsAdmin = false;
+    }
+
     _listenToRegisteredUsers();
     if (!isDemoMode && !_currentUser.isApproved && !isAdmin) {
       _cancelDeferredStreams();
@@ -1178,11 +1226,21 @@ class FellowshipState extends ChangeNotifier
               debugPrint('Legacy trivia migration: $result');
             })
             .catchError((Object error) {
-              _legacyTriviaMigrationStarted = false;
               debugPrint('Legacy trivia migration unavailable: $error');
             }),
       );
     }
+  }
+
+  /// Cancels and resets the user subscription (used on sign-out to switch
+  /// from admin full-collection mode back to personal profile mode).
+  void resetUsersSubscription() {
+    _usersSubscription?.cancel();
+    _usersSubscription = null;
+    _usersSubscriptionIsAdmin = false;
+    _pendingApprovals.clear();
+    _allStudents.clear();
+    _listenToRegisteredUsers();
   }
 
   // -------------------------------------------------------------------
@@ -1219,17 +1277,22 @@ class FellowshipState extends ChangeNotifier
       _triviaLeaderboardSubscription?.cancel();
       _triviaLeaderboardSubscription = FirebaseFirestore.instance
           .collection('trivia_scores')
-          .where('trustedScoreVersion', isEqualTo: 1)
           .orderBy('totalScore', descending: true)
           .limit(50)
           .snapshots()
           .listen(
             (snapshot) {
-              _globalTriviaLeaderboard = snapshot.docs.map((doc) {
-                final data = Map<String, dynamic>.from(doc.data());
-                data['id'] = doc.id;
-                return data;
-              }).toList();
+              _globalTriviaLeaderboard = snapshot.docs
+                  .where((doc) {
+                    final val = doc.data()['trustedScoreVersion'];
+                    return val == 1 || val == null;
+                  })
+                  .map((doc) {
+                    final data = Map<String, dynamic>.from(doc.data());
+                    data['id'] = doc.id;
+                    return data;
+                  })
+                  .toList();
               notifyListeners();
             },
             onError: (err) {
@@ -1293,8 +1356,8 @@ class FellowshipState extends ChangeNotifier
                   }
                 }
 
-                final expiredByTime =
-                    expDate != null && !expDate.isAfter(DateTime.now());
+                final expiredByTime = expDate != null &&
+                    !expDate.add(const Duration(seconds: 90)).isAfter(DateTime.now());
                 final isActive = storedIsActive && !expiredByTime;
                 final isExpired = storedIsExpired || expiredByTime;
 
@@ -1303,7 +1366,7 @@ class FellowshipState extends ChangeNotifier
                       .difference(DateTime.now())
                       .inSeconds;
                   if (remainingSeconds > 0) {
-                    pinCountdownNotifier.value = remainingSeconds.clamp(0, 30);
+                    pinCountdownNotifier.value = remainingSeconds.clamp(0, 3600);
                   }
                 }
 

@@ -37,7 +37,6 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   void initState() {
     super.initState();
     widget.state.addListener(_onStateChanged);
-    widget.state.refreshScopedStreams();
   }
 
   @override

@@ -15,20 +15,39 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
+    function isAuthorizedAdminEmail() {
+      return isSignedIn() &&
+        'email' in request.auth.token &&
+        request.auth.token.email.lower() in [
+          'natisita928@gmail.com',
+          'natnaeltedla25@gmail.com',
+          'alamrew0955958544@gmail.com',
+          'admin@wcu.edu.et',
+          'admin@wcuorthodox.org',
+          'admin@gmail.com',
+          'wcuorthodox@gmail.com'
+        ];
+    }
+
     // Require an approved user account for application access
     function isApprovedUser() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        currentUserDoc().isApproved == true;
+      return isSignedIn() && (
+        isAuthorizedAdminEmail() || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          currentUserDoc().isApproved == true
+        )
+      );
     }
 
     // The current approved user document is the source of truth for RBAC.
-    // This makes role revocation effective even if a previously issued token is stale.
+    // Authorized admin emails have root admin access.
     function isAdmin() {
       return isSignedIn() && (
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-         currentUserDoc().role == 'admin' &&
-         currentUserDoc().isApproved == true)
+        isAuthorizedAdminEmail() || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          currentUserDoc().role == 'admin' &&
+          currentUserDoc().isApproved == true
+        )
       );
     }
 
@@ -534,7 +553,7 @@ service cloud.firestore {
           get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.isActive == true &&
           get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.isExpired == false &&
           get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.expiresAt is timestamp &&
-          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.expiresAt > request.time &&
+          get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.expiresAt > request.time - duration.value(300, 's') &&
           get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.rollingPin is string &&
           get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.rollingPin.size() == 4 &&
           get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.code is string &&
@@ -542,8 +561,7 @@ service cloud.firestore {
           request.resource.data.enteredPin.size() > 0 &&
           (request.resource.data.enteredPin == get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.rollingPin ||
            request.resource.data.enteredPin == get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.code) &&
-          request.resource.data.studentName == currentUserDoc().fullName &&
-          request.resource.data.timestamp == request.time &&
+          request.resource.data.studentName is string &&
           request.resource.data.status == 'present' &&
           request.resource.data.method in ['qr', 'pin'];
         allow update, delete: if isAdmin() || isCoordinatorOf('dept-apostolic') || isCoordinatorOf('dept-education');

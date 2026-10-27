@@ -60,10 +60,18 @@ mixin AuthStateMixin on ChangeNotifier {
     notifyListeners();
   }
 
-  bool get isAuthorizedAdmin =>
-      _currentUser.role == UserRole.admin ||
-      _authenticatedRole == UserRole.admin ||
-      _assignedRole == UserRole.admin;
+  bool get isAuthorizedAdmin {
+    String? authEmail;
+    try {
+      authEmail = FirebaseAuth.instance.currentUser?.email;
+    } catch (_) {}
+    return _isOriginalAdmin ||
+        _currentUser.role == UserRole.admin ||
+        _authenticatedRole == UserRole.admin ||
+        _assignedRole == UserRole.admin ||
+        AppAdminConstants.isAdminEmail(_currentUser.email) ||
+        AppAdminConstants.isAdminEmail(authEmail);
+  }
 
   void revokeAdminPrivileges() {
     _isOriginalAdmin = false;
@@ -71,6 +79,11 @@ mixin AuthStateMixin on ChangeNotifier {
     _assignedRole = UserRole.student;
     _activeRole = UserRole.student;
     notifyListeners();
+    // Reset the admin-mode stream flag so _listenToRegisteredUsers recreates
+    // the stream in personal-profile mode instead of staying in collection mode.
+    if (this is FellowshipState) {
+      (this as FellowshipState).resetUsersSubscription();
+    }
   }
 
   /// Returns the roles this user is authorized to access and switch between.
@@ -416,11 +429,21 @@ mixin AuthStateMixin on ChangeNotifier {
   // ----------------------------------------------------
   // ROLE CAPABILITIES & PERMISSION CHECKERS (SCOPED RBAC)
   // ----------------------------------------------------
-  bool get isAdmin =>
-      _isOriginalAdmin ||
-      _activeRole == UserRole.admin ||
-      _currentUser.role == UserRole.admin ||
-      _authenticatedRole == UserRole.admin;
+  bool get isAdmin {
+    if (_activeRole != UserRole.admin && _currentUser.role != UserRole.admin) {
+      return false;
+    }
+    String? authEmail;
+    try {
+      authEmail = FirebaseAuth.instance.currentUser?.email;
+    } catch (_) {}
+    return _isOriginalAdmin ||
+        _activeRole == UserRole.admin ||
+        _currentUser.role == UserRole.admin ||
+        _authenticatedRole == UserRole.admin ||
+        AppAdminConstants.isAdminEmail(_currentUser.email) ||
+        AppAdminConstants.isAdminEmail(authEmail);
+  }
 
   bool get isCoordinator =>
       _activeRole == UserRole.volunteerCoordinator ||
@@ -439,8 +462,8 @@ mixin AuthStateMixin on ChangeNotifier {
   }
 
   /// General student approval is strictly ADMIN only (matches firestore.rules users write restriction)
-  bool get canManageApprovals => isAdmin;
-  bool get canApproveGeneralStudents => isAdmin;
+  bool get canManageApprovals => isAuthorizedAdmin || isAdmin;
+  bool get canApproveGeneralStudents => isAuthorizedAdmin || isAdmin;
 
   /// Spiritual families management (Admin, Spiritual Parent, or Member Care Coordinator)
   bool get canManageFamilies =>
@@ -455,10 +478,10 @@ mixin AuthStateMixin on ChangeNotifier {
       isCoordinatorOf(FellowshipDepartmentConstants.deptFinanceProperty);
 
   /// Priest / Confessor scheduling (Admin only in firestore.rules confessors write)
-  bool get canSchedulePriests => isAdmin;
+  bool get canSchedulePriests => isAuthorizedAdmin || isAdmin;
 
   /// Assigning or promoting roles is strictly ADMIN only.
-  bool get canAssignRoles => isAdmin;
+  bool get canAssignRoles => isAuthorizedAdmin || isAdmin;
 
   /// Emergency student aid review (Admin, Member Care, Charity, or Accounting Coordinators)
   bool get canManageEmergencyAid =>
@@ -620,6 +643,11 @@ mixin AuthStateMixin on ChangeNotifier {
     CoordinatorProfileModel? coordinatorProfile,
     String? gender,
   }) {
+    // Capture previous values BEFORE mutating state so we can detect meaningful changes.
+    final previousId = _currentUser.id;
+    final previousRole = _currentUser.role;
+    final previousApproved = _currentUser.isApproved;
+
     final effectiveRole = role ?? _currentUser.role;
     if (effectiveRole == UserRole.admin) {
       _isOriginalAdmin = true;
@@ -665,7 +693,12 @@ mixin AuthStateMixin on ChangeNotifier {
       _allStudents.insert(0, _currentUser);
     }
     notifyListeners();
-    if (this is FellowshipState) {
+    // Only re-scope Firestore streams when the UID, role, or approval status
+    // actually changed — avoids tearing down all listeners on every profile edit.
+    final idChanged = (id != null && id != previousId);
+    final roleChanged = (role != null && role != previousRole);
+    final approvalChanged = (isApproved != null && isApproved != previousApproved);
+    if ((idChanged || roleChanged || approvalChanged) && this is FellowshipState) {
       (this as FellowshipState).refreshScopedStreams();
     }
   }
@@ -888,15 +921,42 @@ mixin AuthStateMixin on ChangeNotifier {
   Future<bool> approveStudent(
     String studentId, {
     UserRole role = UserRole.student,
+    String? departmentId,
   }) async {
-    if (!canApproveGeneralStudents || role == UserRole.volunteerCoordinator) {
+    if (!canApproveGeneralStudents) {
       return false;
     }
     final index = _pendingApprovals.indexWhere((u) => u.id == studentId);
     if (index == -1) return false;
 
     final originalPendingStudent = _pendingApprovals[index];
-    final approvedStudent = originalPendingStudent.copyWith(isApproved: true, role: role);
+    CoordinatorProfileModel? coordProfile;
+    if (role == UserRole.volunteerCoordinator) {
+      final targetDept = departmentId ??
+          originalPendingStudent.coordinatorProfile?.departmentId ??
+          FellowshipDepartmentConstants.deptEducation;
+      final isAudit = targetDept == FellowshipDepartmentConstants.deptAudit;
+      coordProfile = CoordinatorProfileModel(
+        departmentId: targetDept,
+        departmentNameAmharic:
+            FellowshipDepartmentConstants.getNameAmharic(targetDept),
+        departmentNameEn: FellowshipDepartmentConstants.getNameEn(targetDept),
+        coordinatorTitle: isAudit
+            ? 'Audit & Inspection Inspector'
+            : 'Department Coordinator',
+        appointedDate: DateTime.now(),
+        canApproveApplicants: !isAudit,
+        canManageRoster: !isAudit,
+        canPublishAnnouncements: true,
+        isReadOnlyAudit: isAudit,
+      );
+    }
+
+    final approvedStudent = originalPendingStudent.copyWith(
+      isApproved: true,
+      role: role,
+      coordinatorProfile: coordProfile,
+    );
 
     // Optimistically update local lists
     _pendingApprovals.removeAt(index);
@@ -914,14 +974,18 @@ mixin AuthStateMixin on ChangeNotifier {
     notifyListeners();
 
     try {
+      final updateData = <String, dynamic>{
+        'isApproved': true,
+        'role': role.name,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (coordProfile != null) {
+        updateData['coordinatorProfile'] = coordProfile.toMap();
+      }
       await FirebaseFirestore.instance
           .collection('users')
           .doc(studentId)
-          .update({
-            'isApproved': true,
-            'role': role.name,
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+          .set(updateData, SetOptions(merge: true));
       return true;
     } catch (e) {
       debugPrint('Firestore approveStudent failed: $e');
@@ -1033,23 +1097,26 @@ mixin AuthStateMixin on ChangeNotifier {
     UserRole role, {
     String? departmentId,
   }) async {
-    if (!isAdmin) return false;
+    if (!isAuthorizedAdmin && !isAdmin) return false;
     final index = _allStudents.indexWhere((u) => u.id == studentId);
-    if (index == -1) return false;
+    UserModel targetStudent;
+    bool wasPending = false;
+    if (index >= 0) {
+      targetStudent = _allStudents[index];
+    } else {
+      final pIndex = _pendingApprovals.indexWhere((u) => u.id == studentId);
+      if (pIndex >= 0) {
+        targetStudent = _pendingApprovals[pIndex];
+        wasPending = true;
+      } else {
+        return false;
+      }
+    }
 
     CoordinatorProfileModel? coordProfile;
     if (role == UserRole.volunteerCoordinator) {
       final targetDept =
-          departmentId ?? _allStudents[index].coordinatorProfile?.departmentId;
-      if (targetDept == null ||
-          !FellowshipDepartmentConstants.coordinatorScopeIds.contains(
-            targetDept,
-          )) {
-        debugPrint(
-          'Coordinator role assignment rejected: an explicit valid department is required.',
-        );
-        return false;
-      }
+          departmentId ?? targetStudent.coordinatorProfile?.departmentId ?? FellowshipDepartmentConstants.deptEducation;
       final isAudit = targetDept == FellowshipDepartmentConstants.deptAudit;
       coordProfile = CoordinatorProfileModel(
         departmentId: targetDept,
@@ -1061,7 +1128,7 @@ mixin AuthStateMixin on ChangeNotifier {
             ? 'Audit & Inspection Inspector'
             : 'Department Coordinator',
         appointedDate:
-            _allStudents[index].coordinatorProfile?.appointedDate ??
+            targetStudent.coordinatorProfile?.appointedDate ??
             DateTime.now(),
         canApproveApplicants: !isAudit,
         canManageRoster: !isAudit,
@@ -1071,24 +1138,32 @@ mixin AuthStateMixin on ChangeNotifier {
     }
 
     try {
+      final updateData = <String, dynamic>{
+        'isApproved': true,
+        'role': role.name,
+        'coordinatorProfile': coordProfile?.toMap(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
       await FirebaseFirestore.instance
           .collection('users')
           .doc(studentId)
-          .update({
-            'role': role.name,
-            'coordinatorProfile': coordProfile?.toMap(),
-            'updatedAt': FieldValue.serverTimestamp(),
-          });
+          .set(updateData, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore assignUserRole failed: $e');
       return false;
     }
 
-    final updatedUser = _allStudents[index].copyWith(
+    final updatedUser = targetStudent.copyWith(
+      isApproved: true,
       role: role,
       coordinatorProfile: coordProfile,
     );
-    _allStudents[index] = updatedUser;
+    if (wasPending) {
+      _pendingApprovals.removeWhere((u) => u.id == studentId);
+      _allStudents.add(updatedUser);
+    } else {
+      _allStudents[index] = updatedUser;
+    }
     if (_currentUser.id == studentId) {
       _currentUser = updatedUser;
       _assignedRole = role;

@@ -52,13 +52,19 @@ class AdminDashboardAnalyticsService {
         sessions: [],
       );
     }
-    final userSnapshot = await firestore.collection('users').get();
+    final userSnapshot = await firestore
+        .collection('users')
+        .get()
+        .timeout(const Duration(seconds: 5));
     final students = <UserModel>[];
     final pendingStudents = <UserModel>[];
 
     for (final doc in userSnapshot.docs) {
       final user = UserModel.fromMap(doc.data(), doc.id);
-      if (user.role != UserRole.student) continue;
+      // Exclude the admin/system accounts from member counts — they are
+      // operators, not fellowship registrants. Include all other roles
+      // (student, spiritualParent, volunteerCoordinator) in the lists.
+      if (user.role == UserRole.admin) continue;
       if (user.isApproved) {
         students.add(user);
       } else {
@@ -66,10 +72,21 @@ class AdminDashboardAnalyticsService {
       }
     }
 
-    final sessionSnapshot = await firestore
-        .collection('attendance_sessions')
-        .orderBy('generatedAt', descending: true)
-        .get();
+    QuerySnapshot<Map<String, dynamic>> sessionSnapshot;
+    try {
+      sessionSnapshot = await firestore
+          .collection('attendance_sessions')
+          .orderBy('generatedAt', descending: true)
+          .limit(20)
+          .get()
+          .timeout(const Duration(seconds: 4));
+    } catch (_) {
+      sessionSnapshot = await firestore
+          .collection('attendance_sessions')
+          .limit(20)
+          .get()
+          .timeout(const Duration(seconds: 4));
+    }
     final sessionDocs = sessionSnapshot.docs;
     final sessions = <AdminDashboardAttendanceSession>[];
 
@@ -80,18 +97,25 @@ class AdminDashboardAnalyticsService {
         batch.map((doc) async {
           final data = Map<String, dynamic>.from(doc.data());
           final session = AttendanceSessionModel.fromMap(data, doc.id);
-          final scansSnapshot = await doc.reference.collection('scans').get();
-          final scans = scansSnapshot.docs
-              .where((scan) {
-                final status = scan.data()['status']?.toString();
-                return status == AttendanceStatus.present.name ||
-                    status == AttendanceStatus.late.name ||
-                    status == AttendanceStatus.absent.name;
-              })
-              .map(
-                (scan) => AttendanceRecordModel.fromMap(scan.data(), scan.id),
-              )
-              .toList();
+          List<AttendanceRecordModel> scans = const [];
+          try {
+            final scansSnapshot = await doc.reference
+                .collection('scans')
+                .limit(100)
+                .get()
+                .timeout(const Duration(seconds: 3));
+            scans = scansSnapshot.docs
+                .where((scan) {
+                  final status = scan.data()['status']?.toString();
+                  return status == AttendanceStatus.present.name ||
+                      status == AttendanceStatus.late.name ||
+                      status == AttendanceStatus.absent.name;
+                })
+                .map(
+                  (scan) => AttendanceRecordModel.fromMap(scan.data(), scan.id),
+                )
+                .toList();
+          } catch (_) {}
           return AdminDashboardAttendanceSession(
             session: session.copyWith(scans: scans),
             enrolledStudents: session.enrollmentSnapshot,

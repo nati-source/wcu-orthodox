@@ -105,3 +105,11 @@ flutter {
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
+
+tasks.matching { it.name.contains("NativeLibs") }.configureEach {
+    doNotTrackState("Workaround for Gradle 9.x merge native libs snapshotting issue on Windows")
+}
+
+tasks.matching { it.name.startsWith("uploadCrashlyticsMappingFile") }.configureEach {
+    enabled = false
+}

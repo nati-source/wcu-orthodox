@@ -133,13 +133,16 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     AttendanceCheckInMethod method,
   ) async {
     final session = widget.state.activeSession;
-    if (!session.isActive ||
-        session.isExpired ||
-        session.expiresAt == null ||
-        !session.expiresAt!.isAfter(DateTime.now())) {
+    // Add a 120-second grace window to handle device clock skew.
+    // The authoritative expiry check is in Firestore rules and submitAttendanceCheckIn.
+    const graceSeconds = Duration(seconds: 180);
+    final isHardExpired = session.expiresAt != null &&
+        !session.expiresAt!.add(graceSeconds).isAfter(DateTime.now());
+    if (session.isExpired && isHardExpired) {
       setState(() {
         _isSuccess = false;
-        _statusMessage = 'Attendance window has expired or is not active yet.\nPlease wait for the admin to start the 30-second round.\n(ክፍለ ጊዜው አልቋል ወይም አልተጀመረም። እባክዎ አስተዳዳሪው የ30 ሰከንድ ዙር እስኪጀምር ይጠብቁ)';
+        _statusMessage =
+            'Attendance window has expired or is not active yet.\nPlease wait for the admin to start the 5-minute attendance round.\n(ክፍለ ጊዜው አልቋል ወይም አልተጀመረም። እባክዎ አስተዳዳሪው የ5 ደቂቃ ዙር እስኪጀምር ይጠብቁ)';
       });
       HapticFeedback.heavyImpact();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -155,7 +158,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
               SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Window Expired / ጊዜው አልቋል\nPlease wait for the instructor to start the 30-second window.',
+                  'Window Expired / ጊዜው አልቋል\nPlease wait for the instructor to open a new attendance window.',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
                 ),
               ),

@@ -58,10 +58,9 @@ mixin AttendanceStateMixin on ChangeNotifier {
       .where((s) => s.hasAttendanceData && s.attendancePercentage < 75.0)
       .toList();
 
-  /// Starts the 30-second live attendance window with a fresh PIN and QR code.
-  /// Once the 30 seconds elapse, the session automatically expires and stops
-  /// accepting check-ins until the admin starts the next round.
-  void startAttendanceWindow({int durationSeconds = 30}) {
+  /// Starts the live attendance window with a fresh PIN and QR code.
+  /// Default window is 300 seconds (5 minutes).
+  void startAttendanceWindow({int durationSeconds = 300}) {
     _pinTimer?.cancel();
     final nextPin = (1000 + Random.secure().nextInt(9000)).toString();
     final code = 'ORTH-301-2026-$nextPin';
@@ -99,6 +98,7 @@ mixin AttendanceStateMixin on ChangeNotifier {
       code: code,
       generatedAt: now,
       expiresAt: expiresAt,
+      refreshIntervalSeconds: durationSeconds,
       totalEnrolled: enrolledStudents.length,
       enrollmentSnapshot: enrolledStudents,
       isActive: true,
@@ -146,7 +146,7 @@ mixin AttendanceStateMixin on ChangeNotifier {
   void resetAttendanceSession() {
     _pinTimer?.cancel();
     _pinTimer = null;
-    pinCountdownNotifier.value = 30;
+    pinCountdownNotifier.value = 300;
     _activeSession = _activeSession.copyWith(
       rollingPin: '----',
       code: 'ORTH-301-STANDBY',
@@ -307,25 +307,62 @@ mixin AttendanceStateMixin on ChangeNotifier {
   }) async {
     final cleanInput = enteredPinOrCode.trim().toUpperCase();
     final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    if (uid == null || uid.isEmpty || cleanInput.isEmpty) {
+      return false;
+    }
+
+    // Try to find the session to write to. For QR scans, the code contains
+    // the session code so we try the active session or extract session info from the QR.
+    // Firestore rules will do the authoritative validation.
+    String targetSessionId = _activeSession.sessionId;
+    if (targetSessionId.isEmpty || targetSessionId == 'sess-orth301') {
+      try {
+        final querySnap = await FirebaseFirestore.instance
+            .collection('attendance_session_status')
+            .where('isActive', isEqualTo: true)
+            .limit(1)
+            .get();
+        if (querySnap.docs.isNotEmpty) {
+          targetSessionId = querySnap.docs.first.id;
+          final data = querySnap.docs.first.data();
+          DateTime? exp;
+          if (data['expiresAt'] is Timestamp) {
+            exp = (data['expiresAt'] as Timestamp).toDate();
+          }
+          _activeSession = _activeSession.copyWith(
+            sessionId: targetSessionId,
+            isActive: true,
+            isExpired: false,
+            expiresAt: exp,
+          );
+        }
+      } catch (e) {
+        debugPrint('submitAttendanceCheckIn fallback session query: $e');
+      }
+    }
+
     final expiresAt = _activeSession.expiresAt;
-    if (uid == null ||
-        uid.isEmpty ||
-        cleanInput.isEmpty ||
-        !_activeSession.isActive ||
-        _activeSession.isExpired ||
-        expiresAt == null ||
-        !expiresAt.isAfter(DateTime.now())) {
+    const graceTime = Duration(seconds: 300);
+    final isLocallyHardExpired = expiresAt != null &&
+        !expiresAt.add(graceTime).isAfter(DateTime.now());
+
+    // If the session ID is still the standby placeholder or hard-expired, bail out
+    if (targetSessionId.isEmpty ||
+        targetSessionId == 'sess-orth301' ||
+        isLocallyHardExpired) {
+      debugPrint('submitAttendanceCheckIn: No valid active session to check into. sessionId=$targetSessionId');
       return false;
     }
 
     final scanRef = FirebaseFirestore.instance
         .collection('attendance_sessions')
-        .doc(_activeSession.sessionId)
+        .doc(targetSessionId)
         .collection('scans')
         .doc(uid);
     try {
       final existing = await scanRef.get();
-      if (existing.exists) return true;
+      if (existing.exists) return true; // Already checked in — report success
 
       final now = DateTime.now();
       final studentName =

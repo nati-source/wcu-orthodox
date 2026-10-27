@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../models/app_models.dart';
@@ -258,7 +258,7 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                                             ),
                                           ),
                                           Text(
-                                            'Tap button to start 30s',
+                                            'Tap button to start 5-min',
                                             style: TextStyle(
                                               fontSize: 10,
                                               color: Colors.grey.shade500,
@@ -350,7 +350,7 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                           ValueListenableBuilder<int>(
                             valueListenable: state.pinCountdownNotifier,
                             builder: (context, pinCount, _) {
-                              final progress = (pinCount / 30.0).clamp(0.0, 1.0);
+                              final progress = (pinCount / 300.0).clamp(0.0, 1.0);
                               return Column(
                                 children: [
                                   ClipRRect(
@@ -403,14 +403,14 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                         // Standby Action Button
                         if (isStandby) ...[
                           Text(
-                            'Click the button below to generate a secure 30-second QR code & PIN. Once 30 seconds pass, it will automatically expire.',
+                            'Click the button below to generate a secure 5-minute QR code & PIN for students to scan. It will automatically expire after 5 minutes.',
                             textAlign: TextAlign.center,
                             style: TextStyle(fontSize: 12, color: textMuted, height: 1.4),
                           ),
                           const SizedBox(height: 14),
                           ElevatedButton.icon(
                             onPressed: () {
-                              state.startAttendanceWindow(durationSeconds: 30);
+                              state.startAttendanceWindow(durationSeconds: 300);
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryAccent,
@@ -421,7 +421,7 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                             ),
                             icon: const Icon(Icons.play_arrow_rounded, size: 24),
                             label: const Text(
-                              'Start 30s QR Attendance / የ30 ሰከንድ መገኘት ጀምር',
+                              'Start 5-Min QR Attendance / የ5 ደቂቃ መገኘት ጀምር',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                           ),
@@ -437,7 +437,7 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                               border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
                             ),
                             child: const Text(
-                              'The 30-second window has closed. Only students who scanned during this window were recorded. You can start the next 30-second round for remaining students when ready.',
+                              'The 5-minute attendance window has closed. All students who scanned during this window have been recorded. Start a new window if needed.',
                               textAlign: TextAlign.center,
                               style: TextStyle(fontSize: 11, color: Color(0xFFD97706), height: 1.3),
                             ),
@@ -445,7 +445,7 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                           const SizedBox(height: 14),
                           ElevatedButton.icon(
                             onPressed: () {
-                              state.startAttendanceWindow(durationSeconds: 30);
+                              state.startAttendanceWindow(durationSeconds: 300);
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF10B981),
@@ -456,7 +456,7 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                             ),
                             icon: const Icon(Icons.refresh_rounded, size: 22),
                             label: const Text(
-                              'Start Next 30s Round / ቀጣዩን 30 ሰከንድ ጀምር',
+                              'Start New 5-Min Window / አዲስ 5 ደቂቃ ጀምር',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                           ),

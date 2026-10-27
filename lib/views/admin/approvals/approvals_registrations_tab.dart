@@ -611,6 +611,7 @@ extension ApprovalsRegistrationsTabExt on _AdminApprovalsScreenState {
   // --------------------------------------------------------------------------
   void _openApprovalDialog(BuildContext context, FellowshipState state, UserModel student) {
     UserRole selectedRole = UserRole.student;
+    String selectedDeptId = student.coordinatorProfile?.departmentId ?? FellowshipDepartmentConstants.deptEducation;
 
     showDialog(
       context: context,
@@ -685,6 +686,73 @@ extension ApprovalsRegistrationsTabExt on _AdminApprovalsScreenState {
                     onSelected: (r) => setDialogState(() => selectedRole = r),
                   ),
 
+                  // Option 3: Volunteer Coordinator
+                  _buildRoleRadioTile(
+                    title: 'Volunteer Coordinator / የበጎ ፈቃድ አስተባባሪ',
+                    subtitle: 'Manages department scope, rosters and broadcasts',
+                    role: UserRole.volunteerCoordinator,
+                    selectedRole: selectedRole,
+                    color: const Color(0xFF3B82F6),
+                    onSelected: (r) => setDialogState(() => selectedRole = r),
+                  ),
+
+                  // Department Scope Selector if Volunteer Coordinator is selected
+                  if (selectedRole == UserRole.volunteerCoordinator) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.35)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Assign Department / የክፍል ምድብ ይምረጡ:',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF3B82F6),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          DropdownButtonFormField<String>(
+                            value: selectedDeptId,
+                            isExpanded: true,
+                            dropdownColor: AppTheme.surfaceElevated,
+                            style: TextStyle(fontSize: 12, color: textCol),
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              filled: true,
+                              fillColor: AppTheme.primaryBg,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                              ),
+                            ),
+                            items: FellowshipDepartmentConstants.coordinatorScopeIds.map((deptId) {
+                              return DropdownMenuItem<String>(
+                                value: deptId,
+                                child: Text(
+                                  FellowshipDepartmentConstants.getNameAmharic(deptId),
+                                  style: const TextStyle(fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setDialogState(() => selectedDeptId = val);
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                 ],
               ),
             ),
@@ -696,7 +764,11 @@ extension ApprovalsRegistrationsTabExt on _AdminApprovalsScreenState {
               ElevatedButton.icon(
                 onPressed: () async {
                   Navigator.pop(ctx);
-                  final approved = await state.approveStudent(student.id, role: selectedRole);
+                  final approved = await state.approveStudent(
+                    student.id,
+                    role: selectedRole,
+                    departmentId: selectedRole == UserRole.volunteerCoordinator ? selectedDeptId : null,
+                  );
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

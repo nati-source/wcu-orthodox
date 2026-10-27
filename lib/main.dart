@@ -228,6 +228,16 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
 
         if (role == UserRole.admin || isAdminEmail) {
           _fellowshipState.markAsOriginalAdmin();
+          if (isAdminEmail) {
+            unawaited(FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+              'id': user.uid,
+              'email': user.email,
+              'fullName': profile['fullName'] ?? user.displayName ?? 'Nati (Admin)',
+              'role': 'admin',
+              'isApproved': true,
+              'updatedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true)));
+          }
         } else {
           _fellowshipState.revokeAdminPrivileges();
         }
