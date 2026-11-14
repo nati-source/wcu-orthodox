@@ -168,7 +168,7 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
   void _syncUserProfile(dynamic user) async {
     if (user == null) return;
 
-    final bool isEmailVerified = (user is User) ? user.emailVerified : (user.emailVerified == true);
+    final bool isEmailVerified = user.emailVerified == true;
     final bool isAdminEmail = AppAdminConstants.isAdminEmail(user.email) && (isEmailVerified || kDebugMode);
     bool cachedApproved = false;
     try {
