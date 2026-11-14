@@ -43,6 +43,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
   void initState() {
     super.initState();
     _selectedPalette = widget.state.currentThemePalette;
+    _fontSizeScale = widget.state.fontScale;
     _waveController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -80,15 +81,26 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     }
   }
 
+  Future<void> _skipToSignIn() async {
+    HapticFeedback.lightImpact();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('has_completed_onboarding_tour_v1', true);
+    } catch (_) {}
+    widget.onSignIn();
+  }
+
   Future<void> _completeOnboarding() async {
     HapticFeedback.mediumImpact();
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('preferred_ministry_focus_v1', _selectedMinistry);
+      await prefs.setDouble('preferred_font_scale_v1', _fontSizeScale);
       await prefs.setBool('liturgy_reminder_enabled_v1', _dailyReminderEnabled);
       await prefs.setBool('has_completed_onboarding_tour_v1', true);
     } catch (_) {}
     widget.state.setThemePalette(_selectedPalette);
+    widget.state.setFontScale(_fontSizeScale);
     widget.onFinish();
   }
 
@@ -153,7 +165,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                       ),
                     ),
                     TextButton(
-                      onPressed: _completeOnboarding,
+                      onPressed: _skipToSignIn,
                       style: TextButton.styleFrom(
                         foregroundColor: Colors.white70,
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -161,7 +173,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: Text(
-                        _isInSetupWizard ? 'Skip setup' : 'Skip',
+                        _isInSetupWizard ? 'Sign In / ግባ' : 'Skip / እለፍ',
                         style: const TextStyle(fontSize: 12, color: Colors.white70),
                       ),
                     ),
@@ -782,15 +794,22 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    _isPlayingAudio ? '0:42 / 3:15' : 'Preview',
-                                    style: const TextStyle(fontSize: 10, color: Colors.white60),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white12,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      _isPlayingAudio ? 'Waveform Preview' : 'UI Preview / ቅድመ-ዕይታ',
+                                      style: const TextStyle(fontSize: 9.5, color: Color(0xFFE5A93C), fontWeight: FontWeight.bold),
+                                    ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 3),
                               const Text(
-                                'Tap play to preview • Wudase Maryam (ቅዱስ ኤፍሬም), Zema & Patristic PDFs',
+                                'Digital Liturgical Library • Wudase Maryam, Zema & Patristic PDFs available in Library tab',
                                 style: TextStyle(fontSize: 9.5, color: Colors.white60),
                               ),
                               const SizedBox(height: 10),
@@ -1581,6 +1600,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
         onTap: () {
           HapticFeedback.selectionClick();
           setState(() => _fontSizeScale = scale);
+          widget.state.setFontScale(scale);
         },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),

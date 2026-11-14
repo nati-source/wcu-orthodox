@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
@@ -15,6 +16,23 @@ class StudentMinistryScreen extends StatefulWidget {
 class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
   MinistryPillar? _selectedPillar; // null means 'All'
   String _searchQuery = '';
+  String? _preferredMinistryFocus;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPreferredMinistry();
+  }
+
+  Future<void> _loadPreferredMinistry() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final focus = prefs.getString('preferred_ministry_focus_v1');
+      if (focus != null && mounted) {
+        setState(() => _preferredMinistryFocus = focus);
+      }
+    } catch (_) {}
+  }
 
   IconData _getMinistryIcon(String iconName) {
     switch (iconName) {
@@ -865,6 +883,10 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
     final elevatedBg = theme.colorScheme.surfaceContainerHighest;
     final borderCol = theme.dividerColor;
     final isDark = theme.brightness == Brightness.dark;
+    final bool isPreferredFocus = _preferredMinistryFocus != null &&
+        (_preferredMinistryFocus == min.id ||
+         min.id.contains(_preferredMinistryFocus!) ||
+         _preferredMinistryFocus!.contains(min.id));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -872,11 +894,39 @@ class _StudentMinistryScreenState extends State<StudentMinistryScreen> {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderCol),
+        border: Border.all(
+          color: isPreferredFocus ? AppTheme.gold : borderCol,
+          width: isPreferredFocus ? 1.5 : 1.0,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (isPreferredFocus)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppTheme.gold.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.gold.withOpacity(0.5)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.star, color: AppTheme.gold, size: 13),
+                  SizedBox(width: 5),
+                  Text(
+                    'Your Preferred Focus • በመግቢያው የመረጡት ዘርፍ',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.gold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           // Header: Icon + Amharic/English Titles + Pillar Tag
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,

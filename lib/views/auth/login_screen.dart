@@ -11,13 +11,13 @@ import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
-  final VoidCallback onSkipDemo;
+  final VoidCallback? onSkipDemo;
   final FellowshipState? state;
 
   const LoginScreen({
     super.key,
     required this.onLoginSuccess,
-    required this.onSkipDemo,
+    this.onSkipDemo,
     this.state,
   });
 

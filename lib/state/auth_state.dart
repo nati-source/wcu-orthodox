@@ -590,6 +590,31 @@ mixin AuthStateMixin on ChangeNotifier {
     } catch (_) {}
   }
 
+  static const String _fontScalePrefKey = 'preferred_font_scale_v1';
+  double _fontScale = 1.0;
+  double get fontScale => _fontScale;
+
+  Future<void> _loadSavedFontScale() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final scale = prefs.getDouble(_fontScalePrefKey);
+      if (scale != null && scale > 0.5 && scale < 2.0) {
+        _fontScale = scale;
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> setFontScale(double scale) async {
+    if ((_fontScale - scale).abs() < 0.01) return;
+    _fontScale = scale;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_fontScalePrefKey, scale);
+    } catch (_) {}
+  }
+
   UserModel _currentUser = UserModel(
     id: 'usr-pending',
     fullName: 'Fellowship Student',

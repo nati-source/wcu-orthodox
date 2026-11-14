@@ -86,6 +86,7 @@ class FellowshipState extends ChangeNotifier
 
   FellowshipState({this.isDemoMode = false}) {
     _loadSavedTheme();
+    _loadSavedFontScale();
     _loadMyRegisteredTripIds();
     if (isDemoMode) {
       _seedDemoData();

@@ -109,6 +109,7 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
   String? _syncedUid;
   bool _isSyncingProfile = false;
   bool _hasCompletedOnboarding = false;
+  bool _isOnboardingStatusLoaded = false;
   bool _openRegisterAfterOnboarding = false;
   StreamSubscription<dynamic>? _authSubscription;
 
@@ -146,9 +147,14 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
       if (mounted) {
         setState(() {
           _hasCompletedOnboarding = hasCompleted;
+          _isOnboardingStatusLoaded = true;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isOnboardingStatusLoaded = true);
+      }
+    }
   }
 
   @override
@@ -318,13 +324,20 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
           builder: (context, child) {
             return Theme(
               data: themeData,
-              child: OfflineAwareBanner(child: child ?? const SizedBox.shrink()),
+              child: MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(_fellowshipState.fontScale),
+                ),
+                child: OfflineAwareBanner(child: child ?? const SizedBox.shrink()),
+              ),
             );
           },
           home: StreamBuilder(
             stream: _authService.authStateChanges,
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              // Splash/loading gate: wait for both SharedPreferences onboarding status
+              // and initial Firebase Auth resolution to eliminate cold-start flashes.
+              if (!_isOnboardingStatusLoaded || snapshot.connectionState == ConnectionState.waiting) {
                 return const Scaffold(
                   backgroundColor: Color(0xFF070F1E),
                   body: Center(
