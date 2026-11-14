@@ -63,8 +63,12 @@ class NotificationService {
     Function(RemoteMessage message)? onForegroundMessage,
     Function(RemoteMessage message)? onNotificationOpened,
   }) async {
-    this.onForegroundMessageReceived = onForegroundMessage;
-    this.onNotificationOpened = onNotificationOpened;
+    if (onForegroundMessage != null) {
+      onForegroundMessageReceived = onForegroundMessage;
+    }
+    if (onNotificationOpened != null) {
+      this.onNotificationOpened = onNotificationOpened;
+    }
 
     try {
       tz.initializeTimeZones();

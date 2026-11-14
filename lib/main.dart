@@ -73,10 +73,10 @@ void main() async {
     // App Check, Analytics, Performance, Notifications and Connectivity
     // all run concurrently — cutting startup wait from ~3-5s to <1s.
     Future.wait([
-      if (kDebugMode)
-        FirebaseAppCheck.instance.activate(
-          androidProvider: AndroidProvider.debug,
-        ).catchError((_) {}),
+      FirebaseAppCheck.instance.activate(
+        androidProvider: kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+        appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+      ).catchError((_) {}),
       FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(!kDebugMode),
       FirebasePerformance.instance.setPerformanceCollectionEnabled(!kDebugMode),
       NotificationService.instance.initialize(),
@@ -162,7 +162,8 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
   void _syncUserProfile(dynamic user) async {
     if (user == null) return;
 
-    final bool isAdminEmail = AppAdminConstants.isAdminEmail(user.email);
+    final bool isEmailVerified = (user is User) ? user.emailVerified : (user.emailVerified == true);
+    final bool isAdminEmail = AppAdminConstants.isAdminEmail(user.email) && (isEmailVerified || kDebugMode);
     bool cachedApproved = false;
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -208,8 +209,8 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
       setState(() {
         _isSyncingProfile = true;
       });
-      // Safety watchdog: ensure loading spinner is dismissed within 3 seconds under any network condition
-      Future.delayed(const Duration(seconds: 3), () {
+      // Safety watchdog: ensure loading spinner is dismissed within 10 seconds under any network condition
+      Future.delayed(const Duration(seconds: 10), () {
         if (mounted && _isSyncingProfile) {
           setState(() {
             _isSyncingProfile = false;
@@ -323,6 +324,34 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
           home: StreamBuilder(
             stream: _authService.authStateChanges,
             builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  backgroundColor: Color(0xFF070F1E),
+                  body: Center(
+                    child: CircularProgressIndicator(color: AppTheme.gold),
+                  ),
+                );
+              }
+              if (snapshot.hasError) {
+                return Scaffold(
+                  backgroundColor: const Color(0xFF070F1E),
+                  body: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, color: AppTheme.crimson, size: 36),
+                        const SizedBox(height: 12),
+                        const Text('Authentication service error', style: TextStyle(color: Colors.white70)),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: () => setState(() {}),
+                          child: const Text('Retry / እንደገና ሞክር', style: TextStyle(color: AppTheme.gold)),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
               final user = snapshot.data;
 
               if (user != null) {

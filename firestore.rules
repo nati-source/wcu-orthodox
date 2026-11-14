@@ -254,10 +254,12 @@ service cloud.firestore {
           regId == request.resource.data.tripId + '_' + request.auth.uid &&
           request.resource.data.tripId is string &&
           request.resource.data.studentName == currentUserDoc().fullName &&
-          request.resource.data.paymentStatus in ['pendingVerification', 'free'] &&
-          request.resource.data.feeAmount is number &&
-          request.resource.data.feeAmount >= 0 &&
           exists(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)) &&
+          request.resource.data.feeAmount is number &&
+          request.resource.data.feeAmount == get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.feeAmount &&
+          (get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.isFree == true
+              ? request.resource.data.paymentStatus == 'free'
+              : request.resource.data.paymentStatus == 'pendingVerification') &&
           request.resource.data.seatNumber is int &&
           request.resource.data.seatNumber >= 1 &&
           request.resource.data.seatNumber <= get(/databases/$(database)/documents/pilgrimage_trips/$(request.resource.data.tripId)).data.totalSeats &&
@@ -308,9 +310,11 @@ service cloud.firestore {
         (request.resource.data.status in ['Pending', 'Pending Verification', 'pendingVerification', 'pending']) &&
         request.resource.data.amount is number &&
         request.resource.data.amount > 0 &&
+        request.resource.data.amount <= 100000 &&
         (request.resource.data.studentName == currentUserDoc().fullName || isAdmin() || isCoordinatorOf('dept-charity') || isCoordinatorOf('dept-accounting')) &&
         request.resource.data.transactionReference is string &&
-        request.resource.data.transactionReference.size() > 0;
+        request.resource.data.transactionReference.size() > 0 &&
+        request.resource.data.keys().hasOnly(['id', 'studentId', 'studentName', 'amount', 'purpose', 'paymentMethod', 'transactionReference', 'status', 'submittedAt', 'campaignId']);
 
       // Only transition a pending record's verification fields. Amount, owner,
       // reference, and purpose are immutable after submission.
@@ -413,7 +417,9 @@ service cloud.firestore {
         ('departmentId' in resource.data && isCoordinatorOf(resource.data.departmentId)) ||
         isAuditCoordinator()
       );
-      allow create: if isApprovedUser() && request.resource.data.studentId == request.auth.uid;
+      allow create: if isApprovedUser() &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.status == 'pending';
       // Dual-scope validation: validate both existing and requested scope
       allow update: if isAdmin() || (
         (isCoordinatorOf(resource.data.ministryId) || ('departmentId' in resource.data && isCoordinatorOf(resource.data.departmentId))) &&
@@ -452,7 +458,9 @@ service cloud.firestore {
         resource.data.studentId == request.auth.uid ||
         isAdmin()
       );
-      allow create: if isApprovedUser() && request.resource.data.studentId == request.auth.uid;
+      allow create: if isApprovedUser() &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.status == 'pending';
       allow update: if isAdmin() || (
         isApprovedUser() &&
         resource.data.studentId == request.auth.uid &&
@@ -465,7 +473,10 @@ service cloud.firestore {
 
     match /spiritual_questions/{questionId} {
       allow read: if isApprovedUser();
-      allow create: if isApprovedUser();
+      allow create: if isApprovedUser() &&
+        request.resource.data.studentId == request.auth.uid &&
+        request.resource.data.isAnswered == false &&
+        request.resource.data.keys().hasOnly(['id', 'studentId', 'studentName', 'question', 'topic', 'isAnswered', 'answer', 'answeredBy', 'createdAt', 'answeredAt']);
       allow update, delete: if isAdmin() || isCoordinatorOf('dept-apostolic');
     }
 

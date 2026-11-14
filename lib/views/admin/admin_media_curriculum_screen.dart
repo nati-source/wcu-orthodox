@@ -1397,6 +1397,7 @@ class _AdminMediaCurriculumScreenState extends State<AdminMediaCurriculumScreen>
                                                 onPressed: () async {
                                                   Navigator.pop(ctx);
                                                   await widget.state.deleteEmergencyBroadcast(broadcast.id);
+                                                  if (!mounted) return;
                                                   setState(() {});
                                                   if (context.mounted) {
                                                     ScaffoldMessenger.of(context).showSnackBar(

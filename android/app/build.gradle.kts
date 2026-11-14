@@ -111,5 +111,6 @@ tasks.matching { it.name.contains("NativeLibs") }.configureEach {
 }
 
 tasks.matching { it.name.startsWith("uploadCrashlyticsMappingFile") }.configureEach {
-    enabled = false
+    // Enable for production release builds with configured keystore
+    enabled = keystorePropertiesFile.exists() || System.getenv("ANDROID_STORE_FILE") != null
 }
