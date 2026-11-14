@@ -13,6 +13,7 @@ class StudentLibraryScreen extends StatefulWidget {
 }
 
 class _StudentLibraryScreenState extends State<StudentLibraryScreen> {
+  FellowshipState get state => widget.state;
   late final TextEditingController _searchController;
 
   @override

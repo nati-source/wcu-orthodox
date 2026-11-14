@@ -1,10 +1,8 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
-import '../../theme/app_theme.dart';
 
 class FellowshipOnboardingScreen extends StatefulWidget {
   final FellowshipState state;
@@ -22,38 +20,25 @@ class FellowshipOnboardingScreen extends StatefulWidget {
   State<FellowshipOnboardingScreen> createState() => _FellowshipOnboardingScreenState();
 }
 
-class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
-    with SingleTickerProviderStateMixin {
+class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   bool _isInSetupWizard = false;
-  int _wizardStep = 0; // 0: Focus, 1: Fellowship Alerts, 2: Sacred Look
-
-  // Audio preview animation state
-  bool _isPlayingAudio = false;
-  late AnimationController _waveController;
+  int _wizardStep = 0; // 0: Fellowship Alerts, 1: Sacred Look
 
   // Wizard preferences
-  String _selectedMinistry = 'dept-choir';
   bool _dailyReminderEnabled = true;
   AppThemePalette _selectedPalette = AppThemePalette.midnightFellowship;
-  double _fontSizeScale = 1.0; // 0.9, 1.0, 1.15
 
   @override
   void initState() {
     super.initState();
     _selectedPalette = widget.state.currentThemePalette;
-    _fontSizeScale = widget.state.fontScale;
-    _waveController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
   }
 
   @override
   void dispose() {
     _pageController.dispose();
-    _waveController.dispose();
     super.dispose();
   }
 
@@ -74,7 +59,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
 
   void _nextWizardStep() {
     HapticFeedback.lightImpact();
-    if (_wizardStep < 2) {
+    if (_wizardStep < 1) {
       setState(() => _wizardStep++);
     } else {
       _completeOnboarding();
@@ -94,13 +79,10 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     HapticFeedback.mediumImpact();
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('preferred_ministry_focus_v1', _selectedMinistry);
-      await prefs.setDouble('preferred_font_scale_v1', _fontSizeScale);
       await prefs.setBool('liturgy_reminder_enabled_v1', _dailyReminderEnabled);
       await prefs.setBool('has_completed_onboarding_tour_v1', true);
     } catch (_) {}
     widget.state.setThemePalette(_selectedPalette);
-    widget.state.setFontScale(_fontSizeScale);
     widget.onFinish();
   }
 
@@ -140,7 +122,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               border: Border.all(color: const Color(0xFFE5A93C), width: 1.2),
-                              color: const Color(0xFFE5A93C).withOpacity(0.12),
+                              color: const Color(0xFFE5A93C).withValues(alpha: 0.12),
                             ),
                             child: const Center(
                               child: Icon(Icons.church_rounded, size: 16, color: Color(0xFFE5A93C)),
@@ -226,12 +208,12 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0A2328).withOpacity(0.85),
+                      color: const Color(0xFF0A2328).withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.35), width: 1.2),
+                      border: Border.all(color: const Color(0xFFE5A93C).withValues(alpha: 0.35), width: 1.2),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFE5A93C).withOpacity(0.12),
+                          color: const Color(0xFFE5A93C).withValues(alpha: 0.12),
                           blurRadius: 30,
                           spreadRadius: 2,
                         ),
@@ -252,7 +234,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFFE5A93C).withOpacity(0.3),
+                                color: const Color(0xFFE5A93C).withValues(alpha: 0.3),
                                 blurRadius: 16,
                               ),
                             ],
@@ -276,104 +258,67 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                         ),
                         const SizedBox(height: 10),
 
-                        // Scripture Quote with Luminous Highlight Chips
-                        RichText(
+                        // Clean Bilingual Scripture Quote (No Word-Highlight Chips)
+                        const Text(
+                          '“እነሆ፥ ወንድሞች በኅብረት ቢቀመጡ መልካም ነው፥ እንዴትም ያማረ ነው!”',
                           textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontFamily: 'serif',
-                              fontSize: 15,
-                              height: 1.6,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            children: [
-                              WidgetSpan(
-                                alignment: PlaceholderAlignment.middle,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE5A93C).withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFFE5A93C), width: 1),
-                                  ),
-                                  child: const Text(
-                                    'ወንድሞች',
-                                    style: TextStyle(
-                                      fontFamily: 'serif',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFF3C766),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const TextSpan(text: ' '),
-                              WidgetSpan(
-                                alignment: PlaceholderAlignment.middle,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981).withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFF10B981), width: 1),
-                                  ),
-                                  child: const Text(
-                                    'በኅብረት',
-                                    style: TextStyle(
-                                      fontFamily: 'serif',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF34D399),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const TextSpan(text: ' ቢቀመጡ መልካም ነው፥ እንዴትም ያማረ ነው!'),
-                            ],
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 15,
+                            height: 1.5,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 6),
                         const Text(
-                          '"Behold, how good and pleasant it is for brethren to dwell together in unity!"',
+                          '“Behold, how good and pleasant it is for brethren to dwell together in unity!”',
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 11, color: Colors.white60, fontStyle: FontStyle.italic),
                         ),
                         const SizedBox(height: 16),
 
-                        // Dark inset preview strip (#05171B)
+                        // Real Spiritual Family Card Preview (#05171B)
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: const Color(0xFF05171B),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.white.withOpacity(0.08)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.shield_outlined, color: Color(0xFFE5A93C), size: 14),
-                                  const SizedBox(width: 6),
+                                  const Icon(Icons.shield_outlined, color: Color(0xFFE5A93C), size: 16),
+                                  const SizedBox(width: 8),
                                   const Expanded(
                                     child: Text(
                                       'Family of St. George • የቅዱስ ጊዮርጊስ ቤተሰብ',
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: const Text('24 Members', style: TextStyle(fontSize: 9.5, color: Color(0xFF34D399), fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 10),
                               Wrap(
                                 spacing: 6,
                                 runSpacing: 6,
                                 children: [
-                                  _buildFeaturePill('ቅዱስ ጊዮርጊስ (St. George)'),
-                                  _buildFeaturePill('ቅድስት አርሴማ (St. Arsema)'),
-                                  _buildFeaturePill('Spiritual Parents (የመንፈስ አባትና እናት)'),
-                                  _buildFeaturePill('Senior Academic Mentors (አካዳሚክ ማማከር)'),
+                                  _buildFeaturePill(Icons.favorite_border_rounded, 'Spiritual Parents (አባትና እናት)'),
+                                  _buildFeaturePill(Icons.chat_bubble_outline_rounded, 'Telegram: @wcu_st_george'),
+                                  _buildFeaturePill(Icons.school_outlined, 'Senior Academic Mentors'),
+                                  _buildFeaturePill(Icons.star_border_rounded, 'St. George • ቅዱስ ጊዮርጊስ'),
                                 ],
                               ),
                             ],
@@ -448,12 +393,12 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0A2328).withOpacity(0.85),
+                      color: const Color(0xFF0A2328).withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.35), width: 1.2),
+                      border: Border.all(color: const Color(0xFFE5A93C).withValues(alpha: 0.35), width: 1.2),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0F3238).withOpacity(0.4),
+                          color: const Color(0xFF0F3238).withValues(alpha: 0.4),
                           blurRadius: 25,
                         ),
                       ],
@@ -463,7 +408,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                       children: [
                         // Verse citation
                         const Text(
-                          '1 PETER 4:10 • ፩ ጴጥሮስ ፬፥፲',
+                          '— ፩ ጴጥሮስ ፬፥፲ • 1 Peter 4:10',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -472,48 +417,25 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                           ),
                         ),
                         const SizedBox(height: 8),
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontFamily: 'serif',
-                              fontSize: 15,
-                              color: Colors.white,
-                              height: 1.5,
-                            ),
-                            children: [
-                              const TextSpan(text: 'እያንዳንዱ እንደ ተቀበለው የ'),
-                              WidgetSpan(
-                                alignment: PlaceholderAlignment.middle,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE5A93C).withOpacity(0.25),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: const Color(0xFFE5A93C), width: 1.5),
-                                  ),
-                                  child: const Text(
-                                    'ጸጋ',
-                                    style: TextStyle(
-                                      fontFamily: 'serif',
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFF3C766),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const TextSpan(text: ' ስጦታ መጠን እርስ በርሳችሁ አገልግሉ።'),
-                            ],
+                        // Clean Bilingual Scripture Quote (No Word-Highlight Chips)
+                        const Text(
+                          '“እያንዳንዱ እንደ ተቀበለው የጸጋ ስጦታ መጠን እርስ በርሳችሁ አገልግሉ።”',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 15,
+                            color: Colors.white,
+                            height: 1.5,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 4),
                         const Text(
-                          '"As each has received a gift, use it to serve one another."',
+                          '“As each has received a gift, use it to serve one another.”',
                           style: TextStyle(fontSize: 11, color: Colors.white60, fontStyle: FontStyle.italic),
                         ),
                         const SizedBox(height: 12),
 
-                        // Ministry chips row
+                        // 10 EOTC Ministry Chips
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
@@ -523,17 +445,22 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                             _buildDepartmentChip('አባላት እንክብካቤ (Care)'),
                             _buildDepartmentChip('ስነ ጥበባት (Arts)'),
                             _buildDepartmentChip('በጎ አድራጎት (Charity)'),
+                            _buildDepartmentChip('መንፈሳዊ ጉዞ (Pilgrimage)'),
+                            _buildDepartmentChip('ሚዲያና ህትመት (Media)'),
+                            _buildDepartmentChip('ግንኙነት (PR)'),
+                            _buildDepartmentChip('ልማትና ገቢ (Dev)'),
+                            _buildDepartmentChip('ስነ ስርዓት (Discipline)'),
                           ],
                         ),
                         const SizedBox(height: 14),
 
-                        // Bottom dark inset card (#05171B)
+                        // Confessor Father & Anonymous Q&A Card (#05171B)
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: const Color(0xFF05171B),
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.white.withOpacity(0.08)),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,13 +489,20 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                                       _buildFatherBadge('ቄ', 'St. Cyril • ቅዱስ ቄርሎስ'),
                                       const SizedBox(width: 4),
                                       _buildFatherBadge('ተ', 'Abune Teklehaimanot • አቡነ ተክለ ሃይማኖት'),
-                                      const SizedBox(width: 4),
-                                      const Text('Fathers', style: TextStyle(fontSize: 10, color: Colors.white70)),
                                     ],
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  _buildFeaturePill(Icons.calendar_month_outlined, 'Private Confession Booking'),
+                                  _buildFeaturePill(Icons.lock_outline_rounded, 'Anonymous Spiritual Q&A'),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
                               const Text(
                                 '"No one heals a soul like a loving spiritual father." — Book private confession slots & ask questions anonymously.',
                                 style: TextStyle(fontSize: 11, color: Colors.white60, height: 1.3),
@@ -624,17 +558,29 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     );
   }
 
-  Widget _buildFeaturePill(String label) {
+  Widget _buildFeaturePill(IconData icon, String label) {
     return Container(
+      constraints: const BoxConstraints(maxWidth: 190),
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFE5A93C).withOpacity(0.12),
+        color: const Color(0xFFE5A93C).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFFE5A93C).withValues(alpha: 0.3)),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 9.5, color: Color(0xFFF3C766), fontWeight: FontWeight.w600),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 11, color: const Color(0xFFE5A93C)),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 9.5, color: Color(0xFFF3C766), fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -643,9 +589,9 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF10B981).withOpacity(0.15),
+        color: const Color(0xFF10B981).withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
       ),
       child: Text(
         label,
@@ -662,7 +608,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
         height: 22,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFFE5A93C).withOpacity(0.2),
+          color: const Color(0xFFE5A93C).withValues(alpha: 0.2),
           border: Border.all(color: const Color(0xFFE5A93C), width: 1),
         ),
         child: Center(
@@ -676,7 +622,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
   }
 
   // --------------------------------------------------------------------------
-  // SLIDE 3: HOLY LITURGY, ST. YARED MEZMUR, LIVE QR ATTENDANCE & PILGRIMAGE (ቅዳሴ፣ ቅዱስ ያሬድ፣ QR መገኘትና የንግሥ ጉዞ)
+  // SLIDE 3: HOLY LITURGY, LIVE QR ATTENDANCE, PILGRIMAGE & DIGITAL LIBRARY
   // --------------------------------------------------------------------------
   Widget _buildSlide3LiturgyAndPilgrimage() {
     return LayoutBuilder(
@@ -691,16 +637,16 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                 children: [
                   const Spacer(),
 
-                  // Daily Lectionary & Audio Card
+                  // Liturgy, Attendance & Pilgrimage Card
                   Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0A2328).withOpacity(0.85),
+                      color: const Color(0xFF0A2328).withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFFE5A93C).withOpacity(0.35), width: 1.2),
+                      border: Border.all(color: const Color(0xFFE5A93C).withValues(alpha: 0.35), width: 1.2),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF0F3238).withOpacity(0.4),
+                          color: const Color(0xFF0F3238).withValues(alpha: 0.4),
                           blurRadius: 25,
                         ),
                       ],
@@ -731,7 +677,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF10B981).withOpacity(0.2),
+                                color: const Color(0xFF10B981).withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: const Text('ጥቅምት ፲፬ • አቡነ አረጋዊ', style: TextStyle(fontSize: 9.5, color: Color(0xFF34D399), fontWeight: FontWeight.bold)),
@@ -740,135 +686,162 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                         ),
                         const SizedBox(height: 10),
 
-                        // Psalm 122:1
+                        // Psalm 122:1 Citation & Clean Plain-Text Scripture Quote
                         const Text(
-                          '“ወደ እግዚአብሔር ቤት እንሂድ ባሉኝ ጊዜ ደስ አለኝ።” — መዝሙር ፻፳፩፥፩ (Psalm 122:1)',
-                          style: TextStyle(fontFamily: 'serif', fontSize: 12, color: Colors.white, fontWeight: FontWeight.w600, height: 1.3),
+                          '— መዝሙር ፻፳፩፥፩ • Psalm 122:1',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 11,
+                            color: Color(0xFFE5A93C),
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.0,
+                          ),
                         ),
-                        const SizedBox(height: 12),
-
-                        // Ge'ez Week Days Ribbon
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            _buildDayChip('ሰ', '12', false),
-                            _buildDayChip('ማ', '13', false),
-                            _buildDayChip('ረ', '14', true), // Active selected
-                            _buildDayChip('ሐ', '15', false),
-                            _buildDayChip('ዓ', '16', false),
-                            _buildDayChip('ቀ', '17', false),
-                            _buildDayChip('እ', '18', false),
-                          ],
+                        const SizedBox(height: 6),
+                        const Text(
+                          '“ወደ እግዚአብሔር ቤት እንሂድ ባሉኝ ጊዜ ደስ አለኝ።”',
+                          style: TextStyle(fontFamily: 'serif', fontSize: 14, color: Colors.white, fontWeight: FontWeight.w600, height: 1.4),
                         ),
-                        const SizedBox(height: 12),
-
-                        // Feature Pills Row
-                        const Row(
-                          children: [
-                            _AttendancePill(label: '⚡ 30s Live QR/PIN Attendance'),
-                            SizedBox(width: 8),
-                            _AttendancePill(label: '🚌 Monastery Pilgrimage Pass'),
-                          ],
+                        const SizedBox(height: 4),
+                        const Text(
+                          '“I was glad when they said to me, ‘Let us go into the house of the Lord.’”',
+                          style: TextStyle(fontSize: 11, color: Colors.white60, fontStyle: FontStyle.italic),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
 
-                        // Audio Hymn / St. Yared Mezmur Player Preview
+                        // Preview Card 1: 30s Live QR/PIN Attendance
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: const Color(0xFF05171B),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.white.withOpacity(0.08)),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Row(
                             children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Expanded(
-                                    child: Text(
-                                      'ቅዱስ ያሬድ (St. Yared) • የሰንበት መዝሙርና ዲጂታል ላይብረሪ',
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(fontFamily: 'serif', fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.white),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white12,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      _isPlayingAudio ? 'Waveform Preview' : 'UI Preview / ቅድመ-ዕይታ',
-                                      style: const TextStyle(fontSize: 9.5, color: Color(0xFFE5A93C), fontWeight: FontWeight.bold),
-                                    ),
-                                  ),
-                                ],
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE5A93C).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.qr_code_scanner_rounded, color: Color(0xFFE5A93C), size: 18),
                               ),
-                              const SizedBox(height: 3),
-                              const Text(
-                                'Digital Liturgical Library • Wudase Maryam, Zema & Patristic PDFs available in Library tab',
-                                style: TextStyle(fontSize: 9.5, color: Colors.white60),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '30s Live Attendance Check-In',
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.white),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'PIN: 4892 • 04:15 Remaining',
+                                      style: TextStyle(fontSize: 10, color: Color(0xFF34D399), fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              const SizedBox(height: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                                ),
+                                child: const Text(
+                                  'Present ✓',
+                                  style: TextStyle(fontSize: 9.5, color: Color(0xFF34D399), fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
 
-                              // Player Row with Play Button + Animated Waveform
-                              Row(
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      HapticFeedback.lightImpact();
-                                      setState(() {
-                                        _isPlayingAudio = !_isPlayingAudio;
-                                        if (_isPlayingAudio) {
-                                          _waveController.repeat(reverse: true);
-                                        } else {
-                                          _waveController.stop();
-                                        }
-                                      });
-                                    },
-                                    child: Container(
-                                      width: 36,
-                                      height: 36,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Color(0xFFE5A93C),
-                                      ),
-                                      child: Icon(
-                                        _isPlayingAudio ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                                        color: const Color(0xFF030D10),
-                                        size: 22,
-                                      ),
+                        // Preview Card 2: Monastery Pilgrimage Pass
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF05171B),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE5A93C).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.directions_bus_rounded, color: Color(0xFFE5A93C), size: 18),
+                              ),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Debre Damo Monastery Pilgrimage Pass',
+                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: AnimatedBuilder(
-                                      animation: _waveController,
-                                      builder: (context, _) {
-                                        return Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: List.generate(24, (i) {
-                                            final progress = _isPlayingAudio ? _waveController.value : 0.2;
-                                            final barHeight = 4.0 + (math.sin(i * 0.5 + progress * 6.28).abs() * 18.0);
-                                            final isPlayed = i < 10;
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Bus #02 • Seat #14 Reserved',
+                                      style: TextStyle(fontSize: 10, color: Color(0xFFF3C766)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE5A93C).withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFE5A93C).withValues(alpha: 0.4)),
+                                ),
+                                child: const Text(
+                                  'QR Pass',
+                                  style: TextStyle(fontSize: 9.5, color: Color(0xFFF3C766), fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
 
-                                            return Container(
-                                              width: 3,
-                                              height: barHeight,
-                                              decoration: BoxDecoration(
-                                                color: isPlayed ? const Color(0xFFE5A93C) : Colors.white24,
-                                                borderRadius: BorderRadius.circular(2),
-                                              ),
-                                            );
-                                          }),
-                                        );
-                                      },
+                        // Preview Card 3: Digital Liturgical Library & Prayer Book
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF05171B),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.menu_book_rounded, color: Color(0xFFE5A93C), size: 18),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Digital Liturgical Library & Prayer Book',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
-                                  ),
-                                ],
+                                    SizedBox(height: 2),
+                                    Text(
+                                      'Wudase Maryam, Synaxarium & Patristic Books offline',
+                                      style: TextStyle(fontSize: 9.5, color: Colors.white60),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
@@ -902,7 +875,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Commemorate daily Saints in the Synaxarium, check in with 30-second QR codes,\nbook monastery pilgrimage bus seats, and stream St. Yared Mezmurs.',
+                    'Commemorate daily Saints in the Synaxarium, check in with 30-second QR codes,\nbook monastery pilgrimage bus seats, and access the digital prayer library.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
@@ -918,41 +891,6 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
           ),
         );
       },
-    );
-  }
-
-  Widget _buildDayChip(String weekday, String dayNumber, bool isSelected) {
-    return Column(
-      children: [
-        Text(
-          weekday,
-          style: TextStyle(
-            fontSize: 11,
-            color: isSelected ? const Color(0xFFE5A93C) : Colors.white54,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFE5A93C) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: isSelected ? null : Border.all(color: Colors.white12),
-          ),
-          child: Center(
-            child: Text(
-              dayNumber,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: isSelected ? const Color(0xFF030D10) : Colors.white,
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -974,7 +912,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
 
                   // Fanned 3D Perspective Cards Named After Saints
                   SizedBox(
-                    height: 180,
+                    height: 145,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
@@ -1027,30 +965,96 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
 
                   const SizedBox(height: 10),
 
-                  // Galatians 6:2 Mutual Aid Scripture
+                  // Galatians 6:2 Clean Plain-Text Mutual Aid Scripture
                   const Text(
-                    '“እርስ በርሳችሁ ሸክማችሁን ተሸካከሙ” — ገላትያ ፮፥፪ (Galatians 6:2)',
+                    '— ገላትያ ፮፥፪ • Galatians 6:2',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'serif',
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
                       color: Color(0xFFE5A93C),
+                      letterSpacing: 1.0,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '“እርስ በርሳችሁ ሸክማችሁን ተሸካከሙ ሕጉንም ፈጽሙ።”',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'serif',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    '“Bear one another’s burdens, and so fulfill the law of Christ.”',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Colors.white60, fontStyle: FontStyle.italic),
+                  ),
+                  const SizedBox(height: 12),
 
-                  const Wrap(
-                    alignment: WrapAlignment.center,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    children: [
-                      Text('MUTUAL AID', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white70, fontWeight: FontWeight.bold)),
-                      Text('•', style: TextStyle(color: Color(0xFFE5A93C))),
-                      Text('FAITH TRIVIA', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white70, fontWeight: FontWeight.bold)),
-                      Text('•', style: TextStyle(color: Color(0xFFE5A93C))),
-                      Text('SACRED THEMES', style: TextStyle(fontSize: 10, letterSpacing: 1.5, color: Colors.white70, fontWeight: FontWeight.bold)),
-                    ],
+                  // Real Features Preview Box (#05171B)
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF05171B),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.favorite_rounded, color: Color(0xFFE5A93C), size: 16),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Confidential Emergency Aid • መረዳጃ',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('Direct Relief', style: TextStyle(fontSize: 9, color: Color(0xFF34D399), fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.emoji_events_rounded, color: Color(0xFFE5A93C), size: 16),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Weekly Faith Trivia • የዕውቀት ውድድር',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE5A93C).withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text('1st: St. George', style: TextStyle(fontSize: 9, color: Color(0xFFF3C766), fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
 
                   const Spacer(),
@@ -1106,16 +1110,16 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     bool isCenter = false,
   }) {
     return Container(
-      width: 140,
-      height: 160,
-      padding: const EdgeInsets.all(12),
+      width: 130,
+      height: 135,
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: accentColor.withOpacity(isCenter ? 0.8 : 0.4), width: isCenter ? 2 : 1),
+        border: Border.all(color: accentColor.withValues(alpha: isCenter ? 0.8 : 0.4), width: isCenter ? 2 : 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: isCenter ? 20 : 12,
             offset: const Offset(0, 8),
           ),
@@ -1127,10 +1131,10 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(Icons.auto_stories, color: accentColor, size: 18),
+              Icon(Icons.auto_stories, color: accentColor, size: 16),
               Container(
-                width: 8,
-                height: 8,
+                width: 7,
+                height: 7,
                 decoration: BoxDecoration(shape: BoxShape.circle, color: accentColor),
               ),
             ],
@@ -1140,7 +1144,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
             title,
             style: TextStyle(
               fontFamily: 'serif',
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.bold,
               color: textColor,
             ),
@@ -1150,7 +1154,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
           const SizedBox(height: 2),
           Text(
             sub,
-            style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.7)),
+            style: TextStyle(fontSize: 9.5, color: textColor.withValues(alpha: 0.7)),
           ),
         ],
       ),
@@ -1158,7 +1162,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
   }
 
   // --------------------------------------------------------------------------
-  // INTERACTIVE 3-STEP SETUP WIZARD
+  // STREAMLINED 2-STEP SETUP WIZARD (ALERTS & SACRED LOOK)
   // --------------------------------------------------------------------------
   Widget _buildSetupWizard() {
     return SingleChildScrollView(
@@ -1166,21 +1170,18 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Step Indicator Bar
+          // 2-Step Indicator Bar
           Row(
             children: [
-              _buildStepIndicator(0, 'Focus'),
+              _buildStepIndicator(0, 'Alerts'),
               _buildStepDivider(),
-              _buildStepIndicator(1, 'Alerts'),
-              _buildStepDivider(),
-              _buildStepIndicator(2, 'Look'),
+              _buildStepIndicator(1, 'Look'),
             ],
           ),
           const SizedBox(height: 20),
 
-          if (_wizardStep == 0) _buildWizardStep1Focus(),
-          if (_wizardStep == 1) _buildWizardStep2Alerts(),
-          if (_wizardStep == 2) _buildWizardStep3Look(),
+          if (_wizardStep == 0) _buildWizardStepAlerts(),
+          if (_wizardStep == 1) _buildWizardStepLook(),
         ],
       ),
     );
@@ -1235,88 +1236,8 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     );
   }
 
-  // WIZARD STEP 1: CHOOSE FOCUS (YOUR FOCUS / የአገልግሎት ዘርፍ)
-  Widget _buildWizardStep1Focus() {
-    final ministries = [
-      {'id': 'dept-choir', 'title': 'Choir & Mezmur (ዝማሬ)', 'sub': 'Liturgical hymns & audio practice', 'icon': Icons.music_note},
-      {'id': 'dept-education', 'title': 'Education & Apostolic (ትምህርት)', 'sub': 'Catechism, dogma & patristics', 'icon': Icons.school_outlined},
-      {'id': 'dept-pilgrimage', 'title': 'Pilgrimage & Trips (መንፈሳዊ ጉዞ)', 'sub': 'Monastery passes & holy sites', 'icon': Icons.directions_bus_outlined},
-      {'id': 'dept-charity', 'title': 'Charity & Mutual Aid (መረዳጃ)', 'sub': 'Student welfare & medical aid', 'icon': Icons.volunteer_activism_outlined},
-      {'id': 'dept-mentorship', 'title': 'Academic Mentorship (ማማከር)', 'sub': 'Senior peer tutoring & guidance', 'icon': Icons.people_outline},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'YOUR FOCUS',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFFE5A93C), letterSpacing: 2.0),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Choose your first fellowship path.',
-          style: TextStyle(fontFamily: 'serif', fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'Pick where you wish to serve or engage. You can explore all 10 departments at any time.',
-          style: TextStyle(fontSize: 12, color: Colors.white70),
-        ),
-        const SizedBox(height: 18),
-
-        ...ministries.map((m) {
-          final isSelected = _selectedMinistry == m['id'];
-
-          return GestureDetector(
-            onTap: () => setState(() => _selectedMinistry = m['id'] as String),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 10),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFE5A93C).withOpacity(0.12) : const Color(0xFF0A2328).withOpacity(0.6),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isSelected ? const Color(0xFFE5A93C) : Colors.white12,
-                  width: isSelected ? 1.5 : 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(m['icon'] as IconData, color: isSelected ? const Color(0xFFE5A93C) : Colors.white60, size: 22),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          m['title'] as String,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? const Color(0xFFF3C766) : Colors.white,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          m['sub'] as String,
-                          style: const TextStyle(fontSize: 11, color: Colors.white60),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isSelected)
-                    const Icon(Icons.check_circle_rounded, color: Color(0xFFE5A93C), size: 18),
-                ],
-              ),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  // WIZARD STEP 2: FELLOWSHIP ALERTS (የቅዳሴና የመርሐ ግብር ማስታወሻ)
-  Widget _buildWizardStep2Alerts() {
+  // WIZARD STEP 0: FELLOWSHIP ALERTS (የቅዳሴና የመርሐ ግብር ማስታወሻ)
+  Widget _buildWizardStepAlerts() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1340,7 +1261,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFF0A2328).withOpacity(0.6),
+            color: const Color(0xFF0A2328).withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFFE5A93C), width: 1.5),
           ),
@@ -1374,7 +1295,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: const Color(0xFF0A2328).withOpacity(0.6),
+            color: const Color(0xFF0A2328).withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white12),
           ),
@@ -1400,7 +1321,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
               ),
               Switch(
                 value: _dailyReminderEnabled,
-                activeColor: const Color(0xFFE5A93C),
+                activeThumbColor: const Color(0xFFE5A93C),
                 onChanged: (val) => setState(() => _dailyReminderEnabled = val),
               ),
             ],
@@ -1410,8 +1331,8 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
     );
   }
 
-  // WIZARD STEP 3: SACRED LOOK (YOUR SACRED LOOK / የመተግበሪያው ገጽታ)
-  Widget _buildWizardStep3Look() {
+  // WIZARD STEP 1: SACRED LOOK (YOUR SACRED LOOK / የመተግበሪያው ገጽታ)
+  Widget _buildWizardStepLook() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1426,12 +1347,12 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
         ),
         const SizedBox(height: 4),
         const Text(
-          'Pick a sacred color palette and text size. Preview how your scripture and fellowship cards will look.',
+          'Pick a sacred color palette to customize your fellowship experience.',
           style: TextStyle(fontSize: 12, color: Colors.white70),
         ),
         const SizedBox(height: 18),
 
-        // LIVE SCRIPTURE PREVIEW BOX
+        // LIVE FELLOWSHIP CARD PREVIEW BOX
         AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           padding: const EdgeInsets.all(16),
@@ -1448,7 +1369,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.3),
+                color: Colors.black.withValues(alpha: 0.3),
                 blurRadius: 16,
               ),
             ],
@@ -1461,11 +1382,12 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                 children: [
                   Expanded(
                     child: Text(
-                      'ዮሐንስ ፩:፲፬ • John 1:14 — ቅዱስ ዮሐንስ ወንጌላዊ',
+                      'WCU GIBI GUBAE PREVIEW',
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
                         color: _selectedPalette == AppThemePalette.parchmentIncense ? const Color(0xFFB45309) : const Color(0xFFE5A93C),
                       ),
                     ),
@@ -1475,6 +1397,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                     _selectedPalette.displayName,
                     style: TextStyle(
                       fontSize: 10,
+                      fontWeight: FontWeight.w600,
                       color: _selectedPalette == AppThemePalette.parchmentIncense ? Colors.black54 : Colors.white60,
                     ),
                   ),
@@ -1482,11 +1405,11 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
               ),
               const SizedBox(height: 8),
               Text(
-                'ቃልም ሥጋ ሆነ፤ በእኛም አደረ፥ ጸጋንና እውነትንም ተሞልቶ የአባቱ አንድያ ልጅ እንዳለው ክብር የሆነው ክብሩን አየን።',
+                '“እነሆ፥ ወንድሞች በኅብረት ቢቀመጡ መልካም ነው፥ እንዴትም ያማረ ነው!” — መዝሙር ፻፴፪፥፩',
                 style: TextStyle(
                   fontFamily: 'serif',
-                  fontSize: 15 * _fontSizeScale,
-                  height: 1.6,
+                  fontSize: 14,
+                  height: 1.5,
                   color: _selectedPalette == AppThemePalette.parchmentIncense ? const Color(0xFF2C2419) : Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
@@ -1498,11 +1421,11 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
                   color: (_selectedPalette == AppThemePalette.parchmentIncense
                           ? const Color(0xFFB45309)
                           : (_selectedPalette == AppThemePalette.axumiteEmerald ? const Color(0xFF10B981) : const Color(0xFFE5A93C)))
-                      .withOpacity(0.15),
+                      .withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'WCU Gibi Gubae • Family, 10 Ministries & Pilgrimage',
+                  'Spiritual Family • 10 Ministries • Live QR Attendance • Pilgrimage',
                   style: TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.bold,
@@ -1527,21 +1450,6 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
             _buildPaletteTile(AppThemePalette.midnightFellowship, 'Midnight Gold', const Color(0xFF071424), const Color(0xFFE5A93C)),
             _buildPaletteTile(AppThemePalette.axumiteEmerald, 'Axumite Emerald', const Color(0xFF031E18), const Color(0xFF10B981)),
             _buildPaletteTile(AppThemePalette.parchmentIncense, 'Parchment & Incense', const Color(0xFFF9F5EC), const Color(0xFFB45309)),
-          ],
-        ),
-
-        const SizedBox(height: 18),
-
-        // Font Size Controls
-        const Text('FONT SIZE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white70, letterSpacing: 1.2)),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            _buildSizeButton('Regular', 1.0),
-            const SizedBox(width: 10),
-            _buildSizeButton('Comfortable', 1.15),
-            const SizedBox(width: 10),
-            _buildSizeButton('Large', 1.3),
           ],
         ),
       ],
@@ -1571,7 +1479,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
               boxShadow: [
                 if (isSelected)
                   BoxShadow(
-                    color: accent.withOpacity(0.4),
+                    color: accent.withValues(alpha: 0.4),
                     blurRadius: 10,
                   ),
               ],
@@ -1588,38 +1496,6 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildSizeButton(String label, double scale) {
-    final isSelected = (_fontSizeScale - scale).abs() < 0.05;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          setState(() => _fontSizeScale = scale);
-          widget.state.setFontScale(scale);
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFE5A93C).withOpacity(0.2) : const Color(0xFF0A2328).withOpacity(0.6),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: isSelected ? const Color(0xFFE5A93C) : Colors.white12),
-          ),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? const Color(0xFFF3C766) : Colors.white70,
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
@@ -1653,7 +1529,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
 
           const SizedBox(height: 14),
 
-          // Primary Action Button (Continue > / Set up my Fellowship > / Enter Fellowship >)
+          // Primary Action Button
           ElevatedButton(
             onPressed: _isInSetupWizard ? _nextWizardStep : _nextPage,
             style: ElevatedButton.styleFrom(
@@ -1668,7 +1544,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
               children: [
                 Text(
                   _isInSetupWizard
-                      ? (_wizardStep == 2 ? 'Enter Fellowship • ወደ ግቢ ጉባኤ ግባ' : 'Continue')
+                      ? (_wizardStep == 1 ? 'Enter Fellowship • ወደ ግቢ ጉባኤ ግባ' : 'Continue')
                       : (_currentPage == 3 ? 'Set up my Fellowship' : 'Continue'),
                   style: const TextStyle(
                     fontSize: 15,
@@ -1685,7 +1561,7 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
           // Sign In Link (for returning students)
           const SizedBox(height: 8),
           TextButton(
-            onPressed: widget.onSignIn,
+            onPressed: _skipToSignIn,
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 4),
               minimumSize: Size.zero,
@@ -1701,31 +1577,6 @@ class _FellowshipOnboardingScreenState extends State<FellowshipOnboardingScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AttendancePill extends StatelessWidget {
-  final String label;
-
-  const _AttendancePill({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: const Color(0xFF10B981).withOpacity(0.12),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF34D399)),
-        ),
       ),
     );
   }
