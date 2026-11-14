@@ -179,9 +179,9 @@ class FamilyModel {
       id: docId.isNotEmpty ? docId : (map['id']?.toString() ?? ''),
       name: map['name'] ?? 'Orthodox Spiritual Family',
       formedDate: map['formedDate'] ?? '2024 E.C.',
-      spiritualFather: map['spiritualFather'] is Map<String, dynamic>
+      spiritualFather: map['spiritualFather'] is Map
           ? SpiritualParentModel.fromMap(
-              Map<String, dynamic>.from(map['spiritualFather']),
+              Map<String, dynamic>.from(map['spiritualFather'] as Map),
             )
           : SpiritualParentModel(
               id: map['fatherId']?.toString() ?? '',
@@ -196,9 +196,9 @@ class FamilyModel {
               phoneNumber: map['fatherPhone']?.toString() ?? '',
               roleTitle: 'Spiritual Father',
             ),
-      spiritualMother: map['spiritualMother'] is Map<String, dynamic>
+      spiritualMother: map['spiritualMother'] is Map
           ? SpiritualParentModel.fromMap(
-              Map<String, dynamic>.from(map['spiritualMother']),
+              Map<String, dynamic>.from(map['spiritualMother'] as Map),
             )
           : SpiritualParentModel(
               id: map['motherId']?.toString() ?? '',

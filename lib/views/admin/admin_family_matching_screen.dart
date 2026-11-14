@@ -1543,6 +1543,6 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
           ),
         ],
       ),
-    );
+    ).whenComplete(() => linkController.dispose());
   }
 }

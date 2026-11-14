@@ -73,103 +73,107 @@ class _EditProfileModalState extends State<EditProfileModal> {
 
   Future<void> _openDepartmentPicker() async {
     final searchCtrl = TextEditingController();
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final query = searchCtrl.text.trim().toLowerCase();
-            final filtered = WcuDepartments.all.where((d) => d.toLowerCase().contains(query)).toList();
+    try {
+      final selected = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Theme.of(context).cardTheme.color ?? Theme.of(context).colorScheme.surface,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+        builder: (ctx) {
+          return StatefulBuilder(
+            builder: (context, setModalState) {
+              final query = searchCtrl.text.trim().toLowerCase();
+              final filtered = WcuDepartments.all.where((d) => d.toLowerCase().contains(query)).toList();
 
-            return Container(
-              height: MediaQuery.of(context).size.height * 0.72,
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-              child: Column(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).dividerColor,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Select Academic Department',
-                        style: TextStyle(
-                          fontFamily: 'serif',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
+              return Container(
+                height: MediaQuery.of(context).size.height * 0.72,
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).dividerColor,
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 20),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: searchCtrl,
-                    onChanged: (_) => setModalState(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Search department...',
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.4),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: filtered.isEmpty
-                        ? const Center(child: Text('No department found.'))
-                        : ListView.builder(
-                            itemCount: filtered.length,
-                            itemBuilder: (ctx, i) {
-                              final dept = filtered[i];
-                              final isSelected = dept == _selectedDepartment;
-                              return ListTile(
-                                dense: true,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                tileColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.12) : null,
-                                leading: Icon(
-                                  isSelected ? Icons.check_circle : Icons.school_outlined,
-                                  color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).iconTheme.color?.withOpacity(0.6),
-                                  size: 18,
-                                ),
-                                title: Text(
-                                  dept,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                    color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
-                                  ),
-                                ),
-                                onTap: () => Navigator.pop(ctx, dept),
-                              );
-                            },
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Select Academic Department',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 20),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: searchCtrl,
+                      onChanged: (_) => setModalState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'Search department...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? const Center(child: Text('No department found.'))
+                          : ListView.builder(
+                              itemCount: filtered.length,
+                              itemBuilder: (ctx, i) {
+                                final dept = filtered[i];
+                                final isSelected = dept == _selectedDepartment;
+                                return ListTile(
+                                  dense: true,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                  tileColor: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.12) : null,
+                                  leading: Icon(
+                                    isSelected ? Icons.check_circle : Icons.school_outlined,
+                                    color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).iconTheme.color?.withOpacity(0.6),
+                                    size: 18,
+                                  ),
+                                  title: Text(
+                                    dept,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                      color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.onSurface,
+                                    ),
+                                  ),
+                                  onTap: () => Navigator.pop(ctx, dept),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
 
-    if (selected != null && mounted) {
-      setState(() => _selectedDepartment = selected);
+      if (selected != null && mounted) {
+        setState(() => _selectedDepartment = selected);
+      }
+    } finally {
+      searchCtrl.dispose();
     }
   }
 

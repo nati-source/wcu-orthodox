@@ -17,6 +17,7 @@ service cloud.firestore {
 
     function isAuthorizedAdminEmail() {
       return isSignedIn() &&
+        request.auth.token.get('email_verified', false) == true &&
         'email' in request.auth.token &&
         request.auth.token.email.lower() in [
           'natisita928@gmail.com',
@@ -24,7 +25,6 @@ service cloud.firestore {
           'alamrew0955958544@gmail.com',
           'admin@wcu.edu.et',
           'admin@wcuorthodox.org',
-          'admin@gmail.com',
           'wcuorthodox@gmail.com'
         ];
     }

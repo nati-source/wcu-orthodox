@@ -1452,7 +1452,11 @@ class StudentProfileScreen extends StatelessWidget {
           );
         },
       ),
-    );
+    ).whenComplete(() {
+      currentPwController.dispose();
+      newPwController.dispose();
+      confirmPwController.dispose();
+    });
   }
 
   Widget _buildIdField(BuildContext context, String label, String value) {

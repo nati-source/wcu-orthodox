@@ -606,8 +606,9 @@ class UserModel {
       avatarUrl: map['avatarUrl'],
       attendancePercentage: (map['attendancePercentage'] as num?)?.toDouble(),
       hasAttendanceData: map['attendancePercentage'] is num,
-      coordinatorProfile: map['coordinatorProfile'] is Map<String, dynamic>
-          ? CoordinatorProfileModel.fromMap(map['coordinatorProfile'])
+      coordinatorProfile: map['coordinatorProfile'] is Map
+          ? CoordinatorProfileModel.fromMap(
+              Map<String, dynamic>.from(map['coordinatorProfile'] as Map))
           : null,
       gender: finalGender,
       email: map['email']?.toString(),

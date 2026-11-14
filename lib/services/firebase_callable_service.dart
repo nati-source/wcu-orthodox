@@ -70,16 +70,35 @@ class FirebaseCallableService {
       );
     }
     final token = await user.getIdToken();
-    final response = await http
-        .post(
-          Uri.parse('$_endpointBase/$functionName'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          body: jsonEncode({'data': data}),
-        )
-        .timeout(const Duration(seconds: 120));
+    final http.Response response;
+    try {
+      response = await http
+          .post(
+            Uri.parse('$_endpointBase/$functionName'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'data': data}),
+          )
+          .timeout(const Duration(seconds: 120));
+    } on TimeoutException {
+      throw const FirebaseCallableException(
+        'deadline-exceeded',
+        'Request timed out. Please check your internet connection.',
+      );
+    } on http.ClientException catch (e) {
+      throw FirebaseCallableException(
+        'unavailable',
+        'Network error: ${e.message}',
+      );
+    } catch (e) {
+      if (e is FirebaseCallableException) rethrow;
+      throw FirebaseCallableException(
+        'unavailable',
+        'Connection failed: $e',
+      );
+    }
 
     Map<String, dynamic> body;
     try {

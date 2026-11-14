@@ -753,7 +753,10 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
           },
         );
       },
-    );
+    ).whenComplete(() {
+      amountController.dispose();
+      refController.dispose();
+    });
   }
 
   void _openPayDuesModal(BuildContext context) {
@@ -870,7 +873,9 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
           },
         );
       },
-    );
+    ).whenComplete(() {
+      refController.dispose();
+    });
   }
 
   void _openAidApplicationDialog(BuildContext context) {
@@ -942,7 +947,10 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
           },
         );
       },
-    );
+    ).whenComplete(() {
+      amountController.dispose();
+      descController.dispose();
+    });
   }
 
   void _showAddCampaignDialog(BuildContext context, FellowshipState state) {
@@ -1030,7 +1038,11 @@ class _StudentCharityScreenState extends State<StudentCharityScreen> {
           },
         );
       },
-    );
+    ).whenComplete(() {
+      titleCtrl.dispose();
+      descCtrl.dispose();
+      targetCtrl.dispose();
+    });
   }
 
   void _showAidReviewModal(BuildContext context, FellowshipState state) {

@@ -3,13 +3,43 @@ import '../../models/app_models.dart';
 import '../../state/fellowship_state.dart';
 import '../../theme/app_theme.dart';
 
-class StudentLibraryScreen extends StatelessWidget {
+class StudentLibraryScreen extends StatefulWidget {
   final FellowshipState state;
 
   const StudentLibraryScreen({super.key, required this.state});
 
   @override
+  State<StudentLibraryScreen> createState() => _StudentLibraryScreenState();
+}
+
+class _StudentLibraryScreenState extends State<StudentLibraryScreen> {
+  late final TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(
+      text: widget.state.librarySearchQuery,
+    );
+  }
+
+  @override
+  void didUpdateWidget(StudentLibraryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.state.librarySearchQuery != _searchController.text) {
+      _searchController.text = widget.state.librarySearchQuery;
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final state = widget.state;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final primaryAccent = theme.colorScheme.primary;
@@ -31,6 +61,7 @@ class StudentLibraryScreen extends StatelessWidget {
             children: [
               // Search Field
               TextField(
+                controller: _searchController,
                 onChanged: (val) => state.setLibrarySearch(val),
                 style: TextStyle(color: textCol, fontSize: 14),
                 decoration: InputDecoration(
@@ -40,7 +71,10 @@ class StudentLibraryScreen extends StatelessWidget {
                   suffixIcon: state.librarySearchQuery.isNotEmpty
                       ? IconButton(
                           icon: Icon(Icons.clear, color: textMuted, size: 18),
-                          onPressed: () => state.setLibrarySearch(''),
+                          onPressed: () {
+                            _searchController.clear();
+                            state.setLibrarySearch('');
+                          },
                         )
                       : null,
                   filled: true,

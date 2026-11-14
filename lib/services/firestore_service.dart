@@ -81,19 +81,27 @@ class FirestoreService {
     final inst = _firestoreInstance;
     if (inst == null) return;
     try {
-      // Write registration record
-      await inst
-          .collection('trip_registrations')
-          .doc(reg.id)
-          .set(reg.toMap(), SetOptions(merge: true));
-
-      // Increment booked seats on the trip doc safely using merge
-      await inst.collection('pilgrimage_trips').doc(tripId).set({
-        'bookedSeats': FieldValue.increment(1),
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      // Both writes are committed atomically in a single batch so a partial
+      // failure cannot leave the registration recorded without updating the
+      // seat counter (or vice-versa). (P1 fix #8)
+      final batch = inst.batch();
+      batch.set(
+        inst.collection('trip_registrations').doc(reg.id),
+        reg.toMap(),
+        SetOptions(merge: true),
+      );
+      batch.set(
+        inst.collection('pilgrimage_trips').doc(tripId),
+        {
+          'bookedSeats': FieldValue.increment(1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      await batch.commit();
     } catch (e) {
       debugPrint('Firestore register pilgrim error: $e');
+      rethrow;
     }
   }
 
@@ -146,14 +154,6 @@ class FirestoreService {
     final inst = _firestoreInstance;
     if (inst == null) return; // Local/demo mode.
 
-    const maxBatchWrites = 500;
-    final writeCount = families.length + studentAssignments.length + 1;
-    if (writeCount > maxBatchWrites) {
-      throw StateError(
-        'This roster needs $writeCount writes, exceeding Firestore\'s $maxBatchWrites-write batch limit. No changes were saved.',
-      );
-    }
-
     final familyIds = families.map((family) => family.id).toSet();
     if (familyIds.length != families.length ||
         familyIds.any((id) => id.trim().isEmpty)) {
@@ -169,26 +169,41 @@ class FirestoreService {
       }
     }
 
-    final batch = inst.batch();
+    // Build the flat list of all write operations so we can chunk them into
+    // batches of ≤400 (safely below Firestore's hard 500-write limit). (P1 fix #7)
+    final List<void Function(WriteBatch)> ops = [];
     for (final family in families) {
-      batch.set(
-        inst.collection('families').doc(family.id),
-        family.copyWith(isPublished: false).toMap(),
-        SetOptions(merge: true),
-      );
+      ops.add((b) => b.set(
+            inst.collection('families').doc(family.id),
+            family.copyWith(isPublished: false).toMap(),
+            SetOptions(merge: true),
+          ));
     }
     for (final entry in studentAssignments.entries) {
-      batch.update(inst.collection('users').doc(entry.key), {
-        'assignedFamilyId': entry.value,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      ops.add((b) => b.update(inst.collection('users').doc(entry.key), {
+            'assignedFamilyId': entry.value,
+            'updatedAt': FieldValue.serverTimestamp(),
+          }));
     }
-    batch.set(inst.collection('app_config').doc('family_roster'), {
-      'isFamilyPublished': false,
-      'publishedAt': null,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-    await batch.commit();
+    ops.add((b) => b.set(
+          inst.collection('app_config').doc('family_roster'),
+          {
+            'isFamilyPublished': false,
+            'publishedAt': null,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        ));
+
+    const chunkSize = 400;
+    for (var i = 0; i < ops.length; i += chunkSize) {
+      final chunk = ops.skip(i).take(chunkSize);
+      final batch = inst.batch();
+      for (final op in chunk) {
+        op(batch);
+      }
+      await batch.commit();
+    }
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> streamFamilyConfig() {
@@ -215,32 +230,39 @@ class FirestoreService {
     if (inst == null) return; // Local/demo mode.
 
     final snap = await inst.collection('families').get();
-    final writeCount = snap.docs.length + 1 + (announcement == null ? 0 : 1);
-    if (writeCount > 500) {
-      throw StateError(
-        'Publishing this roster needs $writeCount writes, exceeding Firestore\'s 500-write batch limit. Nothing was published.',
-      );
-    }
 
-    final batch = inst.batch();
+    // Build all write operations and commit in chunks of ≤400 writes. (P1 fix #7)
+    final List<void Function(WriteBatch)> ops = [];
     for (final doc in snap.docs) {
-      batch.set(doc.reference, {
-        'isPublished': isPublished,
-      }, SetOptions(merge: true));
+      ops.add((b) => b.set(doc.reference, {'isPublished': isPublished},
+          SetOptions(merge: true)));
     }
-    batch.set(inst.collection('app_config').doc('family_roster'), {
-      'isFamilyPublished': isPublished,
-      'publishedAt': isPublished ? FieldValue.serverTimestamp() : null,
-      'updatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    ops.add((b) => b.set(
+          inst.collection('app_config').doc('family_roster'),
+          {
+            'isFamilyPublished': isPublished,
+            'publishedAt': isPublished ? FieldValue.serverTimestamp() : null,
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        ));
     if (isPublished && announcement != null) {
       final announcementRef = inst.collection('announcements').doc();
-      batch.set(announcementRef, {
-        ...announcement,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      ops.add((b) => b.set(announcementRef, {
+            ...announcement,
+            'createdAt': FieldValue.serverTimestamp(),
+          }));
     }
-    await batch.commit();
+
+    const chunkSize = 400;
+    for (var i = 0; i < ops.length; i += chunkSize) {
+      final chunk = ops.skip(i).take(chunkSize);
+      final batch = inst.batch();
+      for (final op in chunk) {
+        op(batch);
+      }
+      await batch.commit();
+    }
   }
 
   // ===========================================================================

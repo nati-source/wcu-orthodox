@@ -52,24 +52,35 @@ class AdminDashboardAnalyticsService {
         sessions: [],
       );
     }
-    final userSnapshot = await firestore
-        .collection('users')
-        .get()
-        .timeout(const Duration(seconds: 5));
+    // Run both bounded queries in parallel to cut latency and avoid an unbounded
+    // collection scan on the users table. (P1 fix #9)
+    final results = await Future.wait([
+      firestore
+          .collection('users')
+          .where('isApproved', isEqualTo: true)
+          .limit(500)
+          .get()
+          .timeout(const Duration(seconds: 5)),
+      firestore
+          .collection('users')
+          .where('isApproved', isEqualTo: false)
+          .limit(200)
+          .get()
+          .timeout(const Duration(seconds: 5)),
+    ]);
+
     final students = <UserModel>[];
     final pendingStudents = <UserModel>[];
 
-    for (final doc in userSnapshot.docs) {
+    for (final doc in results[0].docs) {
       final user = UserModel.fromMap(doc.data(), doc.id);
-      // Exclude the admin/system accounts from member counts — they are
-      // operators, not fellowship registrants. Include all other roles
-      // (student, spiritualParent, volunteerCoordinator) in the lists.
       if (user.role == UserRole.admin) continue;
-      if (user.isApproved) {
-        students.add(user);
-      } else {
-        pendingStudents.add(user);
-      }
+      students.add(user);
+    }
+    for (final doc in results[1].docs) {
+      final user = UserModel.fromMap(doc.data(), doc.id);
+      if (user.role == UserRole.admin) continue;
+      pendingStudents.add(user);
     }
 
     QuerySnapshot<Map<String, dynamic>> sessionSnapshot;

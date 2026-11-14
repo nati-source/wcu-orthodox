@@ -985,6 +985,7 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
+        bool isSubmitting = false;
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Padding(
@@ -1351,63 +1352,72 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () async {
-                          if (!trip.isFree &&
-                              refController.text.trim().isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Please enter your transaction reference number',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-
-                          HapticFeedback.mediumImpact();
-                          final ref = refController.text.trim().isNotEmpty
-                              ? refController.text.trim()
-                              : 'FREE-ENTRY';
-
-                          await widget.state.registerForTrip(
-                            tripId: trip.id,
-                            paymentMethod: selectedMethod,
-                            transactionReference: ref,
-                          );
-
-                          if (ctx.mounted) {
-                            Navigator.pop(ctx);
-                          }
-
-                          if (mounted) {
-                            setState(() => _activeTab = 1);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.qr_code,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        trip.isFree
-                                            ? 'Free seat confirmed! Digital pass generated.'
-                                            : 'Registration submitted! Awaiting coordinator verification.',
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                if (!trip.isFree &&
+                                    refController.text.trim().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Please enter your transaction reference number',
                                       ),
                                     ),
-                                  ],
-                                ),
-                                backgroundColor: trip.isFree
-                                    ? const Color(0xFF10B981)
-                                    : const Color(0xFFF59E0B),
-                                duration: const Duration(seconds: 4),
-                              ),
-                            );
-                          }
-                        },
+                                  );
+                                  return;
+                                }
+
+                                setModalState(() => isSubmitting = true);
+                                HapticFeedback.mediumImpact();
+                                final ref = refController.text.trim().isNotEmpty
+                                    ? refController.text.trim()
+                                    : 'FREE-ENTRY';
+
+                                try {
+                                  await widget.state.registerForTrip(
+                                    tripId: trip.id,
+                                    paymentMethod: selectedMethod,
+                                    transactionReference: ref,
+                                  );
+                                } finally {
+                                  if (ctx.mounted) {
+                                    setModalState(() => isSubmitting = false);
+                                  }
+                                }
+
+                                if (ctx.mounted) {
+                                  Navigator.pop(ctx);
+                                }
+
+                                if (mounted) {
+                                  setState(() => _activeTab = 1);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.qr_code,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              trip.isFree
+                                                  ? 'Free seat confirmed! Digital pass generated.'
+                                                  : 'Registration submitted! Awaiting coordinator verification.',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: trip.isFree
+                                          ? const Color(0xFF10B981)
+                                          : const Color(0xFFF59E0B),
+                                      duration: const Duration(seconds: 4),
+                                    ),
+                                  );
+                                }
+                              },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryAccent,
                           foregroundColor: isDark ? Colors.black : Colors.white,
@@ -1416,13 +1426,22 @@ class _StudentPilgrimageScreenState extends State<StudentPilgrimageScreen> {
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
-                        child: const Text(
-                          'Confirm Registration',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                        ),
+                        child: isSubmitting
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Confirm Registration',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
                       ),
                     ),
                   ],

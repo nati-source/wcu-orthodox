@@ -1405,25 +1405,39 @@ class FellowshipState extends ChangeNotifier
   void _listenToAttendanceScansForSession(String sessionId) {
     try {
       _attendanceScansSubscription?.cancel();
-      _attendanceScansSubscription = FirebaseFirestore.instance
+      // Admins and coordinators can see all scans; students can only read
+      // their own scan record (Firestore security rule restricts the query).
+      final isPrivileged =
+          isAdmin ||
+          isCoordinatorOf(FellowshipDepartmentConstants.deptEducation);
+      final userId = currentUser.id;
+      Query<Map<String, dynamic>> query = FirebaseFirestore.instance
           .collection('attendance_sessions')
           .doc(sessionId)
-          .collection('scans')
-          .orderBy('timestamp', descending: true)
-          .snapshots()
-          .listen(
-            (snapshot) {
-              final fetchedScans = snapshot.docs.map((doc) {
-                return AttendanceRecordModel.fromMap(doc.data(), doc.id);
-              }).toList();
+          .collection('scans');
 
-              _activeSession = _activeSession.copyWith(scans: fetchedScans);
-              notifyListeners();
-            },
-            onError: (err) {
-              debugPrint('Firestore attendance scans sync: $err');
-            },
-          );
+      if (isPrivileged) {
+        query = query.orderBy('timestamp', descending: true);
+      } else if (userId.isNotEmpty) {
+        query = query.where(FieldPath.documentId, isEqualTo: userId);
+      } else {
+        // No UID yet — skip to avoid permission-denied rejection.
+        return;
+      }
+
+      _attendanceScansSubscription = query.snapshots().listen(
+        (snapshot) {
+          final fetchedScans = snapshot.docs.map((doc) {
+            return AttendanceRecordModel.fromMap(doc.data(), doc.id);
+          }).toList();
+
+          _activeSession = _activeSession.copyWith(scans: fetchedScans);
+          notifyListeners();
+        },
+        onError: (err) {
+          debugPrint('Firestore attendance scans sync: $err');
+        },
+      );
     } catch (e) {
       debugPrint('Firestore attendance scans setup: $e');
     }

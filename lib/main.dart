@@ -110,6 +110,7 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
   bool _isSyncingProfile = false;
   bool _hasCompletedOnboarding = false;
   bool _openRegisterAfterOnboarding = false;
+  StreamSubscription<dynamic>? _authSubscription;
 
   @override
   void initState() {
@@ -122,6 +123,20 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
         NotificationService.showForegroundInAppBanner(ctx, message);
       }
     };
+    // Listen to auth state changes outside of build() to avoid
+    // "setState() called during build" crash (P0 fix #1).
+    _authSubscription = _authService.authStateChanges.listen((user) {
+      if (user != null) {
+        _syncUserProfile(user);
+      } else {
+        if (_isDemoMode || _syncedUid != null) {
+          _syncedUid = null;
+          _isSyncingProfile = false;
+          _fellowshipState.revokeAdminPrivileges();
+          if (mounted) setState(() => _isDemoMode = false);
+        }
+      }
+    });
   }
 
   Future<void> _loadOnboardingStatus() async {
@@ -138,6 +153,7 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
 
   @override
   void dispose() {
+    _authSubscription?.cancel();
     NotificationService.instance.dispose();
     _fellowshipState.dispose();
     super.dispose();
@@ -309,22 +325,11 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
             builder: (context, snapshot) {
               final user = snapshot.data;
 
-              // Reset session state when user signs out
-              if (user == null) {
-                if (_isDemoMode || _syncedUid != null) {
-                  _isDemoMode = false;
-                  _syncedUid = null;
-                  _isSyncingProfile = false;
-                  _fellowshipState.revokeAdminPrivileges();
-                }
-              }
-
               if (user != null) {
                 final bool isAdmin = AppAdminConstants.isAdminEmail(user.email) ||
                     _fellowshipState.isAuthorizedAdmin ||
                     _fellowshipState.currentUser.role == UserRole.admin;
 
-                _syncUserProfile(user);
 
                 // Show safe loader while initial profile sync is happening if approval is not yet verified
                 if (!isAdmin && _isSyncingProfile && !_fellowshipState.currentUser.isApproved) {

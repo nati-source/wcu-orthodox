@@ -175,6 +175,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
       method: method,
     );
 
+    if (!mounted) return;
     setState(() {
       _isSuccess = success;
       _statusMessage = success
