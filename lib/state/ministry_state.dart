@@ -26,7 +26,9 @@ mixin MinistryStateMixin on ChangeNotifier {
   List<DepartmentBroadcastMessageModel> _departmentBroadcasts = [];
   List<FundraisingProposalModel> _fundraisingProposals = [];
   String? _selectedCoordinatorDepartmentId;
+  bool _isSubmittingApplication = false;
 
+  bool get isSubmittingApplication => _isSubmittingApplication;
   List<MinistryModel> get ministries => List.unmodifiable(_ministries);
   List<VolunteerApplicationModel> get volunteerApplications => List.unmodifiable(_volunteerApplications);
   List<DepartmentMemberModel> get departmentMembers => List.unmodifiable(_departmentMembers);
@@ -355,45 +357,54 @@ mixin MinistryStateMixin on ChangeNotifier {
     ChoirWingType? choirWing,
     List<String> languagesKnown = const [],
   }) async {
-    final min = _ministries.firstWhere(
-      (m) => m.id == ministryId,
-      orElse: () => _ministries.first,
-    );
-    final application = VolunteerApplicationModel(
-      id: 'app-${DateTime.now().millisecondsSinceEpoch}',
-      studentId: _currentUser.id,
-      studentName: _currentUser.fullName,
-      studentBaptismalName: _currentUser.baptismalName,
-      studentDept: _currentUser.department,
-      studentPhone: _currentUser.phoneNumber,
-      studentYear: studentYear,
-      ministryId: min.id,
-      ministryTitle: min.titleEn,
-      ministryAmharicTitle: min.titleAmharic,
-      preferredSubWing: preferredSubWing,
-      choirWing: choirWing,
-      languagesKnown: languagesKnown,
-      reason: reason,
-      experience: experience,
-      availability: availability,
-      status: ApplicationStatus.pending,
-      appliedAt: DateTime.now(),
-    );
-
-    _volunteerApplications.insert(0, application);
-    _currentUser = _currentUser.copyWith(
-      ministryStatus: 'Pending Review (${min.titleAmharic})',
-    );
+    if (_isSubmittingApplication) return;
+    _isSubmittingApplication = true;
     notifyListeners();
 
     try {
-      await FirebaseFirestore.instance.collection('department_applications').doc(application.id).set(
-        application.toMap(),
-        SetOptions(merge: true),
+      final min = _ministries.firstWhere(
+        (m) => m.id == ministryId,
+        orElse: () => _ministries.first,
       );
-      debugPrint('Firestore submitMinistryApplication success: ${application.id}');
-    } catch (e) {
-      debugPrint('Firestore submitMinistryApplication notice: $e');
+      final application = VolunteerApplicationModel(
+        id: 'app-${DateTime.now().millisecondsSinceEpoch}',
+        studentId: _currentUser.id,
+        studentName: _currentUser.fullName,
+        studentBaptismalName: _currentUser.baptismalName,
+        studentDept: _currentUser.department,
+        studentPhone: _currentUser.phoneNumber,
+        studentYear: studentYear,
+        ministryId: min.id,
+        ministryTitle: min.titleEn,
+        ministryAmharicTitle: min.titleAmharic,
+        preferredSubWing: preferredSubWing,
+        choirWing: choirWing,
+        languagesKnown: languagesKnown,
+        reason: reason,
+        experience: experience,
+        availability: availability,
+        status: ApplicationStatus.pending,
+        appliedAt: DateTime.now(),
+      );
+
+      _volunteerApplications.insert(0, application);
+      _currentUser = _currentUser.copyWith(
+        ministryStatus: 'Pending Review (${min.titleAmharic})',
+      );
+      notifyListeners();
+
+      try {
+        await FirebaseFirestore.instance.collection('department_applications').doc(application.id).set(
+          application.toMap(),
+          SetOptions(merge: true),
+        );
+        debugPrint('Firestore submitMinistryApplication success: ${application.id}');
+      } catch (e) {
+        debugPrint('Firestore submitMinistryApplication notice: $e');
+      }
+    } finally {
+      _isSubmittingApplication = false;
+      notifyListeners();
     }
   }
 

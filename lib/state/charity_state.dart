@@ -24,6 +24,11 @@ mixin CharityStateMixin on ChangeNotifier {
   List<DuesPaymentModel> _duesPayments = [];
   List<CharityDisbursementModel> _charityDisbursements = [];
   List<EmergencyAidRequestModel> _emergencyAidRequests = [];
+  bool _isSubmittingDues = false;
+  bool _isSubmittingAid = false;
+
+  bool get isSubmittingDues => _isSubmittingDues;
+  bool get isSubmittingAid => _isSubmittingAid;
 
   List<CharityCampaignModel> get charityCampaigns =>
       List.unmodifiable(_charityCampaigns);
@@ -181,29 +186,38 @@ mixin CharityStateMixin on ChangeNotifier {
     required String transactionReference,
     String? donorName,
   }) async {
-    final effectiveStudentName =
-        (donorName != null && donorName.trim().isNotEmpty)
-            ? donorName.trim()
-            : _currentUser.fullName;
-    final payment = DuesPaymentModel(
-      id: 'due-${DateTime.now().millisecondsSinceEpoch}',
-      studentId: _currentUser.id,
-      studentName: effectiveStudentName,
-      amount: amount,
-      purpose: purpose,
-      paymentMethod: paymentMethod,
-      transactionReference: transactionReference,
-      status: 'Pending Verification',
-      submittedAt: DateTime.now(),
-    );
-    _duesPayments.insert(0, payment);
+    if (_isSubmittingDues) return;
+    _isSubmittingDues = true;
     notifyListeners();
 
     try {
-      await _firestoreService.recordDuesPayment(payment);
-      debugPrint('Firestore submitDuesPayment success: ${payment.id}');
-    } catch (e) {
-      debugPrint('Firestore submitDuesPayment notice: $e');
+      final effectiveStudentName =
+          (donorName != null && donorName.trim().isNotEmpty)
+              ? donorName.trim()
+              : _currentUser.fullName;
+      final payment = DuesPaymentModel(
+        id: 'due-${DateTime.now().millisecondsSinceEpoch}',
+        studentId: _currentUser.id,
+        studentName: effectiveStudentName,
+        amount: amount,
+        purpose: purpose,
+        paymentMethod: paymentMethod,
+        transactionReference: transactionReference,
+        status: 'Pending Verification',
+        submittedAt: DateTime.now(),
+      );
+      _duesPayments.insert(0, payment);
+      notifyListeners();
+
+      try {
+        await _firestoreService.recordDuesPayment(payment);
+        debugPrint('Firestore submitDuesPayment success: ${payment.id}');
+      } catch (e) {
+        debugPrint('Firestore submitDuesPayment notice: $e');
+      }
+    } finally {
+      _isSubmittingDues = false;
+      notifyListeners();
     }
   }
 
@@ -269,39 +283,48 @@ mixin CharityStateMixin on ChangeNotifier {
     required String transactionReference,
     String? donorName,
   }) async {
-    final campIndex = _charityCampaigns.indexWhere((c) => c.id == campaignId);
-    final campTitle = campIndex != -1
-        ? _charityCampaigns[campIndex].title
-        : 'Charity Campaign';
-    final name = (donorName != null && donorName.trim().isNotEmpty)
-        ? donorName.trim()
-        : _currentUser.fullName;
-
-    // 1. Record Dues/Donation payment in treasury ledger as Pending verification
-    final payment = DuesPaymentModel(
-      id: 'due-${DateTime.now().millisecondsSinceEpoch}',
-      studentId: _currentUser.id,
-      studentName: name,
-      amount: amount,
-      purpose: 'Donation: $campTitle',
-      paymentMethod: paymentMethod,
-      transactionReference: transactionReference,
-      status: 'Pending',
-      submittedAt: DateTime.now(),
-      campaignId: campaignId,
-    );
-    _duesPayments.insert(0, payment);
+    if (_isSubmittingDues) return;
+    _isSubmittingDues = true;
     notifyListeners();
 
     try {
-      await _firestoreService.recordDuesPayment(payment);
-      debugPrint('Firestore submitCampaignDonation success: ${payment.id}');
-    } catch (e) {
-      _duesPayments.removeWhere((p) => p.id == payment.id);
-      notifyListeners();
-      debugPrint(
-        'Firestore submitCampaignDonation notice, reverted local entry: $e',
+      final campIndex = _charityCampaigns.indexWhere((c) => c.id == campaignId);
+      final campTitle = campIndex != -1
+          ? _charityCampaigns[campIndex].title
+          : 'Charity Campaign';
+      final name = (donorName != null && donorName.trim().isNotEmpty)
+          ? donorName.trim()
+          : _currentUser.fullName;
+
+      // 1. Record Dues/Donation payment in treasury ledger as Pending verification
+      final payment = DuesPaymentModel(
+        id: 'due-${DateTime.now().millisecondsSinceEpoch}',
+        studentId: _currentUser.id,
+        studentName: name,
+        amount: amount,
+        purpose: 'Donation: $campTitle',
+        paymentMethod: paymentMethod,
+        transactionReference: transactionReference,
+        status: 'Pending',
+        submittedAt: DateTime.now(),
+        campaignId: campaignId,
       );
+      _duesPayments.insert(0, payment);
+      notifyListeners();
+
+      try {
+        await _firestoreService.recordDuesPayment(payment);
+        debugPrint('Firestore submitCampaignDonation success: ${payment.id}');
+      } catch (e) {
+        _duesPayments.removeWhere((p) => p.id == payment.id);
+        notifyListeners();
+        debugPrint(
+          'Firestore submitCampaignDonation notice, reverted local entry: $e',
+        );
+      }
+    } finally {
+      _isSubmittingDues = false;
+      notifyListeners();
     }
   }
 
@@ -310,28 +333,37 @@ mixin CharityStateMixin on ChangeNotifier {
     required String description,
     required double amountRequested,
   }) async {
-    final req = EmergencyAidRequestModel(
-      id: 'aid-${DateTime.now().millisecondsSinceEpoch}',
-      studentId: _currentUser.id,
-      studentName: _currentUser.fullName,
-      studentBaptismalName: _currentUser.baptismalName,
-      studentPhone: _currentUser.phoneNumber,
-      department: _currentUser.department,
-      academicYear: _currentUser.academicYear,
-      category: category,
-      description: description,
-      amountRequested: amountRequested,
-      status: EmergencyAidStatus.underReview,
-      submittedAt: DateTime.now(),
-    );
-    _emergencyAidRequests.insert(0, req);
+    if (_isSubmittingAid) return;
+    _isSubmittingAid = true;
     notifyListeners();
 
     try {
-      await _firestoreService.submitAidRequest(req);
-      debugPrint('Firestore submitEmergencyAidRequest success: ${req.id}');
-    } catch (e) {
-      debugPrint('Firestore submitEmergencyAidRequest notice: $e');
+      final req = EmergencyAidRequestModel(
+        id: 'aid-${DateTime.now().millisecondsSinceEpoch}',
+        studentId: _currentUser.id,
+        studentName: _currentUser.fullName,
+        studentBaptismalName: _currentUser.baptismalName,
+        studentPhone: _currentUser.phoneNumber,
+        department: _currentUser.department,
+        academicYear: _currentUser.academicYear,
+        category: category,
+        description: description,
+        amountRequested: amountRequested,
+        status: EmergencyAidStatus.underReview,
+        submittedAt: DateTime.now(),
+      );
+      _emergencyAidRequests.insert(0, req);
+      notifyListeners();
+
+      try {
+        await _firestoreService.submitAidRequest(req);
+        debugPrint('Firestore submitEmergencyAidRequest success: ${req.id}');
+      } catch (e) {
+        debugPrint('Firestore submitEmergencyAidRequest notice: $e');
+      }
+    } finally {
+      _isSubmittingAid = false;
+      notifyListeners();
     }
   }
 

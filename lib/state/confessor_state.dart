@@ -19,6 +19,11 @@ mixin ConfessorStateMixin on ChangeNotifier {
   List<ConfessorFatherModel> _confessorFathers = [];
   List<ConfessionAppointmentModel> _confessionAppointments = [];
   List<AnonymousSpiritualQuestionModel> _spiritualQuestions = [];
+  bool _isBookingAppointment = false;
+  bool _isSubmittingQuestion = false;
+
+  bool get isBookingAppointment => _isBookingAppointment;
+  bool get isSubmittingQuestion => _isSubmittingQuestion;
   
   static List<CommunionChecklistItem> get defaultCommunionChecklist => [
     CommunionChecklistItem(
@@ -64,47 +69,56 @@ mixin ConfessorStateMixin on ChangeNotifier {
     required String topic,
     String? notes,
   }) async {
-    final father = _confessorFathers.firstWhere(
-      (f) => f.id == fatherId,
-      orElse: () => _confessorFathers.isNotEmpty
-          ? _confessorFathers.first
-          : ConfessorFatherModel(
-              id: fatherId,
-              clericalTitle: 'Abba',
-              fullName: 'Spiritual Father',
-              churchName: 'WCU Fellowship Chapel',
-              phoneNumber: '+251911000000',
-              availableDays: const ['Sunday', 'Saturday'],
-              availableTimeSlots: const ['09:00 AM - 11:00 AM'],
-              bio: 'Campus Confession Father',
-            ),
-    );
-    final newAppt = ConfessionAppointmentModel(
-      id: 'conf-${DateTime.now().millisecondsSinceEpoch}',
-      studentId: (() { try { final u = FirebaseAuth.instance.currentUser?.uid; if (u != null && u.isNotEmpty) return u; } catch (_) {} return _currentUser.id; })(),
-      studentName: _currentUser.fullName,
-      studentBaptismalName: _currentUser.baptismalName,
-      studentPhone: _currentUser.phoneNumber,
-      fatherId: father.id,
-      fatherName: '${father.clericalTitle} ${father.fullName}',
-      scheduledDate: scheduledDate,
-      timeSlot: timeSlot,
-      topic: topic,
-      status: ConfessionAppointmentStatus.pending,
-      notes: notes,
-    );
-
-    _confessionAppointments.insert(0, newAppt);
+    if (_isBookingAppointment) return;
+    _isBookingAppointment = true;
     notifyListeners();
 
     try {
-      await FirebaseFirestore.instance.collection('confession_appointments').doc(newAppt.id).set(
-        newAppt.toMap(),
-        SetOptions(merge: true),
+      final father = _confessorFathers.firstWhere(
+        (f) => f.id == fatherId,
+        orElse: () => _confessorFathers.isNotEmpty
+            ? _confessorFathers.first
+            : ConfessorFatherModel(
+                id: fatherId,
+                clericalTitle: 'Abba',
+                fullName: 'Spiritual Father',
+                churchName: 'WCU Fellowship Chapel',
+                phoneNumber: '+251911000000',
+                availableDays: const ['Sunday', 'Saturday'],
+                availableTimeSlots: const ['09:00 AM - 11:00 AM'],
+                bio: 'Campus Confession Father',
+              ),
       );
-      debugPrint('Firestore bookConfessionAppointment success: ${newAppt.id}');
-    } catch (e) {
-      debugPrint('Firestore bookConfessionAppointment error: $e');
+      final newAppt = ConfessionAppointmentModel(
+        id: 'conf-${DateTime.now().millisecondsSinceEpoch}',
+        studentId: (() { try { final u = FirebaseAuth.instance.currentUser?.uid; if (u != null && u.isNotEmpty) return u; } catch (_) {} return _currentUser.id; })(),
+        studentName: _currentUser.fullName,
+        studentBaptismalName: _currentUser.baptismalName,
+        studentPhone: _currentUser.phoneNumber,
+        fatherId: father.id,
+        fatherName: '${father.clericalTitle} ${father.fullName}',
+        scheduledDate: scheduledDate,
+        timeSlot: timeSlot,
+        topic: topic,
+        status: ConfessionAppointmentStatus.pending,
+        notes: notes,
+      );
+
+      _confessionAppointments.insert(0, newAppt);
+      notifyListeners();
+
+      try {
+        await FirebaseFirestore.instance.collection('confession_appointments').doc(newAppt.id).set(
+          newAppt.toMap(),
+          SetOptions(merge: true),
+        );
+        debugPrint('Firestore bookConfessionAppointment success: ${newAppt.id}');
+      } catch (e) {
+        debugPrint('Firestore bookConfessionAppointment error: $e');
+      }
+    } finally {
+      _isBookingAppointment = false;
+      notifyListeners();
     }
   }
 
@@ -220,24 +234,33 @@ mixin ConfessorStateMixin on ChangeNotifier {
     required String questionText,
     required String category,
   }) async {
-    final newQ = AnonymousSpiritualQuestionModel(
-      id: 'q-${DateTime.now().millisecondsSinceEpoch}',
-      questionText: questionText,
-      category: category,
-      askedAt: DateTime.now(),
-      isAnswered: false,
-    );
-    _spiritualQuestions.insert(0, newQ);
+    if (_isSubmittingQuestion) return;
+    _isSubmittingQuestion = true;
     notifyListeners();
 
     try {
-      await FirebaseFirestore.instance.collection('spiritual_questions').doc(newQ.id).set(
-        newQ.toMap(),
-        SetOptions(merge: true),
+      final newQ = AnonymousSpiritualQuestionModel(
+        id: 'q-${DateTime.now().millisecondsSinceEpoch}',
+        questionText: questionText,
+        category: category,
+        askedAt: DateTime.now(),
+        isAnswered: false,
       );
-      debugPrint('Firestore submitAnonymousQuestion success: ${newQ.id}');
-    } catch (e) {
-      debugPrint('Firestore submitAnonymousQuestion error: $e');
+      _spiritualQuestions.insert(0, newQ);
+      notifyListeners();
+
+      try {
+        await FirebaseFirestore.instance.collection('spiritual_questions').doc(newQ.id).set(
+          newQ.toMap(),
+          SetOptions(merge: true),
+        );
+        debugPrint('Firestore submitAnonymousQuestion success: ${newQ.id}');
+      } catch (e) {
+        debugPrint('Firestore submitAnonymousQuestion error: $e');
+      }
+    } finally {
+      _isSubmittingQuestion = false;
+      notifyListeners();
     }
   }
 

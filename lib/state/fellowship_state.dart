@@ -687,6 +687,8 @@ class FellowshipState extends ChangeNotifier
       _departmentBroadcastsSubscription?.cancel();
       _departmentBroadcastsSubscription = FirebaseFirestore.instance
           .collection('department_broadcasts')
+          .orderBy('sentAt', descending: true)
+          .limit(50)
           .snapshots()
           .listen(
             (snapshot) {
@@ -963,6 +965,7 @@ class FellowshipState extends ChangeNotifier
       _charityCampaignsSubscription?.cancel();
       _charityCampaignsSubscription = FirebaseFirestore.instance
           .collection('charity_campaigns')
+          .limit(50)
           .snapshots()
           .listen(
             (snapshot) {
@@ -1256,6 +1259,7 @@ class FellowshipState extends ChangeNotifier
       _announcementsSubscription = FirebaseFirestore.instance
           .collection('announcements')
           .orderBy('createdAt', descending: true)
+          .limit(50)
           .snapshots()
           .listen(
             (snapshot) {
@@ -1420,7 +1424,7 @@ class FellowshipState extends ChangeNotifier
           .collection('scans');
 
       if (isPrivileged) {
-        query = query.orderBy('timestamp', descending: true);
+        query = query.orderBy('timestamp', descending: true).limit(50);
       } else if (userId.isNotEmpty) {
         query = query.where(FieldPath.documentId, isEqualTo: userId);
       } else {
