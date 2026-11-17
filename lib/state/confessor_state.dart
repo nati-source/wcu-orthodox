@@ -19,7 +19,35 @@ mixin ConfessorStateMixin on ChangeNotifier {
   List<ConfessorFatherModel> _confessorFathers = [];
   List<ConfessionAppointmentModel> _confessionAppointments = [];
   List<AnonymousSpiritualQuestionModel> _spiritualQuestions = [];
-  List<CommunionChecklistItem> _communionChecklist = [];
+  
+  static List<CommunionChecklistItem> get defaultCommunionChecklist => [
+    CommunionChecklistItem(
+      id: 'chk-1',
+      title: 'Confession with Spiritual Father (ንስሐ መግባት)',
+      description: 'Have a valid, recent confession and spiritual absolution.',
+      isChecked: true,
+    ),
+    CommunionChecklistItem(
+      id: 'chk-2',
+      title: 'Reconciliation with Brethren (ከሰው ሁሉ ጋር መታረቅ)',
+      description: 'Forgive anyone who wronged you and seek forgiveness from those you offended.',
+      isChecked: true,
+    ),
+    CommunionChecklistItem(
+      id: 'chk-3',
+      title: '18-Hour / Midnight Fasting (የቁርባን ጾም መጠበቅ)',
+      description: 'Abstain from all food and drink from midnight until Liturgy completion.',
+      isChecked: false,
+    ),
+    CommunionChecklistItem(
+      id: 'chk-4',
+      title: 'Spiritual Focus & Cleanliness (ንጽሕናና ጸሎት)',
+      description: 'Refrain from worldly disputes, keep pure thoughts, and recite Psalm 50.',
+      isChecked: false,
+    ),
+  ];
+
+  List<CommunionChecklistItem> _communionChecklist = defaultCommunionChecklist;
 
   List<ConfessorFatherModel> get confessorFathers => List.unmodifiable(_confessorFathers);
   List<ConfessionAppointmentModel> get confessionAppointments => List.unmodifiable(_confessionAppointments);
@@ -256,6 +284,10 @@ mixin ConfessorStateMixin on ChangeNotifier {
     if (index != -1) {
       _communionChecklist[index].isChecked = !_communionChecklist[index].isChecked;
       notifyListeners();
+      SharedPreferences.getInstance().then((prefs) {
+        final checkedIds = _communionChecklist.where((i) => i.isChecked).map((i) => i.id).toList();
+        prefs.setStringList('communion_checked_items_v1', checkedIds);
+      }).catchError((_) {});
     }
   }
 

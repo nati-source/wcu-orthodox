@@ -388,7 +388,7 @@ service cloud.firestore {
 
     match /church_programs/{programId} {
       allow read: if isApprovedUser();
-      allow write: if isAdmin();
+      allow write: if isAdmin() || isCoordinator();
     }
 
     match /ministries/{ministryId} {
@@ -474,9 +474,11 @@ service cloud.firestore {
     match /spiritual_questions/{questionId} {
       allow read: if isApprovedUser();
       allow create: if isApprovedUser() &&
-        request.resource.data.studentId == request.auth.uid &&
         request.resource.data.isAnswered == false &&
-        request.resource.data.keys().hasOnly(['id', 'studentId', 'studentName', 'question', 'topic', 'isAnswered', 'answer', 'answeredBy', 'createdAt', 'answeredAt']);
+        request.resource.data.questionText is string &&
+        request.resource.data.questionText.size() > 0 &&
+        request.resource.data.questionText.size() <= 2000 &&
+        request.resource.data.keys().hasOnly(['id', 'questionText', 'category', 'askedAt', 'isAnswered', 'answerText', 'answeredBy', 'isPublic']);
       allow update, delete: if isAdmin() || isCoordinatorOf('dept-apostolic');
     }
 

@@ -306,7 +306,6 @@ class AppAdminConstants {
     'alamrew0955958544@gmail.com',
     'admin@wcu.edu.et',
     'admin@wcuorthodox.org',
-    'admin@gmail.com',
     'wcuorthodox@gmail.com',
   ];
 

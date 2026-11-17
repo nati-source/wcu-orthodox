@@ -260,6 +260,7 @@ class AnonymousSpiritualQuestionModel {
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'questionText': questionText,
       'category': category,
       'askedAt': askedAt.toIso8601String(),

@@ -866,10 +866,20 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
 
     final theme = AppTheme.getTheme(state.currentThemePalette);
 
+    final canPopLocally = (!isAdmin && !isCoordinator) ? (_studentTabIndex == 0) : true;
+
     return Theme(
       data: theme,
-      child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
+      child: PopScope(
+        canPop: canPopLocally,
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) return;
+          if (!isAdmin && !isCoordinator && _studentTabIndex != 0) {
+            setState(() => _studentTabIndex = 0);
+          }
+        },
+        child: Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -960,6 +970,7 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
           : isCoordinator
               ? _buildCoordinatorBottomNav(theme)
               : _buildStudentBottomNav(theme),
+        ),
       ),
     );
   }
@@ -968,31 +979,23 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
   // STUDENT EXPERIENCE NAVIGATION & SCREENS
   // ----------------------------------------------------
   Widget _buildStudentBody() {
-    switch (_studentTabIndex) {
-      case 0:
-        return StudentHomeScreen(
+    return IndexedStack(
+      index: _studentTabIndex.clamp(0, 4),
+      children: [
+        StudentHomeScreen(
           state: widget.state,
           onNavigateTab: (index) => setState(() => _studentTabIndex = index),
           onOpenScanner: _openQrScanner,
-        );
-      case 1:
-        return StudentFamilyScreen(state: widget.state);
-      case 2:
-        return StudentRoadmapScreen(
+        ),
+        StudentFamilyScreen(state: widget.state),
+        StudentRoadmapScreen(
           state: widget.state,
           onOpenScanner: _openQrScanner,
-        );
-      case 3:
-        return StudentLibraryScreen(state: widget.state);
-      case 4:
-        return StudentProfileScreen(state: widget.state);
-      default:
-        return StudentHomeScreen(
-          state: widget.state,
-          onNavigateTab: (index) => setState(() => _studentTabIndex = index),
-          onOpenScanner: _openQrScanner,
-        );
-    }
+        ),
+        StudentLibraryScreen(state: widget.state),
+        StudentProfileScreen(state: widget.state),
+      ],
+    );
   }
 
   Widget _buildStudentBottomNav(ThemeData theme) {

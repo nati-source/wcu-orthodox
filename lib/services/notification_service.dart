@@ -146,8 +146,16 @@ class NotificationService {
       try {
         const AndroidInitializationSettings androidSettings =
             AndroidInitializationSettings('@mipmap/ic_launcher');
-        const InitializationSettings initSettings =
-            InitializationSettings(android: androidSettings);
+        const DarwinInitializationSettings darwinSettings =
+            DarwinInitializationSettings(
+          requestAlertPermission: true,
+          requestBadgePermission: true,
+          requestSoundPermission: true,
+        );
+        const InitializationSettings initSettings = InitializationSettings(
+          android: androidSettings,
+          iOS: darwinSettings,
+        );
 
         await _localNotifications.initialize(
           settings: initSettings,

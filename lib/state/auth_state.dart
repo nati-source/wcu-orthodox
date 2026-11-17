@@ -62,15 +62,19 @@ mixin AuthStateMixin on ChangeNotifier {
 
   bool get isAuthorizedAdmin {
     String? authEmail;
+    bool isEmailVerified = false;
     try {
-      authEmail = FirebaseAuth.instance.currentUser?.email;
+      final user = FirebaseAuth.instance.currentUser;
+      authEmail = user?.email;
+      isEmailVerified = user?.emailVerified == true;
     } catch (_) {}
+    final emailMatches = (isEmailVerified || kDebugMode) &&
+        (AppAdminConstants.isAdminEmail(_currentUser.email) || AppAdminConstants.isAdminEmail(authEmail));
     return _isOriginalAdmin ||
         _currentUser.role == UserRole.admin ||
         _authenticatedRole == UserRole.admin ||
         _assignedRole == UserRole.admin ||
-        AppAdminConstants.isAdminEmail(_currentUser.email) ||
-        AppAdminConstants.isAdminEmail(authEmail);
+        emailMatches;
   }
 
   void revokeAdminPrivileges() {
@@ -434,15 +438,19 @@ mixin AuthStateMixin on ChangeNotifier {
       return false;
     }
     String? authEmail;
+    bool isEmailVerified = false;
     try {
-      authEmail = FirebaseAuth.instance.currentUser?.email;
+      final user = FirebaseAuth.instance.currentUser;
+      authEmail = user?.email;
+      isEmailVerified = user?.emailVerified == true;
     } catch (_) {}
+    final emailMatches = (isEmailVerified || kDebugMode) &&
+        (AppAdminConstants.isAdminEmail(_currentUser.email) || AppAdminConstants.isAdminEmail(authEmail));
     return _isOriginalAdmin ||
         _activeRole == UserRole.admin ||
         _currentUser.role == UserRole.admin ||
         _authenticatedRole == UserRole.admin ||
-        AppAdminConstants.isAdminEmail(_currentUser.email) ||
-        AppAdminConstants.isAdminEmail(authEmail);
+        emailMatches;
   }
 
   bool get isCoordinator =>

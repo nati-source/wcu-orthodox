@@ -190,8 +190,17 @@ mixin SpiritualStateMixin on ChangeNotifier {
   int get selectedPrayerDayIndex => _selectedPrayerDayIndex;
   double get prayerFontSize => _prayerFontSize;
 
-  PrayerBookModel get currentDayPrayerBook =>
-      orthodoxPrayerBooks[_selectedPrayerDayIndex.clamp(0, orthodoxPrayerBooks.length - 1)];
+  PrayerBookModel get currentDayPrayerBook {
+    if (_wudaseMaryam.sections.isEmpty) return _wudaseMaryam;
+    final sectionIndex = _selectedPrayerDayIndex.clamp(0, _wudaseMaryam.sections.length - 1);
+    return PrayerBookModel(
+      id: '${_wudaseMaryam.id}-day-$_selectedPrayerDayIndex',
+      title: '${_wudaseMaryam.title} (${_wudaseMaryam.sections[sectionIndex].titleEn})',
+      titleGeEz: '${_wudaseMaryam.titleGeEz} - ${_wudaseMaryam.sections[sectionIndex].titleGeEz}',
+      description: _wudaseMaryam.description,
+      sections: [_wudaseMaryam.sections[sectionIndex]],
+    );
+  }
 
   void setPrayerDay(int dayIndex) {
     _selectedPrayerDayIndex = dayIndex.clamp(0, 6);

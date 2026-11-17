@@ -377,10 +377,6 @@ class FirestoreService {
             'method': scan.method.name,
             if (enteredPin != null) 'enteredPin': enteredPin,
           }, SetOptions(merge: true));
-
-      await _firestore.collection('attendance_sessions').doc(sessionId).set({
-        'lastScanAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Firestore record attendance checkin error: $e');
     }

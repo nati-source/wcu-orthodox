@@ -684,6 +684,7 @@ class FellowshipState extends ChangeNotifier
 
   void _listenToDepartmentBroadcasts() {
     try {
+      _departmentBroadcastsSubscription?.cancel();
       _departmentBroadcastsSubscription = FirebaseFirestore.instance
           .collection('department_broadcasts')
           .snapshots()
@@ -959,6 +960,7 @@ class FellowshipState extends ChangeNotifier
 
   void _listenToCharityCampaigns() {
     try {
+      _charityCampaignsSubscription?.cancel();
       _charityCampaignsSubscription = FirebaseFirestore.instance
           .collection('charity_campaigns')
           .snapshots()
