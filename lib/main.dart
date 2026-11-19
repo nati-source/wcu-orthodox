@@ -47,16 +47,24 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // ── Step 2: Crash Reporting (BLOCKING — must be set before runApp) ──────
-    FlutterError.onError = (errorDetails) {
-      FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
-    };
-    PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      return true;
-    };
-    await FirebaseCrashlytics.instance
-        .setCrashlyticsCollectionEnabled(!kDebugMode);
+    // ── Step 2: Crash Reporting (supported on Android and Apple platforms) ──
+    // Crashlytics has no web plugin. Calling its instance on web asserts during
+    // startup and would skip the remaining Firebase setup in this try block.
+    final supportsCrashlytics = !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.macOS);
+    if (supportsCrashlytics) {
+      FlutterError.onError = (errorDetails) {
+        FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+      };
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+      await FirebaseCrashlytics.instance
+          .setCrashlyticsCollectionEnabled(!kDebugMode);
+    }
 
     // ── Step 3: Firestore Offline Persistence (BLOCKING — must apply before
     //           any Firestore reads to avoid "settings changed after use" error)
