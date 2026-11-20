@@ -132,13 +132,37 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     String pinOrCode,
     AttendanceCheckInMethod method,
   ) async {
+    var checkInCode = pinOrCode.trim();
+    String? qrSessionId;
+    const qrPrefix = 'WCU-ATTENDANCE|';
+    if (method == AttendanceCheckInMethod.qr &&
+        checkInCode.startsWith(qrPrefix)) {
+      final fields = checkInCode.split('|');
+      if (fields.length != 3 ||
+          fields[1].trim().isEmpty ||
+          fields[2].trim().isEmpty) {
+        setState(() {
+          _isSuccess = false;
+          _statusMessage = 'This attendance QR code is incomplete. Ask the instructor to generate a new one.';
+        });
+        HapticFeedback.heavyImpact();
+        return;
+      }
+      qrSessionId = fields[1].trim();
+      // Keep the whole QR string: Firestore compares it with the session's
+      // stored code. The embedded ID only selects the right session document.
+    }
+
     final session = widget.state.activeSession;
-    // Add a 120-second grace window to handle device clock skew.
-    // The authoritative expiry check is in Firestore rules and submitAttendanceCheckIn.
+    // A QR may have been scanned before this phone's live-session listener
+    // catches up. Only apply the local clock check to the matching session;
+    // Firestore remains authoritative for the session embedded in the QR.
     const graceSeconds = Duration(seconds: 180);
     final isHardExpired = session.expiresAt != null &&
         !session.expiresAt!.add(graceSeconds).isAfter(DateTime.now());
-    if (session.isExpired && isHardExpired) {
+    final qrMatchesLocalSession =
+        qrSessionId == null || qrSessionId == session.sessionId;
+    if (qrMatchesLocalSession && session.isExpired && isHardExpired) {
       setState(() {
         _isSuccess = false;
         _statusMessage =
@@ -171,8 +195,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     }
 
     final success = await widget.state.submitAttendanceCheckIn(
-      enteredPinOrCode: pinOrCode,
+      enteredPinOrCode: checkInCode,
       method: method,
+      sessionId: qrSessionId,
     );
 
     if (!mounted) return;
@@ -180,7 +205,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
       _isSuccess = success;
       _statusMessage = success
           ? 'Attendance Verified! Marked Present for ${widget.state.activeSession.courseName}.'
-          : 'Invalid or expired session PIN. Please verify with the class instructor.';
+          : (!widget.state.isAdmin && !widget.state.currentUser.isApproved)
+          ? 'Your account needs approval before it can record attendance. Please contact the fellowship administrator.'
+          : 'Check-in was not recorded. Confirm this is the current attendance QR and that your phone has internet access.';
     });
 
     if (success) {

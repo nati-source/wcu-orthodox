@@ -393,7 +393,9 @@ class FellowshipState extends ChangeNotifier
       // don't tear it down and recreate it — pending approvals would be
       // momentarily cleared during stream handshake causing registration
       // entries to disappear from the approval screen.
-      if (canReviewAllUsers && _usersSubscriptionIsAdmin && _usersSubscription != null) {
+      if (canReviewAllUsers &&
+          _usersSubscriptionIsAdmin &&
+          _usersSubscription != null) {
         return;
       }
 
@@ -441,8 +443,10 @@ class FellowshipState extends ChangeNotifier
                   }
                 }
                 if (_currentUser.id == user.id) {
-                  final transitionedToApproved = !_currentUser.isApproved && user.isApproved;
-                  final isAdminEmail = AppAdminConstants.isAdminEmail(user.email) ||
+                  final transitionedToApproved =
+                      !_currentUser.isApproved && user.isApproved;
+                  final isAdminEmail =
+                      AppAdminConstants.isAdminEmail(user.email) ||
                       AppAdminConstants.isAdminEmail(_currentUser.email);
                   if (user.role == UserRole.admin || isAdminEmail) {
                     _isOriginalAdmin = true;
@@ -494,8 +498,13 @@ class FellowshipState extends ChangeNotifier
               final user = UserModel.fromMap(doc.data(), doc.id);
               final idx = _allStudents.indexWhere((u) => u.id == user.id);
               if (user.id == _currentUser.id) {
-                final transitionedToApproved = !_currentUser.isApproved && user.isApproved;
+                final transitionedToApproved =
+                    !_currentUser.isApproved && user.isApproved;
+                final previousFamilyId = _currentUser.assignedFamilyId;
                 _currentUser = user;
+                if (previousFamilyId != user.assignedFamilyId) {
+                  _listenToFamilies();
+                }
                 if (user.isApproved) {
                   try {
                     SharedPreferences.getInstance().then((prefs) {
@@ -544,10 +553,16 @@ class FellowshipState extends ChangeNotifier
           isEqualTo: _currentUser.id,
         );
       } else {
-        familyQuery = familyCollection.where(
-          'memberIds',
-          arrayContains: _currentUser.id,
-        );
+        final assignedFamilyId = _currentUser.assignedFamilyId?.trim();
+        familyQuery = assignedFamilyId != null && assignedFamilyId.isNotEmpty
+            ? familyCollection.where(
+                FieldPath.documentId,
+                isEqualTo: assignedFamilyId,
+              )
+            : familyCollection.where(
+                'memberIds',
+                arrayContains: _currentUser.id,
+              );
       }
       _familiesSubscription = familyQuery.snapshots().listen(
         (snapshot) {
@@ -647,7 +662,10 @@ class FellowshipState extends ChangeNotifier
                     )
                     .toList();
                 _tickCountdown();
-                unawaited(NotificationService.instance.syncScheduledProgramNotifications(_programs));
+                unawaited(
+                  NotificationService.instance
+                      .syncScheduledProgramNotifications(_programs),
+                );
 
                 // Real-time synchronization of emergency broadcast across ALL student and user screens
                 final emergencies = _programs
@@ -668,7 +686,10 @@ class FellowshipState extends ChangeNotifier
               } else {
                 _programs = [];
                 _tickCountdown();
-                unawaited(NotificationService.instance.syncScheduledProgramNotifications(_programs));
+                unawaited(
+                  NotificationService.instance
+                      .syncScheduledProgramNotifications(_programs),
+                );
                 _latestEmergencyBroadcast = null;
                 notifyListeners();
               }
@@ -716,7 +737,8 @@ class FellowshipState extends ChangeNotifier
   void _listenToFundraisingProposals() {
     try {
       _fundraisingProposalsSubscription?.cancel();
-      final canAccess = isAdmin ||
+      final canAccess =
+          isAdmin ||
           isCoordinatorOf(FellowshipDepartmentConstants.deptDevelopment) ||
           (_currentUser.coordinatorProfile?.isReadOnlyAudit == true) ||
           FellowshipDepartmentConstants.isAuditScope(
@@ -733,7 +755,9 @@ class FellowshipState extends ChangeNotifier
           .listen(
             (snapshot) {
               final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
-              _fundraisingProposals.removeWhere((p) => !currentDocIds.contains(p.id));
+              _fundraisingProposals.removeWhere(
+                (p) => !currentDocIds.contains(p.id),
+              );
               final cloudProposals = snapshot.docs
                   .map(
                     (doc) =>
@@ -782,11 +806,12 @@ class FellowshipState extends ChangeNotifier
       _volunteerApplicationsSubscription = query.snapshots().listen(
         (snapshot) {
           final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
-          _volunteerApplications.removeWhere((a) => !currentDocIds.contains(a.id));
+          _volunteerApplications.removeWhere(
+            (a) => !currentDocIds.contains(a.id),
+          );
           final cloudApps = snapshot.docs
               .map(
-                (doc) =>
-                    VolunteerApplicationModel.fromMap(doc.data(), doc.id),
+                (doc) => VolunteerApplicationModel.fromMap(doc.data(), doc.id),
               )
               .toList();
           for (final app in cloudApps) {
@@ -850,11 +875,12 @@ class FellowshipState extends ChangeNotifier
           .listen(
             (snapshot) {
               final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
-              _departmentMembers.removeWhere((m) => !currentDocIds.contains(m.id));
+              _departmentMembers.removeWhere(
+                (m) => !currentDocIds.contains(m.id),
+              );
               final cloudMembers = snapshot.docs
                   .map(
-                    (doc) =>
-                        DepartmentMemberModel.fromMap(doc.data(), doc.id),
+                    (doc) => DepartmentMemberModel.fromMap(doc.data(), doc.id),
                   )
                   .toList();
               for (final mem in cloudMembers) {
@@ -1097,11 +1123,11 @@ class FellowshipState extends ChangeNotifier
           .listen(
             (snapshot) {
               final currentDocIds = snapshot.docs.map((d) => d.id).toSet();
-              _academicMentors.removeWhere((m) => !currentDocIds.contains(m.id));
+              _academicMentors.removeWhere(
+                (m) => !currentDocIds.contains(m.id),
+              );
               final cloudMentors = snapshot.docs
-                  .map(
-                    (doc) => AcademicMentorModel.fromMap(doc.data(), doc.id),
-                  )
+                  .map((doc) => AcademicMentorModel.fromMap(doc.data(), doc.id))
                   .toList();
               for (final m in cloudMentors) {
                 final idx = _academicMentors.indexWhere((x) => x.id == m.id);
@@ -1131,7 +1157,9 @@ class FellowshipState extends ChangeNotifier
       if (!isAdmin &&
           !isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare) &&
           !(_currentUser.coordinatorProfile?.isReadOnlyAudit == true) &&
-          !FellowshipDepartmentConstants.isAuditScope(_currentUser.coordinatorProfile?.departmentId) &&
+          !FellowshipDepartmentConstants.isAuditScope(
+            _currentUser.coordinatorProfile?.departmentId,
+          ) &&
           _currentUser.id.isNotEmpty) {
         query = query.where(
           Filter.or(
@@ -1210,7 +1238,8 @@ class FellowshipState extends ChangeNotifier
     // If we're no longer admin/coordinator, reset the flag so the user stream
     // can be switched to the personal-profile-only mode.
     final canReviewAllUsers =
-        isAdmin || isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare);
+        isAdmin ||
+        isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare);
     if (!canReviewAllUsers && _usersSubscriptionIsAdmin) {
       _usersSubscription?.cancel();
       _usersSubscription = null;
@@ -1363,8 +1392,11 @@ class FellowshipState extends ChangeNotifier
                   }
                 }
 
-                final expiredByTime = expDate != null &&
-                    !expDate.add(const Duration(seconds: 90)).isAfter(DateTime.now());
+                final expiredByTime =
+                    expDate != null &&
+                    !expDate
+                        .add(const Duration(seconds: 90))
+                        .isAfter(DateTime.now());
                 final isActive = storedIsActive && !expiredByTime;
                 final isExpired = storedIsExpired || expiredByTime;
 
@@ -1373,7 +1405,10 @@ class FellowshipState extends ChangeNotifier
                       .difference(DateTime.now())
                       .inSeconds;
                   if (remainingSeconds > 0) {
-                    pinCountdownNotifier.value = remainingSeconds.clamp(0, 3600);
+                    pinCountdownNotifier.value = remainingSeconds.clamp(
+                      0,
+                      3600,
+                    );
                   }
                 }
 

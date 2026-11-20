@@ -65,13 +65,9 @@ mixin FamilyStateMixin on ChangeNotifier {
     return eligibleFamilyStudents
         .where(
           (student) =>
-              student.assignedFamilyId != null &&
-              familyIds.contains(student.assignedFamilyId) &&
-              _families.any(
-                (family) =>
-                    family.id == student.assignedFamilyId &&
-                    family.memberIds.contains(student.id),
-              ),
+              (student.assignedFamilyId != null &&
+                  familyIds.contains(student.assignedFamilyId)) ||
+              _families.any((family) => family.memberIds.contains(student.id)),
         )
         .length;
   }

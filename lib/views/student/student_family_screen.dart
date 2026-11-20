@@ -31,8 +31,84 @@ class StudentFamilyScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // If Staged (Unpublished), show the Staged Family Card
-          if (!isPublished) ...[
+          // Show the student's saved assignment while keeping the draft's
+          // contact details and sibling roster private until publication.
+          if (!isPublished && family != null) ...[
+            Container(
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: primaryAccent.withOpacity(0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.lock_clock, color: primaryAccent, size: 22),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          'Unpublished Family Draft',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 19,
+                            fontWeight: FontWeight.bold,
+                            color: primaryAccent,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    family.name,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: textCol,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Spiritual Father',
+                    style: TextStyle(fontSize: 12, color: textMuted),
+                  ),
+                  Text(
+                    family.spiritualFather.fullName,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: textCol,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Spiritual Mother',
+                    style: TextStyle(fontSize: 12, color: textMuted),
+                  ),
+                  Text(
+                    family.spiritualMother.fullName,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: textCol,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Your assignment is saved as a draft and may still change. Phone numbers, group links, and sibling contacts will appear after the roster is published.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: textMuted,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (!isPublished) ...[
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -756,15 +832,15 @@ class StudentFamilyScreen extends StatelessWidget {
                   color: !child.hasAttendanceData
                       ? theme.disabledColor.withOpacity(0.12)
                       : child.attendancePercentage >= 75
-                          ? AppTheme.emerald.withOpacity(0.15)
-                          : AppTheme.crimson.withOpacity(0.15),
+                      ? AppTheme.emerald.withOpacity(0.15)
+                      : AppTheme.crimson.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: !child.hasAttendanceData
                         ? theme.disabledColor.withOpacity(0.3)
                         : child.attendancePercentage >= 75
-                            ? AppTheme.emerald.withOpacity(0.4)
-                            : AppTheme.crimson.withOpacity(0.4),
+                        ? AppTheme.emerald.withOpacity(0.4)
+                        : AppTheme.crimson.withOpacity(0.4),
                   ),
                 ),
                 child: Column(
@@ -779,8 +855,8 @@ class StudentFamilyScreen extends StatelessWidget {
                         color: !child.hasAttendanceData
                             ? theme.disabledColor
                             : child.attendancePercentage >= 75
-                                ? AppTheme.emerald
-                                : AppTheme.crimson,
+                            ? AppTheme.emerald
+                            : AppTheme.crimson,
                       ),
                     ),
                     Text(
@@ -791,8 +867,8 @@ class StudentFamilyScreen extends StatelessWidget {
                         color: !child.hasAttendanceData
                             ? theme.disabledColor
                             : child.attendancePercentage >= 75
-                                ? AppTheme.emerald
-                                : AppTheme.crimson,
+                            ? AppTheme.emerald
+                            : AppTheme.crimson,
                       ),
                     ),
                   ],

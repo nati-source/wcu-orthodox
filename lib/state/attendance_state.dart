@@ -8,6 +8,7 @@ class AttendanceState extends ChangeNotifier {
 }
 
 mixin AttendanceStateMixin on ChangeNotifier {
+  FirestoreService get _firestoreService;
   List<UserModel> get _allStudents;
   UserModel get _currentUser;
   List<RoadmapPhaseModel> get _roadmaps;
@@ -30,10 +31,14 @@ mixin AttendanceStateMixin on ChangeNotifier {
     isExpired: false,
   );
   Timer? _pinTimer;
-  final ValueNotifier<int> pinCountdownNotifier = ValueNotifier<int>(30);
+  final ValueNotifier<int> pinCountdownNotifier = ValueNotifier<int>(300);
+  bool _isStartingAttendanceWindow = false;
+  String? _attendanceSessionStartError;
 
   AttendanceSessionModel get activeSession => _activeSession;
   int get pinCountdownSeconds => pinCountdownNotifier.value;
+  bool get isStartingAttendanceWindow => _isStartingAttendanceWindow;
+  String? get attendanceSessionStartError => _attendanceSessionStartError;
 
   // Analytics Metrics
   int get totalRegisteredStudents => _allStudents.length;
@@ -60,72 +65,97 @@ mixin AttendanceStateMixin on ChangeNotifier {
 
   /// Starts the live attendance window with a fresh PIN and QR code.
   /// Default window is 300 seconds (5 minutes).
-  void startAttendanceWindow({int durationSeconds = 300}) {
+  Future<bool> startAttendanceWindow({int durationSeconds = 300}) async {
+    if (_isStartingAttendanceWindow) return false;
+
+    _isStartingAttendanceWindow = true;
+    _attendanceSessionStartError = null;
+    notifyListeners();
     _pinTimer?.cancel();
-    final nextPin = (1000 + Random.secure().nextInt(9000)).toString();
-    final code = 'ORTH-301-2026-$nextPin';
-    final now = DateTime.now();
-    final expiresAt = now.add(Duration(seconds: durationSeconds));
-    final previousSession = _activeSession;
-    if (previousSession.expiresAt != null ||
-        previousSession.sessionId != 'sess-orth301') {
-      unawaited(
-        _persistAttendanceSession(
-          session: previousSession.copyWith(isActive: false, isExpired: true),
+    try {
+      final previousSession = _activeSession;
+      if (previousSession.sessionId != 'sess-orth301') {
+        final closed = previousSession.copyWith(
           isActive: false,
           isExpired: true,
-        ),
-      );
-    }
-    final enrolledStudents = _allStudents
-        .where(
-          (student) => student.role == UserRole.student && student.isApproved,
-        )
-        .map(
-          (student) => AttendanceEnrollmentSnapshot(
-            studentId: student.id,
-            department: student.department.trim().isEmpty
-                ? 'General'
-                : student.department.trim(),
-          ),
-        )
-        .toList();
+        );
+        if (!await _persistAttendanceSession(
+          session: closed,
+          isActive: false,
+          isExpired: true,
+        )) {
+          _attendanceSessionStartError = 'Could not close the previous attendance session. Check your connection and try again.';
+          return false;
+        }
+        _activeSession = closed;
+        notifyListeners();
+      }
 
-    pinCountdownNotifier.value = durationSeconds;
-    _activeSession = _activeSession.copyWith(
-      sessionId: 'attendance-${now.microsecondsSinceEpoch}',
-      rollingPin: nextPin,
-      code: code,
-      generatedAt: now,
-      expiresAt: expiresAt,
-      refreshIntervalSeconds: durationSeconds,
-      totalEnrolled: enrolledStudents.length,
-      enrollmentSnapshot: enrolledStudents,
-      isActive: true,
-      isExpired: false,
-    );
-    notifyListeners();
-
-    unawaited(
-      _persistAttendanceSession(
-        session: _activeSession,
+      final nextPin = (1000 + Random.secure().nextInt(9000)).toString();
+      final now = DateTime.now();
+      final sessionId = 'attendance-${now.microsecondsSinceEpoch}';
+      // Carry the session ID in the code itself. Older scanner builds still
+      // submit this entire string, which Firestore validates as the session code.
+      final code = 'WCU-ATTENDANCE|$sessionId|ORTH-301-2026-$nextPin';
+      final expiresAt = now.add(Duration(seconds: durationSeconds));
+      final enrolledStudents = _allStudents
+          .where(
+            (student) => student.role == UserRole.student && student.isApproved,
+          )
+          .map(
+            (student) => AttendanceEnrollmentSnapshot(
+              studentId: student.id,
+              department: student.department.trim().isEmpty
+                  ? 'General'
+                  : student.department.trim(),
+            ),
+          )
+          .toList();
+      final newSession = _activeSession.copyWith(
+        sessionId: sessionId,
+        rollingPin: nextPin,
+        code: code,
+        generatedAt: now,
+        expiresAt: expiresAt,
+        refreshIntervalSeconds: durationSeconds,
+        totalEnrolled: enrolledStudents.length,
+        enrollmentSnapshot: enrolledStudents,
+        scans: const [],
         isActive: true,
         isExpired: false,
-      ),
-    );
+      );
 
-    _pinTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (pinCountdownNotifier.value > 1) {
-        pinCountdownNotifier.value = pinCountdownNotifier.value - 1;
-      } else {
-        timer.cancel();
-        _pinTimer = null;
-        expireAttendanceWindow();
+      // Do not show a scannable QR until Firestore has the matching session.
+      if (!await _persistAttendanceSession(
+        session: newSession,
+        isActive: true,
+        isExpired: false,
+      )) {
+        _attendanceSessionStartError = 'Could not save the attendance session. Check your connection and permissions, then try again.';
+        return false;
       }
-    });
+
+      _activeSession = newSession;
+      pinCountdownNotifier.value = durationSeconds;
+      notifyListeners();
+
+      _pinTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (pinCountdownNotifier.value > 1) {
+          pinCountdownNotifier.value = pinCountdownNotifier.value - 1;
+        } else {
+          timer.cancel();
+          _pinTimer = null;
+          expireAttendanceWindow();
+        }
+      });
+      return true;
+    } finally {
+      _isStartingAttendanceWindow = false;
+      notifyListeners();
+    }
   }
 
-  /// Closes the attendance window when 30s expires or when admin clicks Stop.
+  /// Closes the attendance window when its duration expires or admin stops it.
   void expireAttendanceWindow() {
     _pinTimer?.cancel();
     _pinTimer = null;
@@ -138,7 +168,7 @@ mixin AttendanceStateMixin on ChangeNotifier {
         session: _activeSession,
         isActive: false,
         isExpired: true,
-      ),
+      ).then<void>((_) {}),
     );
   }
 
@@ -160,15 +190,19 @@ mixin AttendanceStateMixin on ChangeNotifier {
         session: _activeSession,
         isActive: false,
         isExpired: false,
-      ),
+      ).then<void>((_) {}),
     );
   }
 
-  Future<void> _persistAttendanceSession({
+  Future<bool> _persistAttendanceSession({
     required AttendanceSessionModel session,
     required bool isActive,
     required bool isExpired,
   }) async {
+    // Keep local/demo and unit-test sessions usable when Firebase was not
+    // initialized. There is no remote QR session to wait for in that mode.
+    if (!_firestoreService.isAvailable) return true;
+
     try {
       final firestore = FirebaseFirestore.instance;
       final privateRef = firestore
@@ -202,8 +236,10 @@ mixin AttendanceStateMixin on ChangeNotifier {
       }, SetOptions(merge: true));
       batch.set(statusRef, common, SetOptions(merge: true));
       await batch.commit();
+      return true;
     } catch (e) {
       debugPrint('Firestore attendance session persist error: $e');
+      return false;
     }
   }
 
@@ -304,6 +340,7 @@ mixin AttendanceStateMixin on ChangeNotifier {
   Future<bool> submitAttendanceCheckIn({
     required String enteredPinOrCode,
     required AttendanceCheckInMethod method,
+    String? sessionId,
   }) async {
     final cleanInput = enteredPinOrCode.trim().toUpperCase();
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -315,17 +352,25 @@ mixin AttendanceStateMixin on ChangeNotifier {
     // Try to find the session to write to. For QR scans, the code contains
     // the session code so we try the active session or extract session info from the QR.
     // Firestore rules will do the authoritative validation.
-    String targetSessionId = _activeSession.sessionId;
-    if (targetSessionId.isEmpty || targetSessionId == 'sess-orth301') {
+    String targetSessionId = sessionId?.trim() ?? '';
+    if (targetSessionId.isEmpty) {
       try {
         final querySnap = await FirebaseFirestore.instance
             .collection('attendance_session_status')
-            .where('isActive', isEqualTo: true)
-            .limit(1)
-            .get();
-        if (querySnap.docs.isNotEmpty) {
-          targetSessionId = querySnap.docs.first.id;
-          final data = querySnap.docs.first.data();
+            .orderBy('generatedAt', descending: true)
+            .limit(10)
+            .get(const GetOptions(source: Source.server));
+        QueryDocumentSnapshot<Map<String, dynamic>>? activeDoc;
+        for (final doc in querySnap.docs) {
+          if (doc.data()['isActive'] == true &&
+              doc.data()['isExpired'] != true) {
+            activeDoc = doc;
+            break;
+          }
+        }
+        if (activeDoc != null) {
+          targetSessionId = activeDoc.id;
+          final data = activeDoc.data();
           DateTime? exp;
           if (data['expiresAt'] is Timestamp) {
             exp = (data['expiresAt'] as Timestamp).toDate();
@@ -336,22 +381,19 @@ mixin AttendanceStateMixin on ChangeNotifier {
             isExpired: false,
             expiresAt: exp,
           );
+        } else {
+          targetSessionId = '';
         }
       } catch (e) {
         debugPrint('submitAttendanceCheckIn fallback session query: $e');
+        return false;
       }
     }
 
-    final expiresAt = _activeSession.expiresAt;
-    const graceTime = Duration(seconds: 300);
-    final isLocallyHardExpired = expiresAt != null &&
-        !expiresAt.add(graceTime).isAfter(DateTime.now());
-
-    // If the session ID is still the standby placeholder or hard-expired, bail out
-    if (targetSessionId.isEmpty ||
-        targetSessionId == 'sess-orth301' ||
-        isLocallyHardExpired) {
-      debugPrint('submitAttendanceCheckIn: No valid active session to check into. sessionId=$targetSessionId');
+    if (targetSessionId.isEmpty || targetSessionId == 'sess-orth301') {
+      debugPrint(
+        'submitAttendanceCheckIn: No valid active session to check into. sessionId=$targetSessionId',
+      );
       return false;
     }
 

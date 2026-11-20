@@ -421,6 +421,40 @@ void main() {
     },
   );
 
+  testWidgets('Student can see an unpublished family assignment preview', (
+    WidgetTester tester,
+  ) async {
+    final state = FellowshipState(isDemoMode: true);
+    state.switchRole(UserRole.admin);
+    final family = state.families.first;
+    final student = state.eligibleFamilyStudents.first;
+    await state.assignStudentToFamily(student.id, family.id);
+
+    final assignedStudent = state.eligibleFamilyStudents.firstWhere(
+      (candidate) => candidate.id == student.id,
+    );
+    state.setCurrentUser(assignedStudent);
+    final assignedFamily = state.currentStudentFamily;
+    expect(assignedFamily, isNotNull);
+    expect(state.isFamilyPublished, isFalse);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: StudentFamilyScreen(state: state)),
+      ),
+    );
+
+    expect(find.text('Unpublished Family Draft'), findsOneWidget);
+    expect(find.text(assignedFamily!.name), findsOneWidget);
+    expect(find.text(assignedFamily.spiritualFather.fullName), findsOneWidget);
+    expect(find.text(assignedFamily.spiritualMother.fullName), findsOneWidget);
+    expect(find.text('Fellowship Siblings'), findsNothing);
+    expect(find.textContaining('Join Telegram Group'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    state.dispose();
+  });
+
   test(
     'Domain tests: Liturgical Calendar, Prayer Book, Pilgrimage & Mentorship',
     () async {

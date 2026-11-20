@@ -31,6 +31,22 @@ before(async () => {
     await setDoc(doc(firestore, 'users/admin-1'), {
       role: 'admin', isApproved: true, fullName: 'Test Admin',
     });
+    await setDoc(doc(firestore, 'users/student-family-draft'), {
+      role: 'student', isApproved: true, fullName: 'Draft Student',
+      assignedFamilyId: 'family-assigned-draft',
+    });
+    await setDoc(doc(firestore, 'families/family-assigned-draft'), {
+      isPublished: false,
+      memberIds: ['another-student'],
+      spiritualFather: { id: 'father-1' },
+      spiritualMother: { id: 'mother-1' },
+    });
+    await setDoc(doc(firestore, 'families/family-unassigned-draft'), {
+      isPublished: false,
+      memberIds: ['another-student'],
+      spiritualFather: { id: 'father-2' },
+      spiritualMother: { id: 'mother-2' },
+    });
     await setDoc(doc(firestore, 'trivia_public_quizzes/quiz-1'), {
       title: 'Visible quiz', questions: [{ id: 'q1', options: ['A', 'B'] }],
     });
@@ -61,6 +77,12 @@ after(async () => {
 });
 
 describe('Firestore security boundaries for quiz and charity records', () => {
+  it('lets an approved student read only their assigned unpublished family draft', async () => {
+    const firestore = testEnv.authenticatedContext('student-family-draft').firestore();
+    await assertSucceeds(getDoc(doc(firestore, 'families/family-assigned-draft')));
+    await assertFails(getDoc(doc(firestore, 'families/family-unassigned-draft')));
+  });
+
   it('lets approved students read sanitized quizzes but not legacy keys or answer keys', async () => {
     const firestore = testEnv.authenticatedContext('student-1').firestore();
     await assertSucceeds(getDoc(doc(firestore, 'trivia_public_quizzes/quiz-1')));

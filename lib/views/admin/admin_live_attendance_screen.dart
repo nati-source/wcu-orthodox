@@ -34,6 +34,23 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
         final isExpired = session.isExpired;
         final isStandby = !session.isActive && !session.isExpired;
 
+        Future<void> startAttendanceSession() async {
+          final started = await state.startAttendanceWindow(
+            durationSeconds: 300,
+          );
+          if (!started && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  state.attendanceSessionStartError ??
+                      'Could not start attendance. Check your connection and try again.',
+                ),
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+
         return Scaffold(
           backgroundColor: theme.scaffoldBackgroundColor,
           appBar: AppBar(
@@ -409,9 +426,9 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 14),
                           ElevatedButton.icon(
-                            onPressed: () {
-                              state.startAttendanceWindow(durationSeconds: 300);
-                            },
+                            onPressed: state.isStartingAttendanceWindow
+                                ? null
+                                : startAttendanceSession,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryAccent,
                               foregroundColor: Colors.black,
@@ -419,9 +436,19 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               elevation: 4,
                             ),
-                            icon: const Icon(Icons.play_arrow_rounded, size: 24),
-                            label: const Text(
-                              'Start 5-Min QR Attendance / የ5 ደቂቃ መገኘት ጀምር',
+                            icon: state.isStartingAttendanceWindow
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.play_arrow_rounded, size: 24),
+                            label: Text(
+                              state.isStartingAttendanceWindow
+                                  ? 'Saving attendance window…'
+                                  : 'Start 5-Min QR Attendance / የ5 ደቂቃ መገኘት ጀምር',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                           ),
@@ -444,9 +471,9 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 14),
                           ElevatedButton.icon(
-                            onPressed: () {
-                              state.startAttendanceWindow(durationSeconds: 300);
-                            },
+                            onPressed: state.isStartingAttendanceWindow
+                                ? null
+                                : startAttendanceSession,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF10B981),
                               foregroundColor: Colors.white,
@@ -454,9 +481,19 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               elevation: 4,
                             ),
-                            icon: const Icon(Icons.refresh_rounded, size: 22),
-                            label: const Text(
-                              'Start New 5-Min Window / አዲስ 5 ደቂቃ ጀምር',
+                            icon: state.isStartingAttendanceWindow
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.refresh_rounded, size: 22),
+                            label: Text(
+                              state.isStartingAttendanceWindow
+                                  ? 'Saving attendance window…'
+                                  : 'Start New 5-Min Window / አዲስ 5 ደቂቃ ጀምር',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                             ),
                           ),

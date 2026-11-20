@@ -963,7 +963,11 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                     // Family Group Cards with Select-to-Swap
                     ...families.map((family) {
                       final members = state.eligibleFamilyStudents
-                          .where((student) => family.memberIds.contains(student.id))
+                          .where(
+                            (student) =>
+                                family.memberIds.contains(student.id) ||
+                                student.assignedFamilyId == family.id,
+                          )
                           .toList();
 
                       return Container(

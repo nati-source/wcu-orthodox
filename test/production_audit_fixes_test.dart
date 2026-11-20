@@ -79,11 +79,11 @@ void main() {
       expect(state.isSeedingData, isFalse);
     });
 
-    test('4. Attendance Lateness: Compares against session start timestamp and grace period', () {
+    test('4. Attendance Lateness: Compares against session start timestamp and grace period', () async {
       final state = FellowshipState();
 
       // Case A: Checked in within 5 minutes of session start -> present
-      state.startAttendanceWindow(durationSeconds: 1800);
+      await state.startAttendanceWindow(durationSeconds: 1800);
       final livePin = state.activeSession.rollingPin;
 
       final studentA = UserModel(
@@ -377,7 +377,9 @@ void main() {
       final saved3 = await state.addPilgrimRegistration(reg3);
       expect(saved3, isNotNull);
 
-      var currentTrip = state.pilgrimageTrips.firstWhere((t) => t.id == trip.id);
+      var currentTrip = state.pilgrimageTrips.firstWhere(
+        (t) => t.id == trip.id,
+      );
       expect(currentTrip.bookedSeats, 3);
       expect(currentTrip.occupiedSeats, [1, 2, 3]);
 
@@ -413,7 +415,9 @@ void main() {
       expect(currentTrip.bookedSeats, 3);
       expect(currentTrip.occupiedSeats, containsAll([1, 2, 3]));
 
-      final newReg = state.allTripRegistrations.firstWhere((r) => r.studentId == student4.id);
+      final newReg = state.allTripRegistrations.firstWhere(
+        (r) => r.studentId == student4.id,
+      );
       expect(newReg.seatNumber, 2);
     });
 
@@ -453,27 +457,43 @@ void main() {
       final isoString = testDate.toIso8601String();
 
       // CharityCampaignModel
-      final campTs = CharityCampaignModel.fromMap({'deadline': timestamp}, 'c1');
+      final campTs = CharityCampaignModel.fromMap({
+        'deadline': timestamp,
+      }, 'c1');
       expect(campTs.deadline, testDate);
-      final campStr = CharityCampaignModel.fromMap({'deadline': isoString}, 'c2');
+      final campStr = CharityCampaignModel.fromMap({
+        'deadline': isoString,
+      }, 'c2');
       expect(campStr.deadline, testDate);
 
       // EmergencyAidRequestModel
-      final aidTs = EmergencyAidRequestModel.fromMap({'submittedAt': timestamp}, 'a1');
+      final aidTs = EmergencyAidRequestModel.fromMap({
+        'submittedAt': timestamp,
+      }, 'a1');
       expect(aidTs.submittedAt, testDate);
-      final aidStr = EmergencyAidRequestModel.fromMap({'submittedAt': isoString}, 'a2');
+      final aidStr = EmergencyAidRequestModel.fromMap({
+        'submittedAt': isoString,
+      }, 'a2');
       expect(aidStr.submittedAt, testDate);
 
       // MentorshipRequestModel
-      final mentorTs = MentorshipRequestModel.fromMap({'requestedAt': timestamp}, 'm1');
+      final mentorTs = MentorshipRequestModel.fromMap({
+        'requestedAt': timestamp,
+      }, 'm1');
       expect(mentorTs.requestedAt, testDate);
-      final mentorStr = MentorshipRequestModel.fromMap({'requestedAt': isoString}, 'm2');
+      final mentorStr = MentorshipRequestModel.fromMap({
+        'requestedAt': isoString,
+      }, 'm2');
       expect(mentorStr.requestedAt, testDate);
 
       // ConfessionAppointmentModel
-      final confTs = ConfessionAppointmentModel.fromMap({'scheduledDate': timestamp}, 'cf1');
+      final confTs = ConfessionAppointmentModel.fromMap({
+        'scheduledDate': timestamp,
+      }, 'cf1');
       expect(confTs.scheduledDate, testDate);
-      final confStr = ConfessionAppointmentModel.fromMap({'scheduledDate': isoString}, 'cf2');
+      final confStr = ConfessionAppointmentModel.fromMap({
+        'scheduledDate': isoString,
+      }, 'cf2');
       expect(confStr.scheduledDate, testDate);
 
       // FundraisingProposalModel
@@ -578,4 +598,3 @@ void main() {
     });
   });
 }
-
