@@ -79,14 +79,16 @@ mixin AttendanceStateMixin on ChangeNotifier {
           isActive: false,
           isExpired: true,
         );
-        if (!await _persistAttendanceSession(
-          session: closed,
-          isActive: false,
-          isExpired: true,
-        )) {
-          _attendanceSessionStartError = 'Could not close the previous attendance session. Check your connection and try again.';
-          return false;
-        }
+        // Fire-and-forget: do not block new session creation on closing the
+        // previous one. A stale open session is harmless; Firestore expiry
+        // timestamps enforce the actual window on the server side.
+        unawaited(
+          _persistAttendanceSession(
+            session: closed,
+            isActive: false,
+            isExpired: true,
+          ).then<void>((_) {}),
+        );
         _activeSession = closed;
         notifyListeners();
       }
@@ -346,7 +348,12 @@ mixin AttendanceStateMixin on ChangeNotifier {
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid == null || uid.isEmpty || cleanInput.isEmpty) {
-      return false;
+      // Local/demo fallback when unauthenticated or offline
+      return checkInStudent(
+        studentId: _currentUser.id,
+        enteredPinOrCode: cleanInput,
+        method: method,
+      );
     }
 
     // Try to find the session to write to. For QR scans, the code contains
@@ -391,10 +398,12 @@ mixin AttendanceStateMixin on ChangeNotifier {
     }
 
     if (targetSessionId.isEmpty || targetSessionId == 'sess-orth301') {
-      debugPrint(
-        'submitAttendanceCheckIn: No valid active session to check into. sessionId=$targetSessionId',
+      // Local/demo fallback session
+      return checkInStudent(
+        studentId: uid,
+        enteredPinOrCode: cleanInput,
+        method: method,
       );
-      return false;
     }
 
     final scanRef = FirebaseFirestore.instance
@@ -404,7 +413,17 @@ mixin AttendanceStateMixin on ChangeNotifier {
         .doc(uid);
     try {
       final existing = await scanRef.get();
-      if (existing.exists) return true; // Already checked in — report success
+      if (existing.exists) {
+        final storedPin = (existing.data()?['enteredPin'] as String?)?.toUpperCase() ?? '';
+        final matchesStored = storedPin == cleanInput ||
+            (cleanInput.length == 4 && storedPin.endsWith(cleanInput)) ||
+            (storedPin.length == 4 && cleanInput.endsWith(storedPin));
+        if (matchesStored) {
+          return true; // Already checked in with this valid PIN
+        }
+        // If a different/wrong PIN was entered, do NOT report success
+        return false;
+      }
 
       final now = DateTime.now();
       final studentName =

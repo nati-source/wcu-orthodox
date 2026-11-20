@@ -184,7 +184,6 @@ service cloud.firestore {
         isCoordinatorOf('dept-membercare') ||
         isAuditCoordinator() ||
         (resource.data.memberIds is list && resource.data.memberIds.hasAny([request.auth.uid])) ||
-        (isApprovedUser() && currentUserDoc().assignedFamilyId == familyId) ||
         resource.data.spiritualFather.id == request.auth.uid ||
         resource.data.spiritualMother.id == request.auth.uid
       );

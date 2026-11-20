@@ -207,7 +207,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
           ? 'Attendance Verified! Marked Present for ${widget.state.activeSession.courseName}.'
           : (!widget.state.isAdmin && !widget.state.currentUser.isApproved)
           ? 'Your account needs approval before it can record attendance. Please contact the fellowship administrator.'
-          : 'Check-in was not recorded. Confirm this is the current attendance QR and that your phone has internet access.';
+          : 'Invalid PIN or QR code. Please confirm the 4-digit PIN with the instructor.';
     });
 
     if (success) {
@@ -285,7 +285,6 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
           session: widget.state.activeSession,
           onDismiss: () {
             Navigator.of(ctx).pop();
-            Navigator.of(context).pop();
           },
         );
       },

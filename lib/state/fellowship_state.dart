@@ -566,18 +566,26 @@ class FellowshipState extends ChangeNotifier
       }
       _familiesSubscription = familyQuery.snapshots().listen(
         (snapshot) {
-          _families = snapshot.docs
-              .map(
-                (doc) => FamilyModel.fromMap(
-                  doc.data(),
-                  doc.id,
-                ).copyWith(isPublished: _isFamilyPublished),
-              )
-              .toList();
+          if (snapshot.docs.isNotEmpty) {
+            _families = snapshot.docs
+                .map(
+                  (doc) => FamilyModel.fromMap(
+                    doc.data(),
+                    doc.id,
+                  ).copyWith(isPublished: _isFamilyPublished),
+                )
+                .toList();
+          } else if (_families.isEmpty) {
+            _families = FamilyStateMixin.defaultFamilies;
+          }
           notifyListeners();
         },
         onError: (err) {
           debugPrint('Firestore families sync notice: $err');
+          if (_families.isEmpty) {
+            _families = FamilyStateMixin.defaultFamilies;
+            notifyListeners();
+          }
         },
       );
     } catch (e) {

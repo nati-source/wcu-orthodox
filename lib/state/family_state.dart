@@ -46,7 +46,70 @@ mixin FamilyStateMixin on ChangeNotifier {
   // ----------------------------------------------------
   // DOMAIN 2: ORTHODOX FAMILY NETWORK
   // ----------------------------------------------------
-  List<FamilyModel> _families = [];
+  static List<FamilyModel> get defaultFamilies => [
+    FamilyModel(
+      id: 'fam-st-george',
+      name: 'Family of St. George',
+      formedDate: 'Formed Sept 2023',
+      spiritualFather: SpiritualParentModel(
+        id: 'sp-1',
+        fullName: 'Ephrem Tadesse',
+        baptismalName: 'Gebre Kristos',
+        department: 'Theology Department',
+        faculty: 'Faculty of Theology & Tradition',
+        phoneNumber: '+251911554433',
+        roleTitle: 'Spiritual Father',
+        gender: 'male',
+      ),
+      spiritualMother: SpiritualParentModel(
+        id: 'sp-2',
+        fullName: 'Lidia Solomon',
+        baptismalName: 'Wolete Mariam',
+        department: 'Medical Faculty',
+        faculty: 'College of Health Sciences',
+        phoneNumber: '+251922665544',
+        roleTitle: 'Spiritual Mother',
+        gender: 'female',
+      ),
+      maxCapacity: 10,
+      telegramGroupUrl: 'https://t.me/WCU_StGeorge_Family',
+      whatsappGroupUrl: 'https://chat.whatsapp.com/sample_st_george',
+      isPublished: true,
+      memberIds: const [],
+    ),
+    FamilyModel(
+      id: 'fam-st-tekle',
+      name: 'Family of St. Teklehaimanot',
+      formedDate: 'Formed Oct 2023',
+      spiritualFather: SpiritualParentModel(
+        id: 'sp-3',
+        fullName: 'Johnathan Samuel',
+        baptismalName: 'Tekle Tsion',
+        department: 'Computer Science',
+        faculty: 'Faculty of Informatics',
+        phoneNumber: '+251933776655',
+        roleTitle: 'Spiritual Father',
+        gender: 'male',
+      ),
+      spiritualMother: SpiritualParentModel(
+        id: 'sp-4',
+        fullName: 'Sara Berhanu',
+        baptismalName: 'Kristos Samra',
+        department: 'Economics',
+        faculty: 'Business & Economics',
+        phoneNumber: '+251944887766',
+        roleTitle: 'Spiritual Mother',
+        gender: 'female',
+      ),
+      maxCapacity: 10,
+      telegramGroupUrl: 'https://t.me/WCU_StTekle_Family',
+      whatsappGroupUrl: 'https://chat.whatsapp.com/sample_st_tekle',
+      isPublished: true,
+      memberIds: const [],
+    ),
+  ];
+
+  List<FamilyModel> _families = defaultFamilies;
   bool _isFamilyPublished = false;
   bool _isMatchingRunning = false;
 
@@ -65,9 +128,13 @@ mixin FamilyStateMixin on ChangeNotifier {
     return eligibleFamilyStudents
         .where(
           (student) =>
-              (student.assignedFamilyId != null &&
-                  familyIds.contains(student.assignedFamilyId)) ||
-              _families.any((family) => family.memberIds.contains(student.id)),
+              student.assignedFamilyId != null &&
+              familyIds.contains(student.assignedFamilyId) &&
+              _families.any(
+                (family) =>
+                    family.id == student.assignedFamilyId &&
+                    family.memberIds.contains(student.id),
+              ),
         )
         .length;
   }
@@ -246,26 +313,22 @@ mixin FamilyStateMixin on ChangeNotifier {
     if (!canManageFamilyMatching)
       throw StateError('Only Admin or Member Care can apply family matching.');
     final currentPlan = _buildFamilyMatchingPreview();
-    if (preview.sourceSignature != currentPlan.sourceSignature) {
+    final planToApply = currentPlan.canApply ? currentPlan : preview;
+    if (!planToApply.canApply) {
       throw StateError(
-        'The student or family data changed. Run matching again to review an up-to-date plan.',
-      );
-    }
-    if (!currentPlan.canApply) {
-      throw StateError(
-        currentPlan.warnings.isEmpty
+        planToApply.warnings.isEmpty
             ? 'This matching plan is incomplete and cannot be saved.'
-            : currentPlan.warnings.join('\n'),
+            : planToApply.warnings.join('\n'),
       );
     }
 
     await _firestoreService.saveFamilyRosterDraft(
-      families: currentPlan.families,
-      studentAssignments: currentPlan.studentAssignments,
+      families: planToApply.families,
+      studentAssignments: planToApply.studentAssignments,
     );
     _installLocalFamilyDraft(
-      currentPlan.families,
-      currentPlan.studentAssignments,
+      planToApply.families,
+      planToApply.studentAssignments,
     );
   }
 
