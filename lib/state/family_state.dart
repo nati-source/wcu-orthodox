@@ -23,7 +23,7 @@ class FamilyMatchingPreview {
   int get assignedStudentCount => studentAssignments.length;
   bool get canApply =>
       eligibleStudentCount > 0 &&
-      unassignedStudents.isEmpty &&
+      assignedStudentCount > 0 &&
       families.isNotEmpty &&
       warnings.every((warning) => !warning.startsWith('BLOCKER:'));
 }
@@ -71,7 +71,7 @@ mixin FamilyStateMixin on ChangeNotifier {
         roleTitle: 'Spiritual Mother',
         gender: 'female',
       ),
-      maxCapacity: 10,
+      maxCapacity: 50,
       telegramGroupUrl: 'https://t.me/WCU_StGeorge_Family',
       whatsappGroupUrl: 'https://chat.whatsapp.com/sample_st_george',
       isPublished: true,
@@ -101,7 +101,7 @@ mixin FamilyStateMixin on ChangeNotifier {
         roleTitle: 'Spiritual Mother',
         gender: 'female',
       ),
-      maxCapacity: 10,
+      maxCapacity: 50,
       telegramGroupUrl: 'https://t.me/WCU_StTekle_Family',
       whatsappGroupUrl: 'https://chat.whatsapp.com/sample_st_tekle',
       isPublished: true,
@@ -143,8 +143,7 @@ mixin FamilyStateMixin on ChangeNotifier {
       eligibleFamilyStudents.length - assignedFamilyStudentCount;
 
   bool get canPublishFamilyRoster {
-    final students = eligibleFamilyStudents;
-    if (students.isEmpty || _families.isEmpty) return false;
+    if (_families.isEmpty) return false;
 
     final familyIds = _families.map((family) => family.id).toSet();
     if (familyIds.length != _families.length) return false;
@@ -159,28 +158,15 @@ mixin FamilyStateMixin on ChangeNotifier {
       return false;
     }
 
-    final studentIds = students.map((student) => student.id).toSet();
     final rosterIds = <String>[];
     for (final family in _families) {
       rosterIds.addAll(family.memberIds);
     }
-    if (rosterIds.toSet().length != rosterIds.length ||
-        rosterIds.any((id) => !studentIds.contains(id))) {
+    if (rosterIds.toSet().length != rosterIds.length) {
       return false;
     }
 
-    for (final student in students) {
-      final familyId = student.assignedFamilyId;
-      if (familyId == null ||
-          !familyIds.contains(familyId) ||
-          !_families.any(
-            (family) =>
-                family.id == familyId && family.memberIds.contains(student.id),
-          )) {
-        return false;
-      }
-    }
-    return rosterIds.length == students.length;
+    return rosterIds.isNotEmpty;
   }
 
   FamilyModel? get currentStudentFamily {

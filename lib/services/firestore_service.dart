@@ -180,10 +180,14 @@ class FirestoreService {
           ));
     }
     for (final entry in studentAssignments.entries) {
-      ops.add((b) => b.update(inst.collection('users').doc(entry.key), {
-            'assignedFamilyId': entry.value,
-            'updatedAt': FieldValue.serverTimestamp(),
-          }));
+      ops.add((b) => b.set(
+            inst.collection('users').doc(entry.key),
+            {
+              'assignedFamilyId': entry.value,
+              'updatedAt': FieldValue.serverTimestamp(),
+            },
+            SetOptions(merge: true),
+          ));
     }
     ops.add((b) => b.set(
           inst.collection('app_config').doc('family_roster'),

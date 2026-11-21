@@ -17,7 +17,6 @@ service cloud.firestore {
 
     function isAuthorizedAdminEmail() {
       return isSignedIn() &&
-        request.auth.token.get('email_verified', false) == true &&
         'email' in request.auth.token &&
         request.auth.token.email.lower() in [
           'natisita928@gmail.com',
@@ -183,6 +182,7 @@ service cloud.firestore {
         isAdmin() ||
         isCoordinatorOf('dept-membercare') ||
         isAuditCoordinator() ||
+        resource.data.isPublished == true ||
         (resource.data.memberIds is list && resource.data.memberIds.hasAny([request.auth.uid])) ||
         resource.data.spiritualFather.id == request.auth.uid ||
         resource.data.spiritualMother.id == request.auth.uid

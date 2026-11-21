@@ -26,6 +26,7 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
   String? _sourceFamilyId;
   bool _isApplyingDraft = false;
   bool _isPublishing = false;
+  bool _showStudentsSection = true;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -693,6 +694,342 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
     );
   }
 
+  void _openAssignStudentDialog(UserModel student) {
+    final state = widget.state;
+    final families = state.families;
+    final theme = Theme.of(context);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Assign ${student.fullName}',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        content: SizedBox(
+          width: 360,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Department: ${student.department} • Batch: ${student.batchYear}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.textTheme.bodyMedium?.color,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Choose a target family:',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              ...families.map((family) {
+                final isCurrent = student.assignedFamilyId == family.id ||
+                    family.memberIds.contains(student.id);
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  child: ListTile(
+                    tileColor: theme.colorScheme.surfaceContainerHighest,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    leading: Icon(
+                      Icons.diversity_3,
+                      color: isCurrent
+                          ? AppTheme.emerald
+                          : theme.colorScheme.primary,
+                    ),
+                    title: Text(
+                      family.name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${family.spiritualFather.fullName.split(' ').first} & ${family.spiritualMother.fullName.split(' ').first} (${family.memberCount}/${family.maxCapacity})',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    trailing: isCurrent
+                        ? const Chip(
+                            label: Text('Current', style: TextStyle(fontSize: 10)),
+                            backgroundColor: Color(0x2610B981),
+                          )
+                        : null,
+                    onTap: () async {
+                      Navigator.pop(ctx);
+                      try {
+                        await state.assignStudentToFamily(
+                          student.id,
+                          family.id,
+                        );
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Assigned ${student.fullName} to ${family.name}.',
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Could not assign student: $e'),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStudentsRosterSection({
+    required ThemeData theme,
+    required bool isDark,
+    required Color primaryAccent,
+    required Color textCol,
+    required Color textMuted,
+    required Color cardBg,
+    required Color elevatedBg,
+    required Color borderCol,
+  }) {
+    final state = widget.state;
+    final students = state.eligibleFamilyStudents;
+    final familyMap = {for (final f in state.families) f.id: f};
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 22),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: borderCol),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with Toggle
+          InkWell(
+            onTap: () =>
+                setState(() => _showStudentsSection = !_showStudentsSection),
+            borderRadius: BorderRadius.circular(22),
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: primaryAccent.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.people_alt_outlined,
+                        color: primaryAccent, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Approved Students (${students.length})',
+                          style: TextStyle(
+                            fontFamily: 'serif',
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: textCol,
+                          ),
+                        ),
+                        Text(
+                          '${state.assignedFamilyStudentCount} assigned • ${state.unassignedFamilyStudentCount} unassigned',
+                          style: TextStyle(fontSize: 12, color: textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _showStudentsSection
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: textMuted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          if (_showStudentsSection) ...[
+            const Divider(height: 1),
+            if (students.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.person_off_outlined,
+                          size: 36, color: textMuted.withOpacity(0.5)),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No approved student accounts found.',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: textCol),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Approve student registrations from Admin Approvals to make them eligible for spiritual family matching.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 12, color: textMuted, height: 1.4),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  itemCount: students.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (context, index) {
+                    final student = students[index];
+                    final assignedFamily = student.assignedFamilyId != null
+                        ? familyMap[student.assignedFamilyId]
+                        : null;
+                    final isAssigned = assignedFamily != null;
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: elevatedBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isAssigned
+                              ? AppTheme.emerald.withOpacity(0.3)
+                              : primaryAccent.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: (isAssigned
+                                    ? AppTheme.emerald
+                                    : primaryAccent)
+                                .withOpacity(0.18),
+                            child: Text(
+                              student.fullName.isNotEmpty
+                                  ? student.fullName[0]
+                                  : 'S',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: isAssigned
+                                    ? AppTheme.emerald
+                                    : primaryAccent,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  student.fullName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: textCol,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  '${student.department} • Batch \'${student.batchYear.length > 2 ? student.batchYear.substring(2) : student.batchYear}',
+                                  style: TextStyle(
+                                      fontSize: 11, color: textMuted),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          InkWell(
+                            onTap: state.canManageFamilyMatching
+                                ? () => _openAssignStudentDialog(student)
+                                : null,
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isAssigned
+                                    ? AppTheme.emerald.withOpacity(0.15)
+                                    : AppTheme.pendingRose.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    isAssigned
+                                        ? assignedFamily.name
+                                        : 'Assign',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: isAssigned
+                                          ? AppTheme.emerald
+                                          : AppTheme.pendingRose,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.edit_note,
+                                    size: 14,
+                                    color: isAssigned
+                                        ? AppTheme.emerald
+                                        : AppTheme.pendingRose,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 6),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = widget.state;
@@ -947,7 +1284,7 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                 ],
                               )
                             : Text(
-                                'Preview Smart Matching',
+                                'Run Smart Matching',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -959,6 +1296,18 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                     ),
 
                     const SizedBox(height: 24),
+
+                    // Approved Fellowship Students Roster Overview (Visible before and after matching)
+                    _buildStudentsRosterSection(
+                      theme: theme,
+                      isDark: isDark,
+                      primaryAccent: primaryAccent,
+                      textCol: textCol,
+                      textMuted: textMuted,
+                      cardBg: cardBg,
+                      elevatedBg: elevatedBg,
+                      borderCol: borderCol,
+                    ),
 
                     // Family Group Cards with Select-to-Swap
                     ...families.map((family) {
@@ -1176,6 +1525,33 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                             ),
 
                             const SizedBox(height: 14),
+
+                            if (members.isEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                child: Center(
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.group_off_outlined,
+                                        size: 26,
+                                        color: textMuted.withOpacity(0.5),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'No students assigned to this family yet.\nTap "Run Smart Matching" above to assign students.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: textMuted,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
 
                             // List of Students with Swap Trigger Buttons & Pulse Border
                             ...members.map((student) {

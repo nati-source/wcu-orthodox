@@ -552,17 +552,13 @@ class FellowshipState extends ChangeNotifier
           parentField,
           isEqualTo: _currentUser.id,
         );
+      } else if (_isFamilyPublished) {
+        familyQuery = familyCollection;
       } else {
-        final assignedFamilyId = _currentUser.assignedFamilyId?.trim();
-        familyQuery = assignedFamilyId != null && assignedFamilyId.isNotEmpty
-            ? familyCollection.where(
-                FieldPath.documentId,
-                isEqualTo: assignedFamilyId,
-              )
-            : familyCollection.where(
-                'memberIds',
-                arrayContains: _currentUser.id,
-              );
+        familyQuery = familyCollection.where(
+          'memberIds',
+          arrayContains: _currentUser.id,
+        );
       }
       _familiesSubscription = familyQuery.snapshots().listen(
         (snapshot) {
@@ -603,7 +599,11 @@ class FellowshipState extends ChangeNotifier
               data != null && data.containsKey('isFamilyPublished')
               ? data['isFamilyPublished']
               : data?['isPublished'];
+          final previousPublished = _isFamilyPublished;
           _isFamilyPublished = snap.exists && configuredValue == true;
+          if (previousPublished != _isFamilyPublished) {
+            _listenToFamilies();
+          }
           _families = _families
               .map((family) => family.copyWith(isPublished: _isFamilyPublished))
               .toList();

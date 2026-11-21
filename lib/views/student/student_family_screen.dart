@@ -426,6 +426,54 @@ class StudentFamilyScreen extends StatelessWidget {
             ...state.currentFamilySiblings.map((sibling) {
               return _InteractiveSiblingTile(sibling: sibling, state: state);
             }),
+          ] else ...[
+            // Roster is published, but this student is not assigned yet
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: primaryAccent.withOpacity(0.5)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: primaryAccent.withOpacity(0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.diversity_3_outlined,
+                      color: primaryAccent,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Family Assignment Pending',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: 'serif',
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: primaryAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'The spiritual family roster is live. Your account has not yet been placed into a family. Please contact Member Care or an administrator to complete your spiritual family assignment.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: textMuted,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
 
           const SizedBox(height: 24),
