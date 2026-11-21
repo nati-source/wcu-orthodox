@@ -133,7 +133,8 @@ service cloud.firestore {
         request.auth.uid == userId ||
         isAdmin() ||
         isCoordinatorOf('dept-membercare') ||
-        (isSpiritualParent() &&
+        (isApprovedUser() &&
+          'assignedFamilyId' in currentUserDoc() &&
           currentUserDoc().assignedFamilyId is string &&
           resource.data.assignedFamilyId == currentUserDoc().assignedFamilyId)
       );

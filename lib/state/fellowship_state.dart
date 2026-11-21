@@ -487,9 +487,7 @@ class FellowshipState extends ChangeNotifier
       } else if (_currentUser.id.isNotEmpty) {
         final familyId = _currentUser.assignedFamilyId;
         final Query<Map<String, dynamic>> profileQuery =
-            _currentUser.role == UserRole.spiritualParent &&
-                familyId != null &&
-                familyId.isNotEmpty
+            familyId != null && familyId.isNotEmpty
             ? users.where('assignedFamilyId', isEqualTo: familyId)
             : users.where(FieldPath.documentId, isEqualTo: _currentUser.id);
         _usersSubscription = profileQuery.snapshots().listen(
@@ -504,6 +502,7 @@ class FellowshipState extends ChangeNotifier
                 _currentUser = user;
                 if (previousFamilyId != user.assignedFamilyId) {
                   _listenToFamilies();
+                  _listenToRegisteredUsers();
                 }
                 if (user.isApproved) {
                   try {
@@ -540,6 +539,8 @@ class FellowshipState extends ChangeNotifier
       final familyCollection = FirebaseFirestore.instance.collection(
         'families',
       );
+      final effectiveUid =
+          FirebaseAuth.instance.currentUser?.uid ?? _currentUser.id;
       Query<Map<String, dynamic>> familyQuery;
       if (isAdmin ||
           isCoordinatorOf(FellowshipDepartmentConstants.deptMemberCare)) {
@@ -550,14 +551,14 @@ class FellowshipState extends ChangeNotifier
             : 'spiritualFather.id';
         familyQuery = familyCollection.where(
           parentField,
-          isEqualTo: _currentUser.id,
+          isEqualTo: effectiveUid,
         );
       } else if (_isFamilyPublished) {
         familyQuery = familyCollection;
       } else {
         familyQuery = familyCollection.where(
           'memberIds',
-          arrayContains: _currentUser.id,
+          arrayContains: effectiveUid,
         );
       }
       _familiesSubscription = familyQuery.snapshots().listen(

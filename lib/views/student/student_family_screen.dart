@@ -423,9 +423,39 @@ class StudentFamilyScreen extends StatelessWidget {
             const SizedBox(height: 14),
 
             // Sibling Roster List with Contact Reveal Micro-Interaction
-            ...state.currentFamilySiblings.map((sibling) {
-              return _InteractiveSiblingTile(sibling: sibling, state: state);
-            }),
+            if (state.currentFamilySiblings.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: elevatedBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: borderCol),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.diversity_3_outlined,
+                      color: primaryAccent,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'You are the first member assigned to this family. More fellowship brothers and sisters will appear as the roster grows.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: textMuted,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              ...state.currentFamilySiblings.map((sibling) {
+                return _InteractiveSiblingTile(sibling: sibling, state: state);
+              }),
           ] else ...[
             // Roster is published, but this student is not assigned yet
             Container(
