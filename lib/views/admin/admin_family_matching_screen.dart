@@ -601,6 +601,115 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
     );
   }
 
+  Future<void> _handleRunSmartMatching() async {
+    final theme = Theme.of(context);
+    final cardBg = theme.cardTheme.color ?? theme.colorScheme.surface;
+    final primaryAccent = theme.colorScheme.primary;
+    final textCol = theme.colorScheme.onSurface;
+    final textMuted =
+        theme.textTheme.bodyMedium?.color ?? AppTheme.textSecondary;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.auto_awesome, color: primaryAccent, size: 26),
+            const SizedBox(width: 10),
+            Text(
+              'Run Smart Matching',
+              style: TextStyle(
+                fontFamily: 'serif',
+                color: textCol,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'This will automatically match approved students into Spiritual Families based on department cohorts, academic disciplines, and parent mentorship affinities.\n\nExisting manual assignments will be preserved.\n\nDo you want to proceed?',
+          style: TextStyle(color: textMuted, fontSize: 13, height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel', style: TextStyle(color: textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryAccent,
+              foregroundColor: isDark ? Colors.black : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'Run Smart Match',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.black : Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isApplyingDraft = true);
+    HapticFeedback.mediumImpact();
+    try {
+      final preview = await widget.state.previewSmartMatching();
+      debugPrint('[SMART_MATCH] Preview: canApply=${preview?.canApply}, warnings=${preview?.warnings}, assigned=${preview?.assignedStudentCount}');
+      if (preview == null || !preview.canApply) {
+        final errText = preview?.warnings.join('\n') ??
+            'Could not build a matching plan.';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errText),
+              backgroundColor: AppTheme.crimson,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      await widget.state.applySmartMatchingPreview(preview);
+      debugPrint('[SMART_MATCH] Successfully applied matching!');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Smart matching applied: ${preview.assignedStudentCount} students assigned across families.',
+            ),
+            backgroundColor: AppTheme.emerald,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (error) {
+      debugPrint('[SMART_MATCH] Error: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not run smart matching: $error'),
+            backgroundColor: AppTheme.crimson,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isApplyingDraft = false);
+    }
+  }
+
   void _showPublishConfirmation() {
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
@@ -654,10 +763,13 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                       await widget.state.publishFamilyRoster();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                              'Family roster and announcement published.',
+                              widget.state.isFamilyPublished
+                                  ? 'Family roster and announcement published.'
+                                  : 'Family roster published successfully.',
                             ),
+                            backgroundColor: AppTheme.emerald,
                           ),
                         );
                       }
@@ -682,7 +794,7 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
               ),
             ),
             child: Text(
-              'Publish roster',
+              widget.state.isFamilyPublished ? 'Re-announce' : 'Publish roster',
               style: TextStyle(
                 color: isDark ? Colors.black : Colors.white,
                 fontWeight: FontWeight.bold,
@@ -1231,26 +1343,7 @@ class _AdminFamilyMatchingScreenState extends State<AdminFamilyMatchingScreen>
                                 _isApplyingDraft ||
                                 !state.canManageFamilyMatching
                             ? null
-                            : () async {
-                                HapticFeedback.selectionClick();
-                                try {
-                                  final preview = await state
-                                      .previewSmartMatching();
-                                  if (preview != null && context.mounted) {
-                                    await _showMatchingPreview(preview);
-                                  }
-                                } catch (error) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Could not build a matching preview: $error',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
+                            : _handleRunSmartMatching,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryAccent,
                           shape: RoundedRectangleBorder(

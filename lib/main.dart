@@ -342,6 +342,7 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
           },
           home: StreamBuilder(
             stream: _authService.authStateChanges,
+            initialData: _authService.currentUser,
             builder: (context, snapshot) {
               // Splash/loading gate: wait for both SharedPreferences onboarding status
               // and initial Firebase Auth resolution to eliminate cold-start flashes.
@@ -427,10 +428,16 @@ class _WcuOrthodoxAppState extends State<WcuOrthodoxApp> {
                   );
                 }
 
-                return MainFellowshipScaffold(state: _fellowshipState);
+                return MainFellowshipScaffold(
+                  key: const ValueKey('main_fellowship_scaffold'),
+                  state: _fellowshipState,
+                );
               }
               if (_isDemoMode) {
-                return MainFellowshipScaffold(state: _fellowshipState);
+                return MainFellowshipScaffold(
+                  key: const ValueKey('main_fellowship_scaffold'),
+                  state: _fellowshipState,
+                );
               }
               if (!_hasCompletedOnboarding) {
                 return FellowshipOnboardingScreen(
@@ -509,9 +516,12 @@ class MainFellowshipScaffold extends StatefulWidget {
 }
 
 class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
-  int _studentTabIndex = 0;
-  int _adminTabIndex = 0;
-  int _coordinatorTabIndex = 0;
+  int get _studentTabIndex => widget.state.studentTabIndex;
+  set _studentTabIndex(int value) => widget.state.studentTabIndex = value;
+  int get _adminTabIndex => widget.state.adminTabIndex;
+  set _adminTabIndex(int value) => widget.state.adminTabIndex = value;
+  int get _coordinatorTabIndex => widget.state.coordinatorTabIndex;
+  set _coordinatorTabIndex(int value) => widget.state.coordinatorTabIndex = value;
 
   @override
   void initState() {
@@ -874,7 +884,11 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
 
     final theme = AppTheme.getTheme(state.currentThemePalette);
 
-    final canPopLocally = (!isAdmin && !isCoordinator) ? (_studentTabIndex == 0) : true;
+    final canPopLocally = isAdmin
+        ? (_adminTabIndex == 0)
+        : isCoordinator
+            ? (_coordinatorTabIndex == 0)
+            : (_studentTabIndex == 0);
 
     return Theme(
       data: theme,
@@ -882,7 +896,11 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
         canPop: canPopLocally,
         onPopInvokedWithResult: (didPop, result) {
           if (didPop) return;
-          if (!isAdmin && !isCoordinator && _studentTabIndex != 0) {
+          if (isAdmin && _adminTabIndex != 0) {
+            setState(() => _adminTabIndex = 0);
+          } else if (isCoordinator && _coordinatorTabIndex != 0) {
+            setState(() => _coordinatorTabIndex = 0);
+          } else if (!isAdmin && !isCoordinator && _studentTabIndex != 0) {
             setState(() => _studentTabIndex = 0);
           }
         },
@@ -1056,42 +1074,33 @@ class _MainFellowshipScaffoldState extends State<MainFellowshipScaffold> {
   // ADMIN MANAGEMENT DASHBOARD NAVIGATION & SCREENS
   // ----------------------------------------------------
   Widget _buildAdminBody() {
-    switch (_adminTabIndex) {
-      case 0:
-        return AdminDashboardScreen(
+    return IndexedStack(
+      index: _adminTabIndex.clamp(0, 4),
+      children: [
+        AdminDashboardScreen(
           state: widget.state,
           onOpenFamilyMatching: () => setState(() => _adminTabIndex = 1),
           onOpenLiveAttendance: () => setState(() => _adminTabIndex = 2),
           onOpenApprovals: () => setState(() => _adminTabIndex = 3),
-        );
-      case 1:
-        return AdminFamilyMatchingScreen(
+        ),
+        AdminFamilyMatchingScreen(
           state: widget.state,
           onBackPressed: () => setState(() => _adminTabIndex = 0),
-        );
-      case 2:
-        return AdminLiveAttendanceScreen(
+        ),
+        AdminLiveAttendanceScreen(
           state: widget.state,
           onBackPressed: () => setState(() => _adminTabIndex = 0),
-        );
-      case 3:
-        return AdminApprovalsScreen(
+        ),
+        AdminApprovalsScreen(
           state: widget.state,
           onBackPressed: () => setState(() => _adminTabIndex = 0),
-        );
-      case 4:
-        return AdminMediaCurriculumScreen(
+        ),
+        AdminMediaCurriculumScreen(
           state: widget.state,
           onBackPressed: () => setState(() => _adminTabIndex = 0),
-        );
-      default:
-        return AdminDashboardScreen(
-          state: widget.state,
-          onOpenFamilyMatching: () => setState(() => _adminTabIndex = 1),
-          onOpenLiveAttendance: () => setState(() => _adminTabIndex = 2),
-          onOpenApprovals: () => setState(() => _adminTabIndex = 3),
-        );
-    }
+        ),
+      ],
+    );
   }
 
   Widget _buildAdminBottomNav(ThemeData theme) {

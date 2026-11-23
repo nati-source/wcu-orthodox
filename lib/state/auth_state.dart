@@ -40,6 +40,33 @@ mixin AuthStateMixin on ChangeNotifier {
   // ----------------------------------------------------
   static const String _themePrefKey = 'selected_theme_palette_index';
 
+  int _adminTabIndex = 0;
+  int get adminTabIndex => _adminTabIndex;
+  set adminTabIndex(int index) {
+    if (_adminTabIndex != index) {
+      _adminTabIndex = index;
+      notifyListeners();
+    }
+  }
+
+  int _studentTabIndex = 0;
+  int get studentTabIndex => _studentTabIndex;
+  set studentTabIndex(int index) {
+    if (_studentTabIndex != index) {
+      _studentTabIndex = index;
+      notifyListeners();
+    }
+  }
+
+  int _coordinatorTabIndex = 0;
+  int get coordinatorTabIndex => _coordinatorTabIndex;
+  set coordinatorTabIndex(int index) {
+    if (_coordinatorTabIndex != index) {
+      _coordinatorTabIndex = index;
+      notifyListeners();
+    }
+  }
+
   UserRole _activeRole = UserRole.student;
   UserRole get activeRole => _activeRole;
 

@@ -150,6 +150,7 @@ class FirestoreService {
   Future<void> saveFamilyRosterDraft({
     required List<FamilyModel> families,
     required Map<String, String> studentAssignments,
+    List<String>? unassignedStudentIds,
   }) async {
     final inst = _firestoreInstance;
     if (inst == null) return; // Local/demo mode.
@@ -188,6 +189,18 @@ class FirestoreService {
             },
             SetOptions(merge: true),
           ));
+    }
+    if (unassignedStudentIds != null) {
+      for (final studentId in unassignedStudentIds) {
+        ops.add((b) => b.set(
+              inst.collection('users').doc(studentId),
+              {
+                'assignedFamilyId': null,
+                'updatedAt': FieldValue.serverTimestamp(),
+              },
+              SetOptions(merge: true),
+            ));
+      }
     }
     ops.add((b) => b.set(
           inst.collection('app_config').doc('family_roster'),

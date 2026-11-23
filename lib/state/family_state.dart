@@ -296,25 +296,27 @@ mixin FamilyStateMixin on ChangeNotifier {
   }
 
   Future<void> applySmartMatchingPreview(FamilyMatchingPreview preview) async {
-    if (!canManageFamilyMatching)
+    if (!canManageFamilyMatching) {
       throw StateError('Only Admin or Member Care can apply family matching.');
-    final currentPlan = _buildFamilyMatchingPreview();
-    final planToApply = currentPlan.canApply ? currentPlan : preview;
-    if (!planToApply.canApply) {
+    }
+    if (!preview.canApply) {
       throw StateError(
-        planToApply.warnings.isEmpty
+        preview.warnings.isEmpty
             ? 'This matching plan is incomplete and cannot be saved.'
-            : planToApply.warnings.join('\n'),
+            : preview.warnings.join('\n'),
       );
     }
 
-    await _firestoreService.saveFamilyRosterDraft(
-      families: planToApply.families,
-      studentAssignments: planToApply.studentAssignments,
-    );
     _installLocalFamilyDraft(
-      planToApply.families,
-      planToApply.studentAssignments,
+      preview.families,
+      preview.studentAssignments,
+    );
+
+    final unassignedIds = preview.unassignedStudents.map((s) => s.id).toList();
+    await _firestoreService.saveFamilyRosterDraft(
+      families: preview.families,
+      studentAssignments: preview.studentAssignments,
+      unassignedStudentIds: unassignedIds,
     );
   }
 
@@ -339,10 +341,11 @@ mixin FamilyStateMixin on ChangeNotifier {
 
     final students = studentsById.values.toList()
       ..sort((a, b) => a.id.compareTo(b.id));
-    if (students.isEmpty)
+    if (students.isEmpty) {
       warnings.add(
         'BLOCKER: There are no approved student accounts to assign.',
       );
+    }
 
     final proposedFamilies = _families
         .map(
@@ -374,19 +377,35 @@ mixin FamilyStateMixin on ChangeNotifier {
       );
     }
 
-    String normalized(String value) =>
-        value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
-    int exactDepartmentAffinity(FamilyModel family, String department) {
-      final key = normalized(department);
-      if (key.isEmpty) return 0;
-      return normalized(family.spiritualFather.department) == key ||
-              normalized(family.spiritualMother.department) == key
-          ? 1
-          : 0;
+    final familyMembers = <String, List<String>>{
+      for (final family in usableFamilies) family.id: <String>[],
+    };
+    final assignments = <String, String>{};
+    final unassigned = <UserModel>[];
+
+    // 1. Preserve valid manual assignments where family exists and has space
+    final unassignedStudents = <UserModel>[];
+    for (final student in students) {
+      final assignedFamId = student.assignedFamilyId;
+      if (assignedFamId != null &&
+          assignedFamId.isNotEmpty &&
+          usableFamilies.any((f) => f.id == assignedFamId)) {
+        final fam = usableFamilies.firstWhere((f) => f.id == assignedFamId);
+        if (familyMembers[fam.id]!.length < fam.maxCapacity) {
+          assignments[student.id] = fam.id;
+          familyMembers[fam.id]!.add(student.id);
+          continue;
+        }
+      }
+      unassignedStudents.add(student);
     }
 
+    // 2. Group unassigned students by department cohort to preserve fellowship bonds
+    String normalized(String value) =>
+        value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+
     final departmentGroups = <String, List<UserModel>>{};
-    for (final student in students) {
+    for (final student in unassignedStudents) {
       final departmentKey = normalized(student.department).isEmpty
           ? 'general'
           : normalized(student.department);
@@ -396,11 +415,6 @@ mixin FamilyStateMixin on ChangeNotifier {
       group.sort((a, b) => a.id.compareTo(b.id));
     }
 
-    final familyMembers = <String, List<String>>{
-      for (final family in usableFamilies) family.id: <String>[],
-    };
-    final assignments = <String, String>{};
-    final unassigned = <UserModel>[];
     final sortedDepartments = departmentGroups.keys.toList()..sort();
 
     for (final department in sortedDepartments) {
@@ -410,6 +424,7 @@ mixin FamilyStateMixin on ChangeNotifier {
           final used = familyMembers[family.id]!.length;
           return used < family.maxCapacity;
         }).toList();
+
         if (available.isEmpty) {
           unassigned.addAll(remaining);
           remaining.clear();
@@ -417,27 +432,32 @@ mixin FamilyStateMixin on ChangeNotifier {
         }
 
         available.sort((a, b) {
-          final affinity = exactDepartmentAffinity(
-            b,
-            department,
-          ).compareTo(exactDepartmentAffinity(a, department));
-          if (affinity != 0) return affinity;
+          final scoreB = _calculateFamilySelectionScore(
+            family: b,
+            department: department,
+            remainingGroupSize: remaining.length,
+            currentMembers: familyMembers[b.id]!,
+            allStudents: studentsById,
+          );
+          final scoreA = _calculateFamilySelectionScore(
+            family: a,
+            department: department,
+            remainingGroupSize: remaining.length,
+            currentMembers: familyMembers[a.id]!,
+            allStudents: studentsById,
+          );
+          final scoreDiff = scoreB.compareTo(scoreA);
+          if (scoreDiff != 0) return scoreDiff;
+
           final loadA = familyMembers[a.id]!.length / a.maxCapacity;
           final loadB = familyMembers[b.id]!.length / b.maxCapacity;
-          final balance = loadA.compareTo(loadB);
-          return balance != 0 ? balance : a.id.compareTo(b.id);
+          final loadDiff = loadA.compareTo(loadB);
+          if (loadDiff != 0) return loadDiff;
+
+          return a.id.compareTo(b.id);
         });
 
-        final wholeCohortFit = available
-            .where(
-              (family) =>
-                  family.maxCapacity - familyMembers[family.id]!.length >=
-                  remaining.length,
-            )
-            .toList();
-        final target = wholeCohortFit.isNotEmpty
-            ? wholeCohortFit.first
-            : available.first;
+        final target = available.first;
         final freePlaces =
             target.maxCapacity - familyMembers[target.id]!.length;
         final assignedFromGroup = remaining.take(freePlaces).toList();
@@ -466,6 +486,7 @@ mixin FamilyStateMixin on ChangeNotifier {
           ),
         )
         .toList();
+
     final signatureStudents =
         _allStudents
             .map(
@@ -497,13 +518,217 @@ mixin FamilyStateMixin on ChangeNotifier {
     );
   }
 
+  double _calculateFamilySelectionScore({
+    required FamilyModel family,
+    required String department,
+    required int remainingGroupSize,
+    required List<String> currentMembers,
+    required Map<String, UserModel> allStudents,
+  }) {
+    double score = 0.0;
+
+    // 1. Department & Academic Domain Affinity (0 to 100)
+    score += _calculateFamilyAffinity(family, department).toDouble();
+
+    // 2. Classmate Cohesion: Bonus if this family already contains students from this department
+    final deptNormalized = department.trim().toLowerCase();
+    final hasExistingClassmates = currentMembers.any((studentId) {
+      final s = allStudents[studentId];
+      if (s == null) return false;
+      return s.department.trim().toLowerCase() == deptNormalized;
+    });
+    if (hasExistingClassmates) {
+      score += 50.0;
+    }
+
+    // 3. Whole Cohort Fit: Bonus if the entire remaining group fits in this family without splitting
+    final freeSlots = family.maxCapacity - currentMembers.length;
+    if (freeSlots >= remainingGroupSize) {
+      score += 30.0;
+    }
+
+    // 4. Empty Family Balancing: Ensure no configured spiritual family is starved with 0 members
+    if (currentMembers.isEmpty) {
+      score += 45.0;
+    }
+
+    // 5. Occupancy Load Penalty (0 to 35): Discourage overburdening already full families
+    final loadRatio = currentMembers.length / family.maxCapacity;
+    score -= (loadRatio * 35.0);
+
+    return score;
+  }
+
+  static String _academicDomain(String name) {
+    final lower = name.trim().toLowerCase();
+    if (lower.isEmpty) return 'general';
+    if (lower.contains('computer') ||
+        lower.contains('software') ||
+        lower.contains('informat') ||
+        lower.contains('information') ||
+        lower.contains('it') ||
+        lower.contains('is') ||
+        lower.contains('computing') ||
+        lower.contains('data') ||
+        lower.contains('cyber')) {
+      return 'computing';
+    }
+    if (lower.contains('med') ||
+        lower.contains('nurs') ||
+        lower.contains('pharm') ||
+        lower.contains('health') ||
+        lower.contains('anesthe') ||
+        lower.contains('midwife') ||
+        lower.contains('midwifery') ||
+        lower.contains('surg') ||
+        lower.contains('laborat') ||
+        lower.contains('clinic')) {
+      return 'health';
+    }
+    if (lower.contains('engineer') ||
+        lower.contains('civil') ||
+        lower.contains('mechan') ||
+        lower.contains('electr') ||
+        lower.contains('architect') ||
+        lower.contains('construct') ||
+        lower.contains('cotm') ||
+        lower.contains('survey') ||
+        lower.contains('hydraul') ||
+        lower.contains('water') ||
+        lower.contains('technolog')) {
+      return 'engineering';
+    }
+    if (lower.contains('econ') ||
+        lower.contains('account') ||
+        lower.contains('financ') ||
+        lower.contains('manag') ||
+        lower.contains('market') ||
+        lower.contains('business') ||
+        lower.contains('admin') ||
+        lower.contains('touris') ||
+        lower.contains('hotel')) {
+      return 'business';
+    }
+    if (lower.contains('biolog') ||
+        lower.contains('chemist') ||
+        lower.contains('physic') ||
+        lower.contains('math') ||
+        lower.contains('statist') ||
+        lower.contains('geolog') ||
+        lower.contains('biotech')) {
+      return 'natural_sciences';
+    }
+    if (lower.contains('agri') ||
+        lower.contains('plant') ||
+        lower.contains('animal') ||
+        lower.contains('horticult') ||
+        lower.contains('environ') ||
+        lower.contains('forest') ||
+        lower.contains('rural') ||
+        lower.contains('soil')) {
+      return 'agriculture';
+    }
+    if (lower.contains('law') ||
+        lower.contains('psycholog') ||
+        lower.contains('sociolog') ||
+        lower.contains('educat') ||
+        lower.contains('pedagog') ||
+        lower.contains('curricul') ||
+        lower.contains('languag') ||
+        lower.contains('literat') ||
+        lower.contains('journal') ||
+        lower.contains('civic') ||
+        lower.contains('histor') ||
+        lower.contains('govern') ||
+        lower.contains('sport')) {
+      return 'social_sciences';
+    }
+    if (lower.contains('theolog') ||
+        lower.contains('apostol') ||
+        lower.contains('tradition') ||
+        lower.contains('church') ||
+        lower.contains('menfes') ||
+        lower.contains('መንፈሳዊ')) {
+      return 'theology';
+    }
+    return 'general';
+  }
+
+  int _calculateParentAffinity(SpiritualParentModel parent, String studentDept) {
+    String normalized(String value) =>
+        value.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+    final sKey = normalized(studentDept);
+    if (sKey.isEmpty) return 0;
+
+    final pDept = normalized(parent.department);
+    final pFaculty = normalized(parent.faculty);
+
+    // 1. Exact string match on department or faculty
+    if ((pDept.isNotEmpty && pDept == sKey) ||
+        (pFaculty.isNotEmpty && pFaculty == sKey)) {
+      return 100;
+    }
+
+    // 2. Substring match (e.g. 'medicine' in 'medicine & surgery')
+    if ((pDept.isNotEmpty && (pDept.contains(sKey) || sKey.contains(pDept))) ||
+        (pFaculty.isNotEmpty &&
+            (pFaculty.contains(sKey) || sKey.contains(pFaculty)))) {
+      return 80;
+    }
+
+    // 3. Academic Domain match
+    final sDomain = _academicDomain(sKey);
+    final pDeptDomain = _academicDomain(pDept);
+    final pFacultyDomain = _academicDomain(pFaculty);
+
+    if (sDomain != 'general' &&
+        (sDomain == pDeptDomain || sDomain == pFacultyDomain)) {
+      return 60;
+    }
+
+    // 4. Spiritual Parent in Theology/Ministry
+    if (pDeptDomain == 'theology' || pFacultyDomain == 'theology') {
+      return 25;
+    }
+
+    return 0;
+  }
+
+  int _calculateFamilyAffinity(FamilyModel family, String studentDept) {
+    final fatherScore =
+        _calculateParentAffinity(family.spiritualFather, studentDept);
+    final motherScore =
+        _calculateParentAffinity(family.spiritualMother, studentDept);
+    final maxScore = fatherScore > motherScore ? fatherScore : motherScore;
+    final minScore = fatherScore > motherScore ? motherScore : fatherScore;
+    return maxScore + (minScore > 0 ? (minScore ~/ 5) : 0);
+  }
+
   bool _hasValidParentPair(FamilyModel family) =>
-      family.spiritualFather.id.trim().isNotEmpty &&
       family.spiritualFather.fullName.trim().isNotEmpty &&
-      family.spiritualFather.gender.toLowerCase() == 'male' &&
-      family.spiritualMother.id.trim().isNotEmpty &&
+      !_isPlaceholderName(family.spiritualFather.fullName) &&
+      !_isPlaceholderId(family.spiritualFather.id) &&
       family.spiritualMother.fullName.trim().isNotEmpty &&
-      family.spiritualMother.gender.toLowerCase() == 'female';
+      !_isPlaceholderName(family.spiritualMother.fullName) &&
+      !_isPlaceholderId(family.spiritualMother.id);
+
+  static bool _isPlaceholderName(String name) {
+    final lower = name.trim().toLowerCase();
+    return lower.contains('spiritual father') ||
+        lower.contains('spiritual mother') ||
+        lower.contains('የመንፈስ አባት') ||
+        lower.contains('የመንፈስ እናት') ||
+        lower.contains('senior fellowship');
+  }
+
+  static bool _isPlaceholderId(String id) {
+    final lower = id.trim().toLowerCase();
+    if (lower.isEmpty) return false;
+    return lower == 'sp-father' ||
+        lower == 'sp-mother' ||
+        lower.contains('dummy') ||
+        lower.contains('placeholder');
+  }
 
   void _installLocalFamilyDraft(
     List<FamilyModel> families,
@@ -511,12 +736,13 @@ mixin FamilyStateMixin on ChangeNotifier {
   ) {
     final byId = <String, String>{...assignments};
     _allStudents = _allStudents.map((student) {
+      if (student.role != UserRole.student) return student;
       if (byId.containsKey(student.id)) {
         return student.copyWith(assignedFamilyId: byId[student.id]);
       }
-      return student;
+      return student.copyWith(assignedFamilyId: null);
     }).toList();
-    if (byId.containsKey(_currentUser.id)) {
+    if (_currentUser.role == UserRole.student) {
       _currentUser = _currentUser.copyWith(
         assignedFamilyId: byId[_currentUser.id],
       );

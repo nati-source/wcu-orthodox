@@ -2,9 +2,9 @@ name: wcu_orthodox
 description: "WCU Gibi Gubae — Official Wachemo University Ethiopian Orthodox Tewahedo Church (EOTC) Student Fellowship Management, Spiritual Family Matching, Pilgrimage & Mutual Aid Platform."
 publish_to: 'none'
 
-# Bumped to 1.3.8+12 — versionCode MUST increment on every release for Android
+# Bumped to 1.3.8+14 — versionCode MUST increment on every release for Android
 # to allow upgrading over existing installs without "uninstallable" errors.
-version: 1.3.8+12
+version: 1.3.8+14
 
 environment:
   sdk: ^3.13.1

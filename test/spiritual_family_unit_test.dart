@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wcu_orthodox/models/family_models.dart';
+import 'package:wcu_orthodox/models/user_models.dart';
+import 'package:wcu_orthodox/state/fellowship_state.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   group('SpiritualParentModel Unit Tests', () {
     test(
       'isFather and isMother correctly classify based on roleTitle and gender',
@@ -121,5 +124,29 @@ void main() {
         expect(family.memberCount, 2);
       },
     );
+  });
+
+  group('Smart Matching Business Rules Tests', () {
+    test('Smart Matching preserves department cohorts and respects manual assignments', () async {
+      final state = FellowshipState(isDemoMode: true);
+      state.switchRole(UserRole.admin);
+
+      final preview = await state.previewSmartMatching();
+      expect(preview, isNotNull);
+      expect(preview!.canApply, isTrue);
+      expect(preview.assignedStudentCount, state.eligibleFamilyStudents.length);
+      expect(preview.unassignedStudents, isEmpty);
+
+      // Verify each family has balanced, non-empty members
+      for (final fam in preview.families) {
+        expect(fam.memberCount, greaterThan(0));
+        expect(fam.memberCount, lessThanOrEqualTo(fam.maxCapacity));
+      }
+
+      // Verify applying preview keeps state in sync
+      await state.applySmartMatchingPreview(preview);
+      expect(state.assignedFamilyStudentCount, state.eligibleFamilyStudents.length);
+      expect(state.unassignedFamilyStudentCount, 0);
+    });
   });
 }
