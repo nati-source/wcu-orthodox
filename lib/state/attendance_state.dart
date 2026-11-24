@@ -339,20 +339,40 @@ mixin AttendanceStateMixin on ChangeNotifier {
 
   /// Writes an authenticated scan and lets Firestore rules validate the secret
   /// code, session expiry, and one-scan-per-student constraint.
-  Future<bool> submitAttendanceCheckIn({
+  Future<AttendanceCheckInResult> submitAttendanceCheckIn({
     required String enteredPinOrCode,
     required AttendanceCheckInMethod method,
     String? sessionId,
   }) async {
-    final cleanInput = enteredPinOrCode.trim().toUpperCase();
+    final rawTrimmed = enteredPinOrCode.trim();
+    // For QR codes containing delimiter '|', preserve exact case so sessionId matches Firestore document;
+    // for manually typed alphanumeric PINs/codes, uppercase them.
+    final cleanInput = rawTrimmed.contains('|') ? rawTrimmed : rawTrimmed.toUpperCase();
     final uid = FirebaseAuth.instance.currentUser?.uid;
 
     if (uid == null || uid.isEmpty || cleanInput.isEmpty) {
       // Local/demo fallback when unauthenticated or offline
-      return checkInStudent(
+      final ok = checkInStudent(
         studentId: _currentUser.id,
         enteredPinOrCode: cleanInput,
         method: method,
+      );
+      if (ok) {
+        return const AttendanceCheckInResult.success(
+          'Attendance recorded (demo/offline mode).',
+        );
+      } else {
+        return const AttendanceCheckInResult.failure(
+          'Check-in failed. Please verify the PIN or QR code.',
+          reason: AttendanceFailureReason.invalidCodeOrPin,
+        );
+      }
+    }
+
+    if (_currentUser.role != UserRole.admin && !_currentUser.isApproved) {
+      return const AttendanceCheckInResult.failure(
+        'Your account needs approval before it can record attendance. Please contact the fellowship administrator.',
+        reason: AttendanceFailureReason.unapprovedAccount,
       );
     }
 
@@ -360,6 +380,13 @@ mixin AttendanceStateMixin on ChangeNotifier {
     // the session code so we try the active session or extract session info from the QR.
     // Firestore rules will do the authoritative validation.
     String targetSessionId = sessionId?.trim() ?? '';
+    if (targetSessionId.isEmpty && cleanInput.startsWith('WCU-ATTENDANCE|')) {
+      final parts = cleanInput.split('|');
+      if (parts.length >= 2 && parts[1].trim().isNotEmpty) {
+        targetSessionId = parts[1].trim();
+      }
+    }
+
     if (targetSessionId.isEmpty) {
       try {
         final querySnap = await FirebaseFirestore.instance
@@ -393,17 +420,37 @@ mixin AttendanceStateMixin on ChangeNotifier {
         }
       } catch (e) {
         debugPrint('submitAttendanceCheckIn fallback session query: $e');
-        return false;
+        if (e is FirebaseException &&
+            (e.code == 'unavailable' || e.code == 'network-request-failed')) {
+          return const AttendanceCheckInResult.failure(
+            'Unable to reach server. Please check your internet connection and try again.',
+            reason: AttendanceFailureReason.networkError,
+          );
+        }
+        return const AttendanceCheckInResult.failure(
+          'Failed to verify attendance session with server.',
+          reason: AttendanceFailureReason.unknown,
+        );
       }
     }
 
     if (targetSessionId.isEmpty || targetSessionId == 'sess-orth301') {
       // Local/demo fallback session
-      return checkInStudent(
+      final ok = checkInStudent(
         studentId: uid,
         enteredPinOrCode: cleanInput,
         method: method,
       );
+      if (ok) {
+        return const AttendanceCheckInResult.success(
+          'Attendance recorded (demo session).',
+        );
+      } else {
+        return const AttendanceCheckInResult.failure(
+          'No active attendance session found. Please wait for the instructor to open a new session.',
+          reason: AttendanceFailureReason.sessionExpired,
+        );
+      }
     }
 
     final scanRef = FirebaseFirestore.instance
@@ -414,15 +461,20 @@ mixin AttendanceStateMixin on ChangeNotifier {
     try {
       final existing = await scanRef.get();
       if (existing.exists) {
-        final storedPin = (existing.data()?['enteredPin'] as String?)?.toUpperCase() ?? '';
+        final storedPin = (existing.data()?['enteredPin'] as String?)?.trim() ?? '';
         final matchesStored = storedPin == cleanInput ||
+            storedPin.toUpperCase() == cleanInput.toUpperCase() ||
             (cleanInput.length == 4 && storedPin.endsWith(cleanInput)) ||
             (storedPin.length == 4 && cleanInput.endsWith(storedPin));
         if (matchesStored) {
-          return true; // Already checked in with this valid PIN
+          return const AttendanceCheckInResult.success(
+            'Attendance already recorded for this session. (ተመዝግቧል)',
+          );
         }
-        // If a different/wrong PIN was entered, do NOT report success
-        return false;
+        return const AttendanceCheckInResult.failure(
+          'Attendance was already recorded with a different code.',
+          reason: AttendanceFailureReason.alreadyCheckedIn,
+        );
       }
 
       final now = DateTime.now();
@@ -456,10 +508,33 @@ mixin AttendanceStateMixin on ChangeNotifier {
         ],
       );
       notifyListeners();
-      return true;
+      return const AttendanceCheckInResult.success(
+        'Attendance Verified! Marked Present.',
+      );
     } catch (e) {
       debugPrint('Firestore attendance check-in rejected: $e');
-      return false;
+      if (e is FirebaseException) {
+        if (e.code == 'permission-denied') {
+          return const AttendanceCheckInResult.failure(
+            'Server rejected attendance check-in (Permission Denied). Please ensure the session is active, the QR/PIN is valid, and your account is approved.',
+            reason: AttendanceFailureReason.permissionDenied,
+          );
+        } else if (e.code == 'unavailable' || e.code == 'network-request-failed') {
+          return const AttendanceCheckInResult.failure(
+            'Network connectivity issue. Please check your data connection and retry.',
+            reason: AttendanceFailureReason.networkError,
+          );
+        } else if (e.code == 'deadline-exceeded') {
+          return const AttendanceCheckInResult.failure(
+            'Request timed out. Please try scanning again.',
+            reason: AttendanceFailureReason.networkError,
+          );
+        }
+      }
+      return AttendanceCheckInResult.failure(
+        'Attendance check-in failed: ${e.toString()}',
+        reason: AttendanceFailureReason.unknown,
+      );
     }
   }
 }

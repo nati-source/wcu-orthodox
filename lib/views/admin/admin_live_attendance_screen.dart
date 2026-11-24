@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../models/app_models.dart';
@@ -714,7 +714,7 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
               Icon(Icons.circle, color: Color(0xFF10B981), size: 10),
               SizedBox(width: 6),
               Text(
-                'LIVE 30s WINDOW ACTIVE / ክፍለ ጊዜው ክፍት ነው',
+                'LIVE 5-MIN WINDOW ACTIVE / ክፍለ ጊዜው ክፍት ነው',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
@@ -744,7 +744,7 @@ class AdminLiveAttendanceScreen extends StatelessWidget {
               Icon(Icons.lock_clock, color: Color(0xFFEF4444), size: 12),
               SizedBox(width: 6),
               Text(
-                'WINDOW EXPIRED / የ30 ሰከንድ ጊዜ አልቋል',
+                'WINDOW EXPIRED / የ5 ደቂቃ ጊዜ አልቋል',
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w800,

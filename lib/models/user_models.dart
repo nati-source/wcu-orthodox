@@ -362,6 +362,7 @@ class UserModel {
 
   bool get isMale => gender.toLowerCase() == 'male';
   bool get isFemale => gender.toLowerCase() == 'female';
+  bool get isAdmin => role == UserRole.admin;
 
   static String inferGender(String fullName, [String? baptismalName]) {
     final lowerName = fullName.toLowerCase().trim();

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -29,6 +30,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
 
   MobileScannerController? _cameraController;
   DateTime? _lastScanTime;
+  bool _isProcessing = false;
 
   bool _isSuccess = false;
   String? _statusMessage;
@@ -99,6 +101,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
   }
 
   void _handleBarcodeDetection(BarcodeCapture capture) {
+    if (_isProcessing) return;
     final now = DateTime.now();
     if (_lastScanTime != null &&
         now.difference(_lastScanTime!).inMilliseconds < 1500) {
@@ -132,138 +135,180 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     String pinOrCode,
     AttendanceCheckInMethod method,
   ) async {
-    var checkInCode = pinOrCode.trim();
-    String? qrSessionId;
-    const qrPrefix = 'WCU-ATTENDANCE|';
-    if (method == AttendanceCheckInMethod.qr &&
-        checkInCode.startsWith(qrPrefix)) {
-      final fields = checkInCode.split('|');
-      if (fields.length != 3 ||
-          fields[1].trim().isEmpty ||
-          fields[2].trim().isEmpty) {
-        setState(() {
-          _isSuccess = false;
-          _statusMessage = 'This attendance QR code is incomplete. Ask the instructor to generate a new one.';
-        });
-        HapticFeedback.heavyImpact();
-        return;
-      }
-      qrSessionId = fields[1].trim();
-      // Keep the whole QR string: Firestore compares it with the session's
-      // stored code. The embedded ID only selects the right session document.
-    }
-
-    final session = widget.state.activeSession;
-    // A QR may have been scanned before this phone's live-session listener
-    // catches up. Only apply the local clock check to the matching session;
-    // Firestore remains authoritative for the session embedded in the QR.
-    const graceSeconds = Duration(seconds: 180);
-    final isHardExpired = session.expiresAt != null &&
-        !session.expiresAt!.add(graceSeconds).isAfter(DateTime.now());
-    final qrMatchesLocalSession =
-        qrSessionId == null || qrSessionId == session.sessionId;
-    if (qrMatchesLocalSession && session.isExpired && isHardExpired) {
-      setState(() {
-        _isSuccess = false;
-        _statusMessage =
-            'Attendance window has expired or is not active yet.\nPlease wait for the admin to start the 5-minute attendance round.\n(ክፍለ ጊዜው አልቋል ወይም አልተጀመረም። እባክዎ አስተዳዳሪው የ5 ደቂቃ ዙር እስኪጀምር ይጠብቁ)';
-      });
-      HapticFeedback.heavyImpact();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.crimson,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          content: const Row(
-            children: [
-              Icon(Icons.lock_clock, color: Colors.white, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Window Expired / ጊዜው አልቋል\nPlease wait for the instructor to open a new attendance window.',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-          duration: const Duration(seconds: 4),
-        ),
-      );
-      return;
-    }
-
-    final success = await widget.state.submitAttendanceCheckIn(
-      enteredPinOrCode: checkInCode,
-      method: method,
-      sessionId: qrSessionId,
-    );
-
-    if (!mounted) return;
+    if (_isProcessing) return;
     setState(() {
-      _isSuccess = success;
-      _statusMessage = success
-          ? 'Attendance Verified! Marked Present for ${widget.state.activeSession.courseName}.'
-          : (!widget.state.isAdmin && !widget.state.currentUser.isApproved)
-          ? 'Your account needs approval before it can record attendance. Please contact the fellowship administrator.'
-          : 'Invalid PIN or QR code. Please confirm the 4-digit PIN with the instructor.';
+      _isProcessing = true;
     });
 
-    if (success) {
-      HapticFeedback.mediumImpact();
-      _showAttendanceSuccessDialog();
-    } else {
-      HapticFeedback.heavyImpact();
+    try {
+      await _cameraController?.stop();
+    } catch (_) {}
+
+    try {
+      var checkInCode = pinOrCode.trim();
+      String? qrSessionId;
+      const qrPrefix = 'WCU-ATTENDANCE|';
+      if (method == AttendanceCheckInMethod.qr &&
+          checkInCode.startsWith(qrPrefix)) {
+        final fields = checkInCode.split('|');
+        if (fields.length != 3 ||
+            fields[1].trim().isEmpty ||
+            fields[2].trim().isEmpty) {
+          setState(() {
+            _isSuccess = false;
+            _statusMessage =
+                'This attendance QR code is incomplete. Ask the instructor to generate a new one.';
+          });
+          HapticFeedback.heavyImpact();
+          return;
+        }
+        qrSessionId = fields[1].trim();
+        // Keep the whole QR string: Firestore compares it with the session's
+        // stored code. The embedded ID only selects the right session document.
+      }
+
+      final session = widget.state.activeSession;
+      // A QR may have been scanned before this phone's live-session listener
+      // catches up. Only apply the local clock check to the matching session;
+      // Firestore remains authoritative for the session embedded in the QR.
+      const graceSeconds = Duration(seconds: 180);
+      final isHardExpired = session.expiresAt != null &&
+          !session.expiresAt!.add(graceSeconds).isAfter(DateTime.now());
+      final qrMatchesLocalSession =
+          qrSessionId == null || qrSessionId == session.sessionId;
+      if (qrMatchesLocalSession && session.isExpired && isHardExpired) {
+        setState(() {
+          _isSuccess = false;
+          _statusMessage =
+              'Attendance window has expired or is not active yet.\nPlease wait for the admin to start the 5-minute attendance round.\n(ክፍለ ጊዜው አልቋል ወይም አልተጀመረም። እባክዎ አስተዳዳሪው የ5 ደቂቃ ዙር እስኪጀምር ይጠብቁ)';
+        });
+        HapticFeedback.heavyImpact();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: AppTheme.crimson,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              content: const Row(
+                children: [
+                  Icon(Icons.lock_clock, color: Colors.white, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Window Expired / ጊዜው አልቋል\nPlease wait for the instructor to open a new attendance window.',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+        return;
+      }
+
+      final result = await widget.state.submitAttendanceCheckIn(
+        enteredPinOrCode: checkInCode,
+        method: method,
+        sessionId: qrSessionId,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isSuccess = result.isSuccess;
+        _statusMessage = result.isSuccess
+            ? 'Attendance Verified! Marked Present for ${widget.state.activeSession.courseName}.'
+            : result.message;
+      });
+
+      if (result.isSuccess) {
+        HapticFeedback.mediumImpact();
+        await _showAttendanceSuccessDialog();
+      } else {
+        HapticFeedback.heavyImpact();
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+        try {
+          await _cameraController?.start();
+        } catch (_) {}
+      }
     }
   }
 
   Future<void> _verifyPilgrimPassScan(String qrTicketCode) async {
-    final cleanCode = qrTicketCode.trim().toUpperCase();
-    final allTrips = widget.state.allTripRegistrations;
-    final match = allTrips
-        .where(
-          (r) =>
-              r.qrTicketCode.trim().toUpperCase() == cleanCode ||
-              r.transactionReference.trim().toUpperCase() == cleanCode,
-        )
-        .toList();
+    if (_isProcessing) return;
+    setState(() {
+      _isProcessing = true;
+    });
 
-    if (match.isNotEmpty) {
-      final reg = match.first;
-      final success = await widget.state.scanBusBoardingTicket(
-        reg.qrTicketCode,
-      );
-      if (!mounted) return;
-      if (!success) {
+    try {
+      await _cameraController?.stop();
+    } catch (_) {}
+
+    try {
+      final cleanCode = qrTicketCode.trim().toUpperCase();
+      final allTrips = widget.state.allTripRegistrations;
+      final match = allTrips
+          .where(
+            (r) =>
+                r.qrTicketCode.trim().toUpperCase() == cleanCode ||
+                r.transactionReference.trim().toUpperCase() == cleanCode,
+          )
+          .toList();
+
+      if (match.isNotEmpty) {
+        final reg = match.first;
+        final success = await widget.state.scanBusBoardingTicket(
+          reg.qrTicketCode,
+        );
+        if (!mounted) return;
+        if (!success) {
+          setState(() {
+            _isSuccess = false;
+            _statusMessage =
+                'Ticket is unpaid, invalid, or has already been boarded.';
+          });
+          HapticFeedback.heavyImpact();
+          return;
+        }
+
+        setState(() {
+          _isSuccess = true;
+          _statusMessage =
+              'Boarding Verified: ${reg.studentName} (Bus #${reg.busNumber}, Seat #${reg.seatNumber})';
+        });
+
+        HapticFeedback.mediumImpact();
+        await _showPilgrimBoardingSuccessDialog(reg);
+      } else {
         setState(() {
           _isSuccess = false;
           _statusMessage =
-              'Ticket is unpaid, invalid, or has already been boarded.';
+              'Ticket code "$cleanCode" not found in active bus passenger manifest.';
         });
         HapticFeedback.heavyImpact();
-        return;
       }
-
-      setState(() {
-        _isSuccess = true;
-        _statusMessage =
-            'Boarding Verified: ${reg.studentName} (Bus #${reg.busNumber}, Seat #${reg.seatNumber})';
-      });
-
-      HapticFeedback.mediumImpact();
-      _showPilgrimBoardingSuccessDialog(reg);
-    } else {
-      setState(() {
-        _isSuccess = false;
-        _statusMessage =
-            'Ticket code "$cleanCode" not found in active bus passenger manifest.';
-      });
-      HapticFeedback.heavyImpact();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+        try {
+          await _cameraController?.start();
+        } catch (_) {}
+      }
     }
   }
 
   void _simulatePilgrimScan() {
+    if (!kDebugMode || !widget.state.isDemoMode) return;
     final allTrips = widget.state.allTripRegistrations;
     if (allTrips.isNotEmpty) {
       _verifyPilgrimPassScan(allTrips.first.qrTicketCode);
@@ -272,8 +317,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     }
   }
 
-  void _showAttendanceSuccessDialog() {
-    showGeneralDialog(
+  Future<void> _showAttendanceSuccessDialog() async {
+    await showGeneralDialog(
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Attendance Success',
@@ -291,13 +336,13 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
     );
   }
 
-  void _showPilgrimBoardingSuccessDialog(TripRegistrationModel reg) {
+  Future<void> _showPilgrimBoardingSuccessDialog(TripRegistrationModel reg) async {
     final theme = Theme.of(context);
     final primaryAccent = theme.colorScheme.primary;
     final textCol = theme.colorScheme.onSurface;
     final isDark = theme.brightness == Brightness.dark;
 
-    showModalBottomSheet(
+    await showModalBottomSheet(
       context: context,
       backgroundColor: theme.cardTheme.color ?? theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
@@ -791,7 +836,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                                               ),
                                             ),
                                           ),
-                                          if (_activeScannerTab == 1)
+                                          if (_activeScannerTab == 1 &&
+                                              kDebugMode &&
+                                              widget.state.isDemoMode)
                                             TextButton.icon(
                                               onPressed: _simulatePilgrimScan,
                                               icon: const Icon(
@@ -800,7 +847,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen>
                                                 color: Color(0xFF10B981),
                                               ),
                                               label: const Text(
-                                                'Simulate Scan',
+                                                'Simulate Scan (Demo)',
                                                 style: TextStyle(
                                                   color: Color(0xFF10B981),
                                                   fontSize: 11,

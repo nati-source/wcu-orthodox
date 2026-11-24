@@ -281,8 +281,11 @@ extension DeptBatchProgramsModuleExt on _CoordinatorHubScreenState {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        StudentQrScannerScreen(state: state, initialMode: 1),
+                    builder: (_) => ListenableBuilder(
+                      listenable: state,
+                      builder: (context, _) =>
+                          StudentQrScannerScreen(state: state, initialMode: 1),
+                    ),
                   ),
                 );
               },

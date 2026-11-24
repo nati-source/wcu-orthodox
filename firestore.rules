@@ -574,7 +574,9 @@ service cloud.firestore {
           request.resource.data.enteredPin is string &&
           request.resource.data.enteredPin.size() > 0 &&
           (request.resource.data.enteredPin == get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.rollingPin ||
-           request.resource.data.enteredPin == get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.code) &&
+           request.resource.data.enteredPin == get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.code ||
+           (get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.code.split('attendance-').size() == 2 &&
+            request.resource.data.enteredPin == (get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.code.split('attendance-')[0] + 'ATTENDANCE-' + get(/databases/$(database)/documents/attendance_sessions/$(sessionId)).data.code.split('attendance-')[1]))) &&
           request.resource.data.studentName is string &&
           request.resource.data.status == 'present' &&
           request.resource.data.method in ['qr', 'pin'];

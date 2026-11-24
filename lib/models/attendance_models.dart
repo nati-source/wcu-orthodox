@@ -4,6 +4,43 @@ enum AttendanceStatus { present, late, absent }
 
 enum AttendanceCheckInMethod { qr, pin }
 
+enum AttendanceFailureReason {
+  none,
+  invalidCodeOrPin,
+  sessionExpired,
+  sessionNotFound,
+  unapprovedAccount,
+  networkError,
+  permissionDenied,
+  alreadyCheckedIn,
+  unknown,
+}
+
+class AttendanceCheckInResult {
+  final bool isSuccess;
+  final String message;
+  final AttendanceFailureReason failureReason;
+
+  const AttendanceCheckInResult({
+    required this.isSuccess,
+    required this.message,
+    this.failureReason = AttendanceFailureReason.none,
+  });
+
+  const AttendanceCheckInResult.success([
+    String msg = 'Attendance recorded successfully!',
+  ])  : isSuccess = true,
+        message = msg,
+        failureReason = AttendanceFailureReason.none;
+
+  const AttendanceCheckInResult.failure(
+    String msg, {
+    AttendanceFailureReason reason = AttendanceFailureReason.invalidCodeOrPin,
+  })  : isSuccess = false,
+        message = msg,
+        failureReason = reason;
+}
+
 class AttendanceEnrollmentSnapshot {
   final String studentId;
   final String department;
